@@ -1,0 +1,6 @@
+{
+  "name": "Bopoi - Anonymous Messages & Campus Social",
+  "description": "Bopoi is the campus social platform for anonymous messaging, expressive answer sharing, and connected student life.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

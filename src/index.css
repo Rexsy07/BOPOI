@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #5420F5;
+    --primary-dark: #3510B9;
+    --primary-light: #F0EBFF;
+    --accent-yellow: #FFC928;
+    --accent-orange: #FF922E;
+    --accent-pink: #F52D85;
+    --bg-main: #FAF9FC;
+    --surface: #FFFFFF;
+    --text-primary: #191525;
+    --text-secondary: #706B7D;
+    --border-subtle: #EAE6F0;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: auto;
+  }
+
+  /* Prevent automatic iOS / mobile zooming when tapping any input or textarea */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    touch-action: manipulation;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 16px !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+.font-handwriting {
+  font-family: 'Caveat', cursive;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

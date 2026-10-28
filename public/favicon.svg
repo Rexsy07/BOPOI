@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="60" y1="40" x2="450" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6C31FF" />
+      <stop offset="40%" stop-color="#5420F5" />
+      <stop offset="85%" stop-color="#370EB8" />
+      <stop offset="100%" stop-color="#2A0894" />
+    </linearGradient>
+    <linearGradient id="rim" x1="260" y1="260" x2="470" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFBA42" />
+      <stop offset="35%" stop-color="#FF6236" />
+      <stop offset="80%" stop-color="#F5366B" />
+      <stop offset="100%" stop-color="#D91B58" />
+    </linearGradient>
+    <linearGradient id="bubble" x1="210" y1="210" x2="350" y2="390" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4515C7" />
+      <stop offset="50%" stop-color="#360EA6" />
+      <stop offset="100%" stop-color="#260882" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="124" fill="url(#bg)" />
+
+  <g>
+    <!-- Energy ticks -->
+    <rect x="162" y="28" width="32" height="76" rx="16" transform="rotate(22 178 66)" fill="#FFC928" />
+    <rect x="198" y="68" width="28" height="54" rx="14" transform="rotate(50 212 95)" fill="#FFAF12" />
+
+    <!-- 3D Sunset Rim -->
+    <path d="M 235 446 C 285 456 345 448 395 420 C 438 396 468 354 472 305 C 476 255 464 205 440 162 C 458 206 462 262 448 312 C 428 382 358 438 275 445 C 261 446 248 446 235 446 Z" fill="url(#rim)" />
+    <path d="M 270 435 C 340 438 410 396 438 335 C 452 304 456 265 445 225 C 455 265 450 310 430 348 C 395 410 330 440 270 435 Z" fill="#FF5538" opacity="0.85" />
+
+    <!-- White 'b' -->
+    <path d="M 112 40 C 142 40, 168 64, 168 96 L 168 185 C 198 152, 245 132, 298 132 C 392 132, 458 204, 458 300 C 458 396, 386 464, 286 464 C 214 464, 168 428, 150 388 L 150 398 C 150 422, 134 438, 110 438 C 86 438, 68 422, 68 398 L 68 96 C 68 64, 86 40, 112 40 Z" fill="#FFFFFF" />
+
+    <!-- Chat bubble inside 'b' -->
+    <path d="M 218 360 L 194 402 C 190 410, 198 418, 206 412 L 242 388 Z" fill="url(#bubble)" />
+    <circle cx="278" cy="312" r="94" fill="url(#bubble)" />
+
+    <!-- Smiling Eyes -->
+    <rect x="238" y="288" width="28" height="46" rx="14" transform="rotate(2 252 311)" fill="#FFFFFF" />
+    <rect x="292" y="284" width="28" height="46" rx="14" transform="rotate(-4 306 307)" fill="#FFFFFF" />
+  </g>
+</svg>
