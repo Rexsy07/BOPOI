@@ -16,6 +16,7 @@ import { LegalPoliciesModal } from './components/modals/LegalPoliciesModal.tsx';
 import { ConfirmActionModal } from './components/modals/ConfirmActionModal.tsx';
 import { BottomNavBar } from './components/navigation/BottomNavBar.tsx';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.tsx';
+import { useMobileKeyboard } from './hooks/useMobileKeyboard.ts';
 
 // Fast Lazy-Loaded Secondary Views for instant initial load and zero-jank navigation
 const HomeLandingView = lazy(() =>
@@ -135,6 +136,7 @@ const FastViewSkeleton: React.FC = () => (
 const AppContent: React.FC = () => {
   const { activeView, toasts, isAuthenticated, user } = useBopoi();
   const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
+  const { isKeyboardOpen } = useMobileKeyboard();
 
   // Ensure all pages cleanly start from the top when navigated to
   React.useEffect(() => {
@@ -211,8 +213,10 @@ const AppContent: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-[#FAF9FC] text-[#191525] antialiased selection:bg-[#5420F5] selection:text-white ${
-        !isPreAuthView && !isFullViewportChat ? 'pb-16' : ''
+      className={`${
+        isKeyboardOpen ? '' : 'min-h-dvh'
+      } flex flex-col bg-[#FAF9FC] text-[#191525] antialiased selection:bg-[#5420F5] selection:text-white ${
+        !isPreAuthView && !isFullViewportChat && !isKeyboardOpen ? 'pb-16' : 'pb-0'
       }`}
     >
       {/* Toast Notification Container with Action Badges */}
@@ -259,8 +263,8 @@ const AppContent: React.FC = () => {
       {/* Global Custom Action Confirmation Modal */}
       <ConfirmActionModal />
 
-      {/* Mobile-First 5-Tab Navigation Bar for authenticated app views */}
-      {!isPreAuthView && <BottomNavBar />}
+      {/* Mobile-First 5-Tab Navigation Bar for authenticated app views (hidden while typing on mobile keyboard) */}
+      {!isPreAuthView && !isKeyboardOpen && <BottomNavBar />}
 
       {/* Website Footer ONLY on public pre-login landing page */}
       {activeView === 'landing' && <SiteFooter />}

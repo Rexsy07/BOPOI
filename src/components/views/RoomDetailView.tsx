@@ -29,6 +29,7 @@ import {
 } from '../../utils/roomPersonas.ts';
 import { RequiredCustomPersonaModal } from '../modals/RequiredCustomPersonaModal.tsx';
 import { EditRoomIconModal } from '../modals/RoomIconStudioPicker.tsx';
+import { useMobileKeyboard } from '../../hooks/useMobileKeyboard.ts';
 
 const EMOJI_REACTIONS = ['❤️', '🔥', '😂', '💀', '👏', '🤫'];
 
@@ -57,6 +58,7 @@ export const RoomDetailView: React.FC = () => {
   } = useBopoi();
 
   const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
+  const { isKeyboardOpen, visualViewportHeight } = useMobileKeyboard();
 
   const [messageText, setMessageText] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -142,6 +144,16 @@ export const RoomDetailView: React.FC = () => {
       messagesContainerRef.current.scrollTop = 0;
     }
   }, [activeRoom?.id]);
+
+  // Keep chat composer flush with the keyboard and latest messages visible when keyboard opens
+  useEffect(() => {
+    if (!isKeyboardOpen) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [isKeyboardOpen, visualViewportHeight]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -254,8 +266,22 @@ export const RoomDetailView: React.FC = () => {
     isLoggedIn && (isCreator || !activeRoom.creatorUserId || isAdminUnlocked)
   );
 
+  const dynamicChatHeight =
+    isKeyboardOpen && visualViewportHeight
+      ? `${Math.max(200, visualViewportHeight - 64)}px`
+      : undefined;
+
   return (
-    <div className="w-full max-w-2xl mx-auto px-3 sm:px-6 pt-2 pb-[74px] flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden text-[#191525]">
+    <div
+      style={
+        dynamicChatHeight
+          ? { height: dynamicChatHeight, maxHeight: dynamicChatHeight }
+          : undefined
+      }
+      className={`w-full max-w-2xl mx-auto px-3 sm:px-6 pt-1.5 ${
+        isKeyboardOpen ? 'pb-1.5' : 'pb-[68px]'
+      } flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden text-[#191525]`}
+    >
       {/* 1. Sticky Room Header (Responsive, never overflows) */}
       <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0] shrink-0 bg-[#FAF9FC]/95 backdrop-blur-md z-20 gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">

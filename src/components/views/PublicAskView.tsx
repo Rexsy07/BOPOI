@@ -75,7 +75,7 @@ export const PublicAskView: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#FAF9FC] to-[#F0EBFF]/50 py-5 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-center overflow-x-hidden">
+    <div className="w-full sm:min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#FAF9FC] to-[#F0EBFF]/50 py-4 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-start sm:justify-center overflow-x-hidden">
       {/* Top Navigation Bar */}
       <div className="w-full max-w-md mb-4 flex items-center justify-between gap-2 bg-white/95 backdrop-blur-xs border border-[#EAE6F0] rounded-2xl px-3.5 py-2.5 shadow-2xs min-w-0 overflow-hidden">
         <button

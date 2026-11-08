@@ -81,7 +81,7 @@ export const PostDetailView: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 pb-36 space-y-4 text-[#191525]">
+    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 pb-20 space-y-4 text-[#191525]">
       {/* 1. Header (Screen 8 in Mockup) */}
       <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0] relative">
         <button

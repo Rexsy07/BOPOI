@@ -21,6 +21,7 @@ import {
 } from './MentionAutocompleteDropdown.tsx';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
+import { useMobileKeyboard } from '../../hooks/useMobileKeyboard.ts';
 
 interface SocialCommentsThreadProps {
   postId?: string;
@@ -50,6 +51,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
   } = useBopoi();
 
   const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
+  const { isKeyboardOpen, keyboardOffsetBottom } = useMobileKeyboard();
 
   // Reply state: which comment is being replied to
   const [replyingTo, setReplyingTo] = useState<{
@@ -301,7 +303,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
   };
 
   return (
-    <div className="space-y-4 pt-2 pb-24">
+    <div className="space-y-4 pt-2 pb-4">
       {/* Header with counter */}
       <div className="flex items-center justify-between border-b border-[#EAE6F0] pb-2">
         <div className="flex items-center gap-2">
@@ -604,8 +606,19 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
         </div>
       )}
 
-      {/* 4. Single Fixed Above-Nav Docked Comment Bar (Sits cleanly at bottom-[4.75rem] ABOVE BottomNavBar, never overflows) */}
-      <div className="fixed bottom-[4.75rem] inset-x-0 z-30 pointer-events-none px-3 sm:px-6 w-full max-w-full box-border">
+      {/* 4. Single Fixed Docked Comment Bar (Sits flush at bottom-0 above keyboard when typing, or above BottomNavBar when idle) */}
+      <div
+        style={
+          isKeyboardOpen
+            ? { bottom: keyboardOffsetBottom > 0 ? `${keyboardOffsetBottom}px` : '0px' }
+            : undefined
+        }
+        className={`fixed ${
+          isKeyboardOpen
+            ? 'bottom-0 bg-[#FAF9FC]/95 backdrop-blur-md py-1.5 border-t border-[#EAE6F0]'
+            : 'bottom-16 pb-1.5 pt-1'
+        } inset-x-0 z-30 pointer-events-none px-3 sm:px-6 w-full max-w-full box-border`}
+      >
         <div className="w-full max-w-2xl mx-auto pointer-events-auto space-y-1.5">
           {(bottomMentionQuery !== null || showBottomMentionPicker) && (
             <MentionAutocompleteDropdown

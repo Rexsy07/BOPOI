@@ -87,7 +87,7 @@ export const MessageDetailModal: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-6 sm:py-8 px-3.5 sm:px-6 select-none overflow-x-hidden">
+    <div className="w-full sm:min-h-[calc(100dvh-4rem)] bg-[#FAF9FC] py-4 sm:py-8 px-3.5 sm:px-6 select-none overflow-x-hidden">
       <div className="max-w-xl mx-auto space-y-5 w-full">
         {/* Top Header */}
         <div className="flex items-center justify-between gap-2">

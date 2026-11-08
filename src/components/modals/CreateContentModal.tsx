@@ -198,7 +198,7 @@ export const CreateContentModal: React.FC = () => {
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#EAE6F0] overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#EAE6F0] overflow-hidden flex flex-col max-h-[92dvh] animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

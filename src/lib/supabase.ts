@@ -1063,13 +1063,19 @@ export async function fetchSupabaseProfiles(
     const tombstones = getLocalUnfollowTombstones();
     const localEdges = getLocalFollowEdges();
     const mergedMap = new Map<string, FollowEdge>();
+    const existingUsernameSet = new Set(
+      initialProfiles.map((p) => p.username.toLowerCase())
+    );
 
     if (followRows) {
       followRows.forEach((r: any) => {
         const fId = String(r.follower_id || '');
         const tId = String(r.following_id || '');
-        const fUser = idToUsername.get(fId) || fId;
-        const tUser = idToUsername.get(tId) || tId;
+        if (!fId || !tId || fId === tId) return;
+        const fUser = idToUsername.get(fId);
+        const tUser = idToUsername.get(tId);
+        if (!fUser || !tUser) return;
+        if (fUser.toLowerCase() === tUser.toLowerCase()) return;
         const keyUser = `${fUser.toLowerCase()}->${tUser.toLowerCase()}`;
         const keyId = `${fId}->${tId}`;
         if (tombstones.has(keyUser) || tombstones.has(keyId)) return;
@@ -1083,8 +1089,15 @@ export async function fetchSupabaseProfiles(
       });
     }
 
+    const nowMs = Date.now();
     localEdges.forEach((edge) => {
-      const keyUser = `${edge.followerUsername.toLowerCase()}->${edge.followingUsername.toLowerCase()}`;
+      const fLower = (edge.followerUsername || '').toLowerCase();
+      const tLower = (edge.followingUsername || '').toLowerCase();
+      if (!fLower || !tLower || fLower === tLower) return;
+      if (!existingUsernameSet.has(fLower) || !existingUsernameSet.has(tLower)) return;
+      // When Supabase followRows succeeded, only keep very recent in-flight optimistic edges
+      if (followRows && nowMs - (edge.createdAt || 0) > 8000) return;
+      const keyUser = `${fLower}->${tLower}`;
       const keyId = `${edge.followerId}->${edge.followingId}`;
       if (tombstones.has(keyUser) || tombstones.has(keyId)) return;
       if (!mergedMap.has(keyUser)) {
@@ -1134,12 +1147,26 @@ export async function fetchSupabaseProfiles(
         (currentUserId && p.id === currentUserId) ||
         (normCurrUser && uLower === normCurrUser);
 
+      if (
+        isMe &&
+        supabase &&
+        /^[0-9a-f-]{36}$/i.test(p.id) &&
+        (p.followersCount !== edgeFollowers || p.followingCount !== edgeFollowing)
+      ) {
+        supabase
+          .from('profiles')
+          .update({
+            followers_count: edgeFollowers,
+            following_count: edgeFollowing,
+          })
+          .eq('id', p.id)
+          .then(() => {});
+      }
+
       return {
         ...p,
-        followersCount: Math.max(p.followersCount ?? 0, edgeFollowers),
-        followingCount: isMe
-          ? Math.max(edgeFollowing, myFollowingTargetKeys.size > 0 ? edgeFollowing : (p.followingCount ?? 0))
-          : Math.max(p.followingCount ?? 0, edgeFollowing),
+        followersCount: edgeFollowers,
+        followingCount: edgeFollowing,
       };
     });
 

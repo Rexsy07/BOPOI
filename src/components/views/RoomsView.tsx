@@ -248,8 +248,8 @@ export const RoomsView: React.FC = () => {
       <div className="space-y-3 pt-1">
         {filteredRooms.length === 0 ? (
           <div className="bg-white rounded-3xl p-8 text-center space-y-3 border border-[#EAE6F0]">
-            <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center mx-auto p-2">
-              <SearchEmptyIcon size={44} />
+            <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] flex items-center justify-center mx-auto">
+              <CreateRoomIcon size={38} />
             </div>
             <h3 className="text-sm font-black text-[#191525]">No rooms found</h3>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">

@@ -192,7 +192,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
           {filteredList.length === 0 ? (
             <div className="py-10 px-4 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] flex items-center justify-center mx-auto">
-                <SearchEmptyIcon size={34} />
+                <RealPeopleIcon size={34} />
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-black text-[#191525]">

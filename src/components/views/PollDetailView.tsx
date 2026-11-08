@@ -63,7 +63,7 @@ export const PollDetailView: React.FC = () => {
   const hasVoted = Boolean(post.userVotedOptionId);
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 py-5 pb-36 space-y-5 animate-fade-in overflow-x-clip">
+    <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 py-5 pb-20 space-y-5 animate-fade-in overflow-x-clip">
       {/* Top Bar */}
       <div className="flex items-center justify-between gap-2">
         <button

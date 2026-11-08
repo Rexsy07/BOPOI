@@ -105,7 +105,7 @@ export const CreateRoomModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92dvh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EAE6F0] bg-white sticky top-0 z-10 shrink-0">
           <div className="flex items-center gap-2.5">

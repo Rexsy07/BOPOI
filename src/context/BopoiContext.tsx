@@ -3839,45 +3839,9 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         if (found && found.username.toLowerCase() !== resolvedUsernameLower) {
           resultsMap.set(found.username.toLowerCase(), found);
-        } else if (tKey && tKey !== resolvedUsernameLower) {
-          resultsMap.set(tKey, {
-            id: e.followingId || `usr_${tKey}`,
-            name: e.followingUsername,
-            username: e.followingUsername,
-            avatarUrl: serializeCharacterConfig(generateDeterministicCharacter(tKey)),
-            campus: 'Chrisland University',
-            bio: 'Campus student on Bopoi',
-            followersCount: 1,
-            followingCount: 0,
-            isFollowing: isTargetMe ? true : isFollowingUser(tKey),
-          });
         }
       }
     });
-
-    if (isTargetMe) {
-      creators.forEach((c) => {
-        const cLower = c.username.toLowerCase();
-        if (
-          c.isFollowing &&
-          cLower !== resolvedUsernameLower &&
-          !tombstones.has(`${resolvedUsernameLower}->${cLower}`)
-        ) {
-          const d = dir.get(cLower) || c;
-          resultsMap.set(cLower, { ...d, isFollowing: true });
-        }
-      });
-    } else if (resultsMap.size === 0 && (targetProfile?.followingCount || 0) > 0) {
-      // Backfill deterministic campus peers when viewing another student who has a stored followingCount
-      const needed = Math.min(targetProfile?.followingCount || 0, 12);
-      const candidates = Array.from(dir.values()).filter(
-        (p) => p.username.toLowerCase() !== resolvedUsernameLower
-      );
-      for (let i = 0; i < candidates.length && resultsMap.size < needed; i++) {
-        const cand = candidates[i];
-        resultsMap.set(cand.username.toLowerCase(), cand);
-      }
-    }
 
     return Array.from(resultsMap.values());
   };
@@ -3887,6 +3851,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const rawTarget = (usernameOrId || user.username || '').replace(/^@/, '').trim();
     const targetLower = rawTarget.toLowerCase();
     const myUsernameLower = (user.username || '').toLowerCase();
+    const tombstones = getLocalUnfollowTombstones();
 
     let targetProfile = dir.get(targetLower);
     if (!targetProfile) {
@@ -3916,6 +3881,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const tId = (e.followingId || '').toLowerCase();
       if (tUser === resolvedUsernameLower || (resolvedIdLower && tId === resolvedIdLower)) {
         const fKey = e.followerUsername.toLowerCase();
+        if (tombstones.has(`${fKey}->${resolvedUsernameLower}`)) return;
         let found = dir.get(fKey);
         if (!found && e.followerId) {
           for (const p of dir.values()) {
@@ -3927,38 +3893,9 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         if (found && found.username.toLowerCase() !== resolvedUsernameLower) {
           resultsMap.set(found.username.toLowerCase(), found);
-        } else if (fKey && fKey !== resolvedUsernameLower) {
-          resultsMap.set(fKey, {
-            id: e.followerId || `usr_${fKey}`,
-            name: e.followerUsername,
-            username: e.followerUsername,
-            avatarUrl: serializeCharacterConfig(generateDeterministicCharacter(fKey)),
-            campus: 'Chrisland University',
-            bio: 'Campus student on Bopoi',
-            followersCount: 0,
-            followingCount: 1,
-            isFollowing: isFollowingUser(fKey),
-          });
         }
       }
     });
-
-    // If the profile has a stored followersCount higher than explicit rows in user_follows, populate deterministic campus followers so count & list match
-    const storedCount = isTargetMe
-      ? user.followersCount ?? targetProfile?.followersCount ?? 0
-      : targetProfile?.followersCount ?? 0;
-
-    if (storedCount > resultsMap.size) {
-      const candidates = Array.from(dir.values()).filter(
-        (p) =>
-          p.username.toLowerCase() !== resolvedUsernameLower &&
-          !resultsMap.has(p.username.toLowerCase())
-      );
-      for (let i = 0; i < candidates.length && resultsMap.size < storedCount; i++) {
-        const cand = candidates[i];
-        resultsMap.set(cand.username.toLowerCase(), cand);
-      }
-    }
 
     return Array.from(resultsMap.values());
   };
@@ -3967,12 +3904,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!isAuthenticated || !user.username || user.username === 'student') return;
     const liveFollowingCount = getFollowingForUser(user.username).length;
-    const explicitFollowersCount = followEdges.filter(
-      (e) =>
-        e.followingUsername.toLowerCase() === user.username.toLowerCase() ||
-        (user.id && e.followingId === user.id)
-    ).length;
-    const nextFollowersCount = Math.max(user.followersCount ?? 0, explicitFollowersCount);
+    const nextFollowersCount = getFollowersForUser(user.username).length;
 
     if (
       user.followingCount !== liveFollowingCount ||
@@ -3995,7 +3927,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         )
       );
     }
-  }, [followEdges, creators, isAuthenticated, user.username, user.id]);
+  }, [followEdges, creators, accounts, isAuthenticated, user.username, user.id]);
 
   const toggleFollowCreator = (creatorIdOrUsername: string) => {
     if (!requireAuth('follow students')) return;
