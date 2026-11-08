@@ -24,7 +24,8 @@ ALTER TABLE public.social_posts
 
 ALTER TABLE public.community_rooms
   ADD COLUMN IF NOT EXISTS is_locked boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE public.moderation_reports
   ADD COLUMN IF NOT EXISTS reporter_username text,
@@ -283,6 +284,38 @@ CREATE POLICY "Participants can view message comments" ON public.message_comment
   )
 );
 
+DROP POLICY IF EXISTS "Authenticated users can create rooms" ON public.community_rooms;
+DROP POLICY IF EXISTS "Authenticated users can create community rooms" ON public.community_rooms;
+CREATE POLICY "Authenticated users can create community rooms"
+  ON public.community_rooms FOR INSERT
+  WITH CHECK (creator_user_id IS NULL OR auth.uid() = creator_user_id);
+
+DROP POLICY IF EXISTS "Users can update room icons and metadata" ON public.community_rooms;
+DROP POLICY IF EXISTS "Creators can update community rooms" ON public.community_rooms;
+CREATE POLICY "Users can update room icons and metadata"
+  ON public.community_rooms FOR UPDATE
+  USING (creator_user_id IS NULL OR auth.uid() = creator_user_id OR public.is_admin())
+  WITH CHECK (creator_user_id IS NULL OR auth.uid() = creator_user_id OR public.is_admin());
+
+-- Atomic RPC for updating room profile icon (gallery image / badge)
+CREATE OR REPLACE FUNCTION public.update_community_room_icon(
+  p_room_id uuid,
+  p_icon_emoji text,
+  p_icon_bg text DEFAULT '#5420F5'
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.community_rooms
+  SET icon_emoji = p_icon_emoji,
+      icon_bg = COALESCE(NULLIF(TRIM(p_icon_bg), ''), icon_bg)
+  WHERE id = p_room_id;
+  RETURN FOUND;
+END;
+$$;
+
 -- 7. REMOVE LEGACY PASSKEY SELF-ELEVATION FUNCTION (STRICT DATABASE-ONLY ADMIN)
 DROP FUNCTION IF EXISTS public.admin_unlock_with_passkey(text);
 
@@ -294,4 +327,5 @@ CREATE INDEX IF NOT EXISTS idx_room_messages_room_created ON public.room_message
 CREATE INDEX IF NOT EXISTS idx_anonymous_messages_recipient_created ON public.anonymous_messages (recipient_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread ON public.notifications (recipient_user_id, is_read, created_at DESC);
 `;
+
 

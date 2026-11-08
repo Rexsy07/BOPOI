@@ -260,6 +260,59 @@ async function startServer() {
     });
   });
 
+  // ==========================================================================
+  // 6. ROOM PROFILE ICON DATABASE SYNC ENDPOINT
+  // ==========================================================================
+  app.post('/api/rooms/sync-icon', async (req, res) => {
+    try {
+      const { roomId, roomName, iconEmoji, iconBg } = req.body || {};
+      if (!iconEmoji) {
+        res.status(400).json({ ok: false, error: 'iconEmoji is required' });
+        return;
+      }
+      const sb = getServerSupabase();
+      if (!sb) {
+        res.json({ ok: true, persisted: false });
+        return;
+      }
+
+      let persisted = false;
+      const isUuid = Boolean(roomId && /^[0-9a-f-]{36}$/i.test(String(roomId)));
+
+      if (isUuid) {
+        const { data: rows, error } = await sb
+          .from('community_rooms')
+          .update({
+            icon_emoji: String(iconEmoji),
+            icon_bg: String(iconBg || '#5420F5'),
+          })
+          .eq('id', String(roomId))
+          .select('id');
+        if (!error && Array.isArray(rows) && rows.length > 0) {
+          persisted = true;
+        }
+      }
+
+      if (!persisted && roomName && String(roomName).trim()) {
+        const { data: byNameRows, error: byNameErr } = await sb
+          .from('community_rooms')
+          .update({
+            icon_emoji: String(iconEmoji),
+            icon_bg: String(iconBg || '#5420F5'),
+          })
+          .ilike('name', String(roomName).trim())
+          .select('id');
+        if (!byNameErr && Array.isArray(byNameRows) && byNameRows.length > 0) {
+          persisted = true;
+        }
+      }
+
+      res.json({ ok: true, persisted });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Room icon sync failed' });
+    }
+  });
+
   // Mount Vite dev server middleware or static production build
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

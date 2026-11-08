@@ -17,7 +17,7 @@ import {
   Lock,
   RefreshCw,
   Wifi,
-  Palette,
+  ImagePlus,
 } from 'lucide-react';
 import { PersonaMaskIcon } from '../brand/masks/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
@@ -246,8 +246,13 @@ export const RoomDetailView: React.FC = () => {
     }
   };
 
-  const isCreator = Boolean(user.id && activeRoom.creatorUserId === user.id);
-  const canEditRoomIcon = Boolean(isCreator || isAdminUnlocked);
+  const isCreator = Boolean(
+    (user.id && activeRoom.creatorUserId === user.id) ||
+      (user.displayName && activeRoom.creatorName === user.displayName)
+  );
+  const canEditRoomIcon = Boolean(
+    isLoggedIn && (isCreator || !activeRoom.creatorUserId || isAdminUnlocked)
+  );
 
   return (
     <div className="w-full max-w-2xl mx-auto px-3 sm:px-6 pt-2 pb-[74px] flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden text-[#191525]">
@@ -266,7 +271,7 @@ export const RoomDetailView: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowEditIconModal(true)}
-              title="Customize Room Icon"
+              title="Upload Room Profile Icon"
               className="relative group cursor-pointer shrink-0 rounded-2xl focus:outline-none"
             >
               <RoomBadgeIcon
@@ -277,8 +282,8 @@ export const RoomDetailView: React.FC = () => {
                 size="sm"
                 className="group-hover:scale-105 transition-transform"
               />
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#191525] text-white flex items-center justify-center shadow-xs border border-white">
-                <Palette className="w-2.5 h-2.5" />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#5420F5] text-white flex items-center justify-center shadow-xs border border-white">
+                <ImagePlus className="w-2.5 h-2.5" />
               </span>
             </button>
           ) : (
@@ -430,8 +435,8 @@ export const RoomDetailView: React.FC = () => {
                   onClick={() => setShowEditIconModal(true)}
                   className="text-[#5420F5] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  <Palette className="w-3 h-3" />
-                  <span>Customize Icon</span>
+                  <ImagePlus className="w-3 h-3" />
+                  <span>Upload Room Icon</span>
                 </button>
               )}
               {isCreator && (

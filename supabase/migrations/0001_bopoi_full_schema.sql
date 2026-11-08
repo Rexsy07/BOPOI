@@ -244,7 +244,8 @@ create table if not exists public.community_rooms (
   is_custom_room boolean not null default false,
   is_anonymous_only boolean not null default true,
   tags text[] not null default '{}',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.room_memberships (
@@ -823,7 +824,10 @@ create policy "Authenticated users can like answers"
 create policy "Community rooms are viewable by everyone"
   on public.community_rooms for select using (true);
 create policy "Authenticated users can create rooms"
-  on public.community_rooms for insert with check (auth.uid() = creator_user_id);
+  on public.community_rooms for insert with check (creator_user_id is null or auth.uid() = creator_user_id);
+create policy "Users can update room icons and metadata"
+  on public.community_rooms for update using (creator_user_id is null or auth.uid() = creator_user_id)
+  with check (creator_user_id is null or auth.uid() = creator_user_id);
 create policy "Room creators can delete their own rooms"
   on public.community_rooms for delete using (auth.uid() = creator_user_id);
 
@@ -895,7 +899,12 @@ on conflict (id) do nothing;
 create policy "Avatar images are publicly accessible"
   on storage.objects for select using (bucket_id in ('avatars', 'share-cards'));
 
-create policy "Authenticated users can upload avatars and share cards"
+create policy "Users can upload avatars, room icons, and share cards"
   on storage.objects for insert with check (
-    bucket_id in ('avatars', 'share-cards') and auth.role() = 'authenticated'
+    bucket_id in ('avatars', 'share-cards')
+  );
+
+create policy "Users can update avatars, room icons, and share cards"
+  on storage.objects for update using (
+    bucket_id in ('avatars', 'share-cards')
   );

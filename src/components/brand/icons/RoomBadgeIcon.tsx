@@ -400,8 +400,21 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
     boxShadowStyle = `0 0 0 2px #FFFFFF, 0 0 0 4px ${primaryHex}85, 0 6px 14px ${primaryHex}35`;
   }
 
+  const isImageMode = config.mode === 'image' && Boolean(config.value);
+
   // Render Foreground Content
   const renderForeground = () => {
+    if (isImageMode) {
+      return (
+        <img
+          src={config.value}
+          alt={roomName ? `#${roomName} icon` : 'Room icon'}
+          className="w-full h-full object-cover select-none pointer-events-none"
+          draggable={false}
+        />
+      );
+    }
+
     if (config.mode === 'monogram') {
       const chars = (config.value || 'RM').slice(0, 3).toUpperCase();
       return (
@@ -445,25 +458,30 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
         style={{
           width: dims.box,
           height: dims.box,
-          background: backgroundStyle,
+          background: isImageMode ? '#191525' : backgroundStyle,
           clipPath: clipPathStyle,
           boxShadow: clipPathStyle ? undefined : boxShadowStyle,
           borderColor: isLightBackground ? `${primaryHex}45` : 'rgba(255,255,255,0.28)',
         }}
-        className={`w-full h-full flex items-center justify-center transition-transform duration-200 ${shapeClass} ${
+        className={`w-full h-full flex items-center justify-center overflow-hidden transition-transform duration-200 ${shapeClass} ${
           clipPathStyle ? '' : 'border-2'
         }`}
       >
-        {/* Subtle inner specular highlight when using dark/vibrant fills */}
-        {!isLightBackground && !clipPathStyle && (
+        {/* Subtle inner specular highlight when using dark/vibrant fills or uploaded photo */}
+        {(!isLightBackground || isImageMode) && !clipPathStyle && (
           <div
-            className={`absolute inset-0 pointer-events-none ${shapeClass} ring-1 ring-inset ring-white/25`}
+            className={`absolute inset-0 z-20 pointer-events-none ${shapeClass} ring-1 ring-inset ring-white/25`}
           />
         )}
-        <div className="relative z-10 flex items-center justify-center">
+        <div
+          className={`relative z-10 flex items-center justify-center ${
+            isImageMode ? 'w-full h-full' : ''
+          }`}
+        >
           {renderForeground()}
         </div>
       </div>
     </div>
   );
 };
+

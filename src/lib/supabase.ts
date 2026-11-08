@@ -235,11 +235,197 @@ export function getAdminRoomOverrides(): Record<string, Partial<CommunityRoom>> 
   return readJsonMap<Partial<CommunityRoom>>(ADMIN_ROOM_OVERRIDES_KEY);
 }
 
-export function saveAdminRoomOverride(roomId: string, patch: Partial<CommunityRoom>): void {
+export function saveAdminRoomOverride(
+  roomId: string,
+  patch: Partial<CommunityRoom>,
+  roomName?: string
+): void {
   if (!roomId) return;
   const map = getAdminRoomOverrides();
   map[roomId] = { ...(map[roomId] || {}), ...patch };
+  const cleanName = (roomName || patch.name || '').trim().toLowerCase();
+  if (cleanName) {
+    const nameKey = `name:${cleanName}`;
+    map[nameKey] = { ...(map[nameKey] || {}), ...patch };
+  }
   writeJsonMap(ADMIN_ROOM_OVERRIDES_KEY, map);
+}
+
+/**
+ * Uploads a base64 room icon (`img:data:image/...` or `data:image/...`) to Supabase Storage
+ * (`avatars` bucket under `room-icons/`) if possible, returning `img:<publicUrl>`.
+ * Gracefully falls back to the compact data URL if Storage is unavailable or blocked by RLS.
+ */
+export async function uploadRoomIconToSupabaseStorage(
+  iconEmoji: string,
+  roomKey?: string
+): Promise<string> {
+  const raw = (iconEmoji || '').trim();
+  const cleanUrl = raw.startsWith('img:') ? raw.slice(4) : raw;
+  if (!cleanUrl.startsWith('data:image/')) {
+    return raw;
+  }
+  if (!supabase) {
+    return raw.startsWith('img:') ? raw : `img:${raw}`;
+  }
+
+  try {
+    const parts = cleanUrl.split(',');
+    if (parts.length < 2) return raw.startsWith('img:') ? raw : `img:${raw}`;
+    const meta = parts[0];
+    const base64 = parts[1];
+    const mimeMatch = meta.match(/data:(image\/[a-zA-Z0-9+.-]+);base64/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/webp';
+    const ext = mimeType.includes('png')
+      ? 'png'
+      : mimeType.includes('jpeg') || mimeType.includes('jpg')
+      ? 'jpg'
+      : 'webp';
+
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+
+    const safeRoomKey = (roomKey || 'room')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 36);
+    const filePath = `room-icons/${safeRoomKey}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, blob, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (!uploadErr) {
+      const { data: pubData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      if (pubData?.publicUrl) {
+        return `img:${pubData.publicUrl}`;
+      }
+    }
+  } catch {
+    // Fallback to compact data URL below
+  }
+
+  return raw.startsWith('img:') ? raw : `img:${raw}`;
+}
+
+/**
+ * Reliably persists a room's profile icon (`icon_emoji` & `icon_bg`) to Supabase `public.community_rooms`
+ * using RPC -> direct table update by ID -> direct table update by room name -> server fallback.
+ */
+export async function persistRoomIconToDatabase(params: {
+  roomId: string;
+  roomName?: string;
+  iconEmoji: string;
+  iconBg: string;
+}): Promise<{ finalIconEmoji: string; persistedToDb: boolean }> {
+  const finalIconEmoji = await uploadRoomIconToSupabaseStorage(
+    params.iconEmoji,
+    params.roomId
+  );
+
+  saveAdminRoomOverride(
+    params.roomId,
+    { iconEmoji: finalIconEmoji, iconBg: params.iconBg },
+    params.roomName
+  );
+
+  let persistedToDb = false;
+  const isUuid = /^[0-9a-f-]{36}$/i.test(params.roomId);
+
+  if (supabase) {
+    // 1. Try SECURITY DEFINER RPC first if available
+    if (isUuid) {
+      try {
+        const { data: rpcOk, error: rpcErr } = await supabase.rpc(
+          'update_community_room_icon',
+          {
+            p_room_id: params.roomId,
+            p_icon_emoji: finalIconEmoji,
+            p_icon_bg: params.iconBg,
+          }
+        );
+        if (!rpcErr && rpcOk !== false) {
+          persistedToDb = true;
+        }
+      } catch {
+        // RPC may not be installed yet; continue to direct update
+      }
+    }
+
+    // 2. Direct update on public.community_rooms by UUID (no updated_at column!)
+    if (!persistedToDb && isUuid) {
+      try {
+        const { data: updatedRows, error: updateErr } = await supabase
+          .from('community_rooms')
+          .update({
+            icon_emoji: finalIconEmoji,
+            icon_bg: params.iconBg,
+          })
+          .eq('id', params.roomId)
+          .select('id');
+
+        if (!updateErr && Array.isArray(updatedRows) && updatedRows.length > 0) {
+          persistedToDb = true;
+        }
+      } catch {
+        // continue
+      }
+    }
+
+    // 3. Fallback: match by room name if roomId was temporary or 0 rows matched by ID
+    if (!persistedToDb && params.roomName?.trim()) {
+      try {
+        const { data: byNameRows, error: byNameErr } = await supabase
+          .from('community_rooms')
+          .update({
+            icon_emoji: finalIconEmoji,
+            icon_bg: params.iconBg,
+          })
+          .ilike('name', params.roomName.trim())
+          .select('id');
+
+        if (!byNameErr && Array.isArray(byNameRows) && byNameRows.length > 0) {
+          persistedToDb = true;
+        }
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // 4. Server-side fallback route (uses SUPABASE_SERVICE_ROLE_KEY when configured)
+  if (!persistedToDb && typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/rooms/sync-icon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: params.roomId,
+          roomName: params.roomName,
+          iconEmoji: finalIconEmoji,
+          iconBg: params.iconBg,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.persisted) {
+          persistedToDb = true;
+        }
+      }
+    } catch {
+      // ignore network error
+    }
+  }
+
+  return { finalIconEmoji, persistedToDb };
 }
 
 export function markAdminDeletedRoom(roomId: string): void {
@@ -529,7 +715,29 @@ export async function fetchSupabaseRooms(currentUserId?: string): Promise<Commun
               (row.creator_user_id === currentUserId || Boolean(personasMap[currentUserId]))
           );
 
-        const rOverride = roomOverrides[row.id] || {};
+        const normNameKey = row.name ? `name:${String(row.name).trim().toLowerCase()}` : '';
+        const rOverride = {
+          ...(normNameKey ? roomOverrides[normNameKey] || {} : {}),
+          ...(roomOverrides[row.id] || {}),
+        };
+
+        const dbHasUploadedImg =
+          typeof row.icon_emoji === 'string' &&
+          (row.icon_emoji.startsWith('img:') ||
+            row.icon_emoji.startsWith('data:image/') ||
+            row.icon_emoji.startsWith('http://') ||
+            row.icon_emoji.startsWith('https://'));
+        const overrideHasUploadedImg =
+          typeof rOverride.iconEmoji === 'string' &&
+          (rOverride.iconEmoji.startsWith('img:') ||
+            rOverride.iconEmoji.startsWith('data:image/') ||
+            rOverride.iconEmoji.startsWith('http://') ||
+            rOverride.iconEmoji.startsWith('https://'));
+
+        const resolvedIconEmoji =
+          dbHasUploadedImg && !overrideHasUploadedImg
+            ? row.icon_emoji
+            : rOverride.iconEmoji ?? (row.icon_emoji || '💬');
 
         return {
           id: row.id,
@@ -539,7 +747,7 @@ export async function fetchSupabaseRooms(currentUserId?: string): Promise<Commun
           membersCount: exactMembersCount,
           onlineCount: exactOnlineCount,
           isJoined: isUserJoined,
-          iconEmoji: rOverride.iconEmoji ?? (row.icon_emoji || '💬'),
+          iconEmoji: resolvedIconEmoji,
           iconBg: rOverride.iconBg ?? (row.icon_bg || '#5420F5'),
           messages: mappedMsgs,
           creatorUserId: row.creator_user_id || undefined,

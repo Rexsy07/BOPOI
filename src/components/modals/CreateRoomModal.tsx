@@ -100,9 +100,10 @@ export const CreateRoomModal: React.FC = () => {
     setName(tmpl.name);
     setDescription(tmpl.description);
     setCategory(tmpl.category);
-    setIconEmoji(tmpl.iconEmoji);
-    setIconBg(tmpl.iconBg);
-    setHasCustomizedIcon(true);
+    if (!iconEmoji.startsWith('img:')) {
+      setIconEmoji(tmpl.iconEmoji);
+      setIconBg(tmpl.iconBg);
+    }
     setStarterMessage(tmpl.starter);
   };
 

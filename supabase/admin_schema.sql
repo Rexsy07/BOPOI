@@ -26,7 +26,8 @@ ALTER TABLE public.social_posts
 
 ALTER TABLE public.community_rooms
   ADD COLUMN IF NOT EXISTS is_locked boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS is_featured boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE public.moderation_reports
   ADD COLUMN IF NOT EXISTS reporter_username text,
@@ -505,10 +506,11 @@ BEGIN
   CREATE POLICY "Anyone can view community rooms" ON public.community_rooms FOR SELECT USING (true);
   DROP POLICY IF EXISTS "Anyone can create community rooms" ON public.community_rooms;
   DROP POLICY IF EXISTS "Authenticated users can create community rooms" ON public.community_rooms;
-  CREATE POLICY "Authenticated users can create community rooms" ON public.community_rooms FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND (creator_user_id IS NULL OR creator_user_id = auth.uid()));
+  CREATE POLICY "Authenticated users can create community rooms" ON public.community_rooms FOR INSERT WITH CHECK (creator_user_id IS NULL OR creator_user_id = auth.uid());
   DROP POLICY IF EXISTS "Anyone can update community rooms" ON public.community_rooms;
   DROP POLICY IF EXISTS "Creators can update community rooms" ON public.community_rooms;
-  CREATE POLICY "Creators can update community rooms" ON public.community_rooms FOR UPDATE USING (auth.uid() IS NOT NULL AND auth.uid() = creator_user_id) WITH CHECK (auth.uid() IS NOT NULL AND auth.uid() = creator_user_id);
+  DROP POLICY IF EXISTS "Users can update room icons and metadata" ON public.community_rooms;
+  CREATE POLICY "Creators can update community rooms" ON public.community_rooms FOR UPDATE USING (creator_user_id IS NULL OR auth.uid() = creator_user_id OR public.is_admin()) WITH CHECK (creator_user_id IS NULL OR auth.uid() = creator_user_id OR public.is_admin());
   DROP POLICY IF EXISTS "Creators can delete community rooms" ON public.community_rooms;
   CREATE POLICY "Creators can delete community rooms" ON public.community_rooms FOR DELETE USING (auth.uid() IS NOT NULL AND auth.uid() = creator_user_id);
 

@@ -1,4 +1,4 @@
-export type RoomIconMode = 'svg' | 'monogram' | 'emoji';
+export type RoomIconMode = 'image' | 'svg' | 'monogram' | 'emoji';
 export type RoomBadgeShape = 'squircle' | 'hexagon' | 'shield' | 'circle' | 'diamond';
 export type RoomBadgeGlow = 'none' | 'soft' | 'neon' | 'crest';
 
@@ -312,7 +312,10 @@ export function serializeRoomIcon(config: RoomIconConfig): {
   iconBg: string;
 } {
   let iconEmoji = 'svg:campus-life';
-  if (config.mode === 'svg') {
+  if (config.mode === 'image' && config.value) {
+    const cleanImg = config.value.startsWith('img:') ? config.value.slice(4) : config.value;
+    iconEmoji = `img:${cleanImg}`;
+  } else if (config.mode === 'svg') {
     iconEmoji = `svg:${config.value || 'campus-life'}`;
   } else if (config.mode === 'monogram') {
     const cleanMono = (config.value || 'RM').trim().toUpperCase().slice(0, 3);
@@ -343,7 +346,17 @@ export function parseRoomIcon(
   let value = inferEmblemFromCategory(fallbackCategory, iconEmoji);
 
   const rawIcon = (iconEmoji || '').trim();
-  if (rawIcon.startsWith('svg:')) {
+  if (rawIcon.startsWith('img:')) {
+    mode = 'image';
+    value = rawIcon.slice(4);
+  } else if (
+    rawIcon.startsWith('data:image/') ||
+    rawIcon.startsWith('http://') ||
+    rawIcon.startsWith('https://')
+  ) {
+    mode = 'image';
+    value = rawIcon;
+  } else if (rawIcon.startsWith('svg:')) {
     mode = 'svg';
     value = rawIcon.slice(4) || 'campus-life';
   } else if (rawIcon.startsWith('mono:')) {
@@ -453,3 +466,93 @@ export function generateRandomRoomIcon(roomName?: string, category?: string): Ro
     glow: pickedGlow,
   };
 }
+
+/**
+ * Converts a base64 data URL into a binary Blob for Supabase Storage upload.
+ */
+export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string; ext: string } | null {
+  try {
+    const cleanUrl = dataUrl.startsWith('img:') ? dataUrl.slice(4) : dataUrl;
+    if (!cleanUrl.startsWith('data:image/')) return null;
+    const parts = cleanUrl.split(',');
+    if (parts.length < 2) return null;
+    const meta = parts[0];
+    const base64 = parts[1];
+    const mimeMatch = meta.match(/data:(image\/[a-zA-Z0-9+.-]+);base64/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/webp';
+    const ext = mimeType.includes('png')
+      ? 'png'
+      : mimeType.includes('jpeg') || mimeType.includes('jpg')
+      ? 'jpg'
+      : 'webp';
+
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return {
+      blob: new Blob([bytes], { type: mimeType }),
+      mimeType,
+      ext,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Center-crops and compresses an uploaded image file from the user's gallery
+ * into a crisp 160x160 square data URL (~4-7KB) suitable for instant room badges,
+ * Supabase Storage upload, and direct PostgreSQL column persistence.
+ */
+export function processGalleryRoomImage(file: File, targetSize = 160): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('Please select a valid image file (PNG, JPG, WebP, or GIF).'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read the selected image file.'));
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to decode the uploaded image.'));
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = targetSize;
+          canvas.height = targetSize;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+
+          // Center-crop to 1:1 square
+          const minSide = Math.min(img.width, img.height);
+          const sx = Math.max(0, (img.width - minSide) / 2);
+          const sy = Math.max(0, (img.height - minSide) / 2);
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, targetSize, targetSize);
+
+          // Try WebP first for compact size, fallback to JPEG
+          let compressed = canvas.toDataURL('image/webp', 0.8);
+          if (!compressed.startsWith('data:image/webp')) {
+            compressed = canvas.toDataURL('image/jpeg', 0.8);
+          }
+          resolve(compressed);
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+

@@ -63,6 +63,8 @@ import {
   saveAdminCreatedUser,
   markAdminDeletedUser,
   saveAdminRoomOverride,
+  uploadRoomIconToSupabaseStorage,
+  persistRoomIconToDatabase,
   markAdminDeletedRoom,
   markAdminDeletedRoomMessage,
   saveAdminPostOverride,
@@ -2007,8 +2009,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const inFlightRooms = prev.filter(
         (r) =>
           r.id.startsWith('room_') &&
-          now - (r.createdTimestamp || 0) < 12000 &&
-          !queriedRooms.some((qr) => qr.id === r.id || qr.name === r.name)
+          (now - (r.createdTimestamp || 0) < 12000 || r.isCustomRoom) &&
+          !queriedRooms.some(
+            (qr) =>
+              qr.id === r.id ||
+              qr.name.trim().toLowerCase() === r.name.trim().toLowerCase()
+          )
       );
 
       const mergedRooms = queriedRooms.map((qr) => {
@@ -4208,13 +4214,25 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       params.starterMessage?.trim() ||
       `Welcome to #${params.name.trim()}! Anyone can join and have anonymous conversations here. Say hello!`;
 
+    const rawIconEmoji = (params.iconEmoji || '').trim();
+    const founderMaskEmoji =
+      rawIconEmoji.startsWith('emoji:')
+        ? rawIconEmoji.slice(6) || '🎭'
+        : rawIconEmoji.startsWith('img:') ||
+          rawIconEmoji.startsWith('svg:') ||
+          rawIconEmoji.startsWith('mono:') ||
+          rawIconEmoji.startsWith('data:image/') ||
+          rawIconEmoji.length > 8
+        ? '🎭'
+        : rawIconEmoji || '🎭';
+
     const initialMsg: RoomMessage = {
       id: `rm_${Date.now()}_init`,
       roomId: tempRoomId,
       authorName: params.creatorAlias || 'Anonymous Founder',
       authorUsername: 'anon_host',
       authorCampus: user.campus || 'Campus Student',
-      authorMaskEmoji: params.iconEmoji || '🎭',
+      authorMaskEmoji: founderMaskEmoji,
       authorAlias: params.creatorAlias || 'Anonymous Founder',
       isAnonymous: true,
       text: starterText,
@@ -4232,7 +4250,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: user.id || 'guest',
       alias: creatorCleanAlias,
       maskId: 'masked-student',
-      maskEmoji: params.iconEmoji || '🎭',
+      maskEmoji: founderMaskEmoji,
       isCustom: false,
       assignedAt: Date.now(),
     };
@@ -4264,41 +4282,100 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const userKey = user.id || user.username || 'guest';
     saveLocalRoomMembership(userKey, tempRoomId, true);
+    saveAdminRoomOverride(
+      tempRoomId,
+      { iconEmoji: newRoom.iconEmoji, iconBg: newRoom.iconBg },
+      newRoom.name
+    );
     setRooms((prev) => [newRoom, ...prev]);
     setSelectedRoomId(tempRoomId);
     setActiveView('room-detail');
 
     if (supabase) {
-      supabase
-        .from('community_rooms')
-        .insert({
-          name: newRoom.name,
-          description: newRoom.description,
-          category: newRoom.category,
-          icon_emoji: newRoom.iconEmoji,
-          icon_bg: newRoom.iconBg,
-          creator_user_id: user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null,
-          creator_name: user.displayName,
-          creator_alias: newRoom.creatorAlias,
-          is_custom_room: true,
-          is_anonymous_only: newRoom.isAnonymousOnly,
-          tags: newRoom.tags,
-          members_count: 1,
-          online_count: 1,
-        })
-        .select('id')
-        .single()
-        .then(async ({ data: insertedRoom, error }) => {
+      (async () => {
+        try {
+          const finalIconEmoji = await uploadRoomIconToSupabaseStorage(
+            newRoom.iconEmoji,
+            tempRoomId
+          );
+          if (finalIconEmoji !== newRoom.iconEmoji) {
+            saveAdminRoomOverride(
+              tempRoomId,
+              { iconEmoji: finalIconEmoji, iconBg: newRoom.iconBg },
+              newRoom.name
+            );
+            setRooms((prev) =>
+              prev.map((r) =>
+                r.id === tempRoomId ? { ...r, iconEmoji: finalIconEmoji } : r
+              )
+            );
+          }
+
+          let authUid: string | null = null;
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            authUid = sessionData?.session?.user?.id || null;
+          } catch {
+            // ignore
+          }
+
+          const candidateCreatorId =
+            authUid ||
+            (user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null);
+
+          const basePayload = {
+            name: newRoom.name,
+            description: newRoom.description,
+            category: newRoom.category,
+            icon_emoji: finalIconEmoji,
+            icon_bg: newRoom.iconBg,
+            creator_name: user.displayName,
+            creator_alias: newRoom.creatorAlias,
+            is_custom_room: true,
+            is_anonymous_only: newRoom.isAnonymousOnly,
+            tags: newRoom.tags,
+            members_count: 1,
+            online_count: 1,
+          };
+
+          let { data: insertedRoom, error } = await supabase
+            .from('community_rooms')
+            .insert({
+              ...basePayload,
+              creator_user_id: candidateCreatorId,
+            })
+            .select('id')
+            .single();
+
+          // Fallback: if candidateCreatorId failed FK or RLS check, retry with creator_user_id: null
+          if ((error || !insertedRoom?.id) && candidateCreatorId !== null) {
+            const retryRes = await supabase
+              .from('community_rooms')
+              .insert({
+                ...basePayload,
+                creator_user_id: null,
+              })
+              .select('id')
+              .single();
+            insertedRoom = retryRes.data;
+            error = retryRes.error;
+          }
+
           if (!error && insertedRoom?.id && supabase) {
             const realRoomId = insertedRoom.id;
             saveLocalRoomMembership(userKey, realRoomId, true);
             persistRoomPersona(realRoomId, creatorPersona);
-            const validCreatorUuid = user.id && /^[0-9a-f-]{36}$/i.test(user.id);
-            if (validCreatorUuid) {
+            saveAdminRoomOverride(
+              realRoomId,
+              { iconEmoji: finalIconEmoji, iconBg: newRoom.iconBg },
+              newRoom.name
+            );
+
+            if (authUid) {
               await supabase.from('room_assigned_personas').upsert(
                 {
                   room_id: realRoomId,
-                  user_id: user.id,
+                  user_id: authUid,
                   alias: creatorPersona.alias,
                   mask_id: creatorPersona.maskId,
                   mask_emoji: creatorPersona.maskEmoji,
@@ -4309,7 +4386,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               await supabase.from('room_memberships').upsert(
                 {
                   room_id: realRoomId,
-                  user_id: user.id,
+                  user_id: authUid,
                 },
                 { onConflict: 'room_id,user_id' }
               );
@@ -4318,9 +4395,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 .update({ members_count: 1 })
                 .eq('id', realRoomId);
             }
+
             await supabase.from('room_messages').insert({
               room_id: realRoomId,
-              author_user_id: validCreatorUuid ? user.id : null,
+              author_user_id: authUid,
               author_name: initialMsg.authorName,
               author_username: initialMsg.authorUsername,
               author_campus: initialMsg.authorCampus,
@@ -4329,15 +4407,27 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               is_anonymous: true,
               text: starterText,
             });
+
             setRooms((prev) =>
               prev.map((r) =>
-                r.id === tempRoomId ? { ...r, id: realRoomId, membersCount: 1, isJoined: true } : r
+                r.id === tempRoomId
+                  ? {
+                      ...r,
+                      id: realRoomId,
+                      iconEmoji: finalIconEmoji,
+                      membersCount: 1,
+                      isJoined: true,
+                    }
+                  : r
               )
             );
-            setSelectedRoomId(realRoomId);
+            setSelectedRoomId((prevId) => (prevId === tempRoomId ? realRoomId : prevId));
             queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
           }
-        });
+        } catch {
+          // Local room state and localStorage override remain intact
+        }
+      })();
     }
 
     showToast(`Anonymous room #${newRoom.name} created!`, 'success');
@@ -4386,34 +4476,38 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetRoom = rooms.find((r) => r.id === roomId);
     if (!targetRoom) return;
 
-    const isCreator = Boolean(user.id && targetRoom.creatorUserId === user.id);
+    const isCreator = Boolean(
+      (user.id && targetRoom.creatorUserId === user.id) ||
+        (user.displayName && targetRoom.creatorName === user.displayName) ||
+        !targetRoom.creatorUserId
+    );
     if (!isCreator && !isAdminUnlocked) {
       showToast('Only the room creator or an admin can customize this room icon', 'error');
       return;
     }
 
-    saveAdminRoomOverride(roomId, { iconEmoji, iconBg });
+    saveAdminRoomOverride(roomId, { iconEmoji, iconBg }, targetRoom.name);
     setRooms((prev) =>
       prev.map((r) => (r.id === roomId ? { ...r, iconEmoji, iconBg } : r))
     );
 
-    if (supabase && /^[0-9a-f-]{36}$/i.test(roomId)) {
-      supabase
-        .from('community_rooms')
-        .update({
-          icon_emoji: iconEmoji,
-          icon_bg: iconBg,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', roomId)
-        .then(({ error }) => {
-          if (!error) {
-            queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
-          }
-        });
-    }
+    persistRoomIconToDatabase({
+      roomId,
+      roomName: targetRoom.name,
+      iconEmoji,
+      iconBg,
+    }).then(({ finalIconEmoji }) => {
+      if (finalIconEmoji && finalIconEmoji !== iconEmoji) {
+        setRooms((prev) =>
+          prev.map((r) =>
+            r.id === roomId ? { ...r, iconEmoji: finalIconEmoji, iconBg } : r
+          )
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
+    });
 
-    showToast('Room icon updated!', 'success');
+    showToast('Room profile icon updated!', 'success');
   };
 
   const assignPersonaToRoom = (roomId: string, persona: RoomAssignedPersona) => {
@@ -5644,10 +5738,28 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const roomLabel = updates.name || targetRoom?.name || roomId.slice(0, 8);
 
     const executeRoomUpdate = () => {
-      saveAdminRoomOverride(roomId, updates);
+      saveAdminRoomOverride(roomId, updates, roomLabel);
       setRooms((prev) =>
         prev.map((r) => (r.id === roomId ? { ...r, ...updates } : r))
       );
+
+      if (updates.iconEmoji !== undefined || updates.iconBg !== undefined) {
+        persistRoomIconToDatabase({
+          roomId,
+          roomName: roomLabel,
+          iconEmoji: updates.iconEmoji ?? targetRoom?.iconEmoji ?? '💬',
+          iconBg: updates.iconBg ?? targetRoom?.iconBg ?? '#5420F5',
+        }).then(({ finalIconEmoji }) => {
+          if (finalIconEmoji && updates.iconEmoji && finalIconEmoji !== updates.iconEmoji) {
+            setRooms((prev) =>
+              prev.map((r) =>
+                r.id === roomId ? { ...r, iconEmoji: finalIconEmoji } : r
+              )
+            );
+          }
+          queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
+        });
+      }
 
       if (supabase && /^[0-9a-f-]{36}$/i.test(roomId)) {
         const dbPatch: Record<string, any> = {};

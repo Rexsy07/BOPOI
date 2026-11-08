@@ -881,6 +881,25 @@ begin
 end;
 $$;
 
+-- 4.9b Update Community Room Profile Icon Atomically
+create or replace function public.update_community_room_icon(
+  p_room_id uuid,
+  p_icon_emoji text,
+  p_icon_bg text default '#5420F5'
+)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.community_rooms
+  set icon_emoji = p_icon_emoji,
+      icon_bg = coalesce(nullif(trim(p_icon_bg), ''), icon_bg)
+  where id = p_room_id;
+  return found;
+end;
+$$;
+
 -- 4.10 Toggle Room Message Reaction Atomically
 create or replace function public.toggle_room_message_reaction(p_message_id uuid, p_emoji text)
 returns jsonb
