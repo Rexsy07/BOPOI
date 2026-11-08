@@ -9,7 +9,6 @@ import {
 import {
   parseRoomIcon,
   serializeRoomIcon,
-  inferEmblemFromCategory,
   processGalleryRoomImage,
 } from '../../utils/roomIconConfig.ts';
 import { uploadRoomIconToSupabaseStorage } from '../../lib/supabase.ts';
@@ -95,23 +94,19 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
 
   const handleRemoveImage = () => {
     setUploadError(null);
-    const fallbackEmblem = inferEmblemFromCategory(category);
-    const serialized = serializeRoomIcon({
-      mode: 'svg',
-      value: fallbackEmblem,
-      fillType: 'gradient',
-      fillValue: 'electric-violet',
-      shape: 'squircle',
-      glow: 'soft',
-    });
-    onChange(serialized.iconEmoji, serialized.iconBg);
+    onChange('', 'badge:v1|solid|#191525|squircle|none|#191525');
   };
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-black text-[#191525]">
-        Room Profile Icon
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-black text-[#191525]">
+          Room Profile Photo <span className="text-[#5420F5]">*</span>
+        </label>
+        <span className="text-[10px] font-bold text-[#706B7D]">
+          Required · Upload from Gallery
+        </span>
+      </div>
 
       {/* Hidden File Input for Device Gallery Upload */}
       <input
@@ -134,7 +129,7 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
             ? 'border-[#5420F5] bg-[#F0EBFF]/60'
             : hasUploadedImage
             ? 'border-[#5420F5]/30 bg-gradient-to-r from-[#F0EBFF]/40 via-white to-[#FAF9FC]'
-            : 'border-[#EAE6F0] hover:border-[#5420F5]/40 bg-[#FAF9FC]'
+            : 'border-[#5420F5]/40 hover:border-[#5420F5] bg-[#FAF9FC]'
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
@@ -142,17 +137,23 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
             <button
               type="button"
               onClick={handleOpenGalleryPicker}
-              title="Upload room profile icon from gallery"
+              title="Upload room profile photo from gallery"
               className="relative group shrink-0 cursor-pointer"
             >
-              <RoomBadgeIcon
-                iconEmoji={iconEmoji}
-                iconBg={iconBg}
-                category={category}
-                roomName={roomName}
-                size="lg"
-                className="shrink-0"
-              />
+              {hasUploadedImage ? (
+                <RoomBadgeIcon
+                  iconEmoji={iconEmoji}
+                  iconBg={iconBg}
+                  category={category}
+                  roomName={roomName}
+                  size="lg"
+                  className="shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border-2 border-dashed border-[#5420F5]/50 flex items-center justify-center text-[#5420F5] group-hover:bg-[#5420F5]/15 transition-colors">
+                  <ImagePlus className="w-6 h-6" />
+                </div>
+              )}
               <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#5420F5] text-white border-2 border-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
                 <ImagePlus className="w-3 h-3" />
               </span>
@@ -162,20 +163,24 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-black text-[#191525]">
                   {hasUploadedImage
-                    ? 'Gallery Profile Image Uploaded'
-                    : 'Upload Room Icon from Gallery'}
+                    ? 'Gallery Profile Photo Uploaded'
+                    : 'Upload Room Photo from Gallery'}
                 </span>
-                {hasUploadedImage && (
+                {hasUploadedImage ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <CheckCircle2 className="w-3 h-3" />
                     <span>Ready</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    Required
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-[#706B7D] leading-snug mt-0.5">
                 {hasUploadedImage
-                  ? 'Your uploaded gallery photo will be shown as this room’s profile icon across Bopoi.'
-                  : 'Choose a photo from your device gallery (JPG, PNG, WebP). Automatically cropped to a crisp square icon.'}
+                  ? 'Your uploaded gallery photo will be shown as this room’s profile picture across Bopoi.'
+                  : 'Select an image from your device gallery (JPG, PNG, WebP). Required to create or save a room.'}
               </p>
             </div>
           </div>
@@ -248,18 +253,28 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
 }) => {
   const [draftEmoji, setDraftEmoji] = useState(currentIconEmoji);
   const [draftBg, setDraftBg] = useState(currentIconBg);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
       setDraftEmoji(currentIconEmoji);
       setDraftBg(currentIconBg);
+      setSaveError(null);
     }
   }, [isOpen, currentIconEmoji, currentIconBg]);
 
   if (!isOpen) return null;
 
+  const parsedDraft = parseRoomIcon(draftEmoji, draftBg, category, roomName);
+  const hasUploadedPhoto =
+    parsedDraft.mode === 'image' && Boolean(parsedDraft.value);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasUploadedPhoto) {
+      setSaveError('Please upload an image from your gallery first.');
+      return;
+    }
     onSave(draftEmoji, draftBg);
     onClose();
   };
@@ -279,7 +294,7 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
             />
             <div className="min-w-0">
               <h2 className="text-base font-black text-[#191525] truncate">
-                Room Profile Icon
+                Room Profile Photo
               </h2>
               <p className="text-xs text-[#706B7D] truncate">
                 #{roomName} · Upload from gallery
@@ -306,8 +321,15 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
             onChange={(nextEmoji: string, nextBg: string) => {
               setDraftEmoji(nextEmoji);
               setDraftBg(nextBg);
+              setSaveError(null);
             }}
           />
+
+          {saveError && (
+            <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold">
+              {saveError}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EAE6F0]">
             <button
@@ -319,9 +341,10 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 active:scale-95"
+              disabled={!hasUploadedPhoto}
+              className="px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 active:scale-95"
             >
-              Save Profile Icon
+              Save Profile Photo
             </button>
           </div>
         </form>
@@ -329,3 +352,4 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
     </div>
   );
 };
+

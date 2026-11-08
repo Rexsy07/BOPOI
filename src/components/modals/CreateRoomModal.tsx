@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import {
   X,
-  Sparkles,
   Shield,
   Shuffle,
 } from 'lucide-react';
@@ -13,7 +12,7 @@ import {
   RoomBadgeIcon,
 } from '../brand/icons/index.ts';
 import { RoomIconStudioPicker } from './RoomIconStudioPicker.tsx';
-import { serializeRoomIcon, inferEmblemFromCategory } from '../../utils/roomIconConfig.ts';
+import { parseRoomIcon } from '../../utils/roomIconConfig.ts';
 
 const CATEGORY_OPTIONS = [
   'Campus Life & Academics',
@@ -28,41 +27,6 @@ const CATEGORY_OPTIONS = [
   'Ideas & Life Hacks',
   'Dating & Romance',
   'Launch & Trending',
-];
-
-const QUICK_ROOM_TEMPLATES = [
-  {
-    name: 'Midnight Campus Secrets',
-    description: 'Late night anonymous thoughts, secrets, and raw confessions.',
-    category: 'Midnight Chat / Late Night',
-    iconEmoji: 'svg:mask-secret',
-    iconBg: 'badge:v1|gradient|obsidian-velvet|shield|neon|#5420F5',
-    starter: 'What is one thing you would never say out loud on campus? 🤐',
-  },
-  {
-    name: 'Campus Crushes & Dating Gist',
-    description: 'Who caught your eye in lecture? Anonymous matchmaking and romance talk.',
-    category: 'Dating & Romance',
-    iconEmoji: 'svg:dating-romance',
-    iconBg: 'badge:v1|gradient|crimson-crush|squircle|soft|#E11D48',
-    starter: 'Describe your campus crush without saying their name! 👀',
-  },
-  {
-    name: 'Exam Survival & Final Year Tears',
-    description: 'Complaining about lecturers, sharing past questions, and surviving GPA stress.',
-    category: 'Study & Exam Survival',
-    iconEmoji: 'svg:study-exam',
-    iconBg: 'badge:v1|gradient|indigo-storm|hexagon|crest|#4F46E5',
-    starter: 'Which course is currently fighting for your soul this semester? 😭',
-  },
-  {
-    name: 'Hostel & Dorm Night Lounge',
-    description: 'Chilling, jokes, music recommendations, and hostel drama.',
-    category: 'Hostel & Dorm (Food)',
-    iconEmoji: 'svg:flame-blaze',
-    iconBg: 'badge:v1|gradient|sunset-blaze|squircle|soft|#F97316',
-    starter: 'What is the funniest thing that happened in your hostel this week? 😂',
-  },
 ];
 
 const RANDOM_CREATOR_ALIASES = [
@@ -81,47 +45,26 @@ export const CreateRoomModal: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<string>('Campus Life & Academics');
-  const [iconEmoji, setIconEmoji] = useState('svg:campus-life');
+  const [iconEmoji, setIconEmoji] = useState('');
   const [iconBg, setIconBg] = useState(
-    'badge:v1|gradient|electric-violet|squircle|soft|#5420F5'
+    'badge:v1|solid|#191525|squircle|none|#191525'
   );
-  const [hasCustomizedIcon, setHasCustomizedIcon] = useState(false);
   const [creatorAlias, setCreatorAlias] = useState('Anonymous Founder');
   const [starterMessage, setStarterMessage] = useState('');
   const [isAnonymousOnly] = useState(true);
 
   if (!isCreateRoomModalOpen) return null;
 
+  const parsedIcon = parseRoomIcon(iconEmoji, iconBg, category, name);
+  const hasUploadedPhoto =
+    parsedIcon.mode === 'image' && Boolean(parsedIcon.value);
+
   const handleClose = () => {
     setIsCreateRoomModalOpen(false);
   };
 
-  const handleApplyTemplate = (tmpl: (typeof QUICK_ROOM_TEMPLATES)[0]) => {
-    setName(tmpl.name);
-    setDescription(tmpl.description);
-    setCategory(tmpl.category);
-    if (!iconEmoji.startsWith('img:')) {
-      setIconEmoji(tmpl.iconEmoji);
-      setIconBg(tmpl.iconBg);
-    }
-    setStarterMessage(tmpl.starter);
-  };
-
   const handleSelectCategory = (cat: string) => {
     setCategory(cat);
-    if (!hasCustomizedIcon) {
-      const emblemId = inferEmblemFromCategory(cat);
-      const next = serializeRoomIcon({
-        mode: 'svg',
-        value: emblemId,
-        fillType: 'gradient',
-        fillValue: 'electric-violet',
-        shape: 'squircle',
-        glow: 'soft',
-      });
-      setIconEmoji(next.iconEmoji);
-      setIconBg(next.iconBg);
-    }
   };
 
   const handleRandomizeAlias = () => {
@@ -138,6 +81,10 @@ export const CreateRoomModal: React.FC = () => {
     }
     if (!description.trim()) {
       showToast('Please add a short topic description', 'error');
+      return;
+    }
+    if (!hasUploadedPhoto) {
+      showToast('Please upload a room profile photo from your gallery', 'error');
       return;
     }
 
@@ -186,42 +133,6 @@ export const CreateRoomModal: React.FC = () => {
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
-          {/* Quick Starter Templates */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black text-slate-500 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-[#5420F5]" />
-                <span>Quick Room Ideas (Tap to fill)</span>
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_ROOM_TEMPLATES.map((tmpl) => (
-                <button
-                  key={tmpl.name}
-                  type="button"
-                  onClick={() => handleApplyTemplate(tmpl)}
-                  className="p-2.5 rounded-2xl border border-[#EAE6F0] bg-[#FAF9FC] hover:bg-[#F0EBFF] hover:border-[#5420F5]/40 text-left transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <RoomBadgeIcon
-                      iconEmoji={tmpl.iconEmoji}
-                      iconBg={tmpl.iconBg}
-                      category={tmpl.category}
-                      roomName={tmpl.name}
-                      size="xs"
-                    />
-                    <span className="text-xs font-black text-[#191525] truncate group-hover:text-[#5420F5]">
-                      {tmpl.name}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1 leading-tight">
-                    {tmpl.description}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Room Name */}
           <div className="space-y-1.5">
             <label className="block text-xs font-black text-[#191525]">
@@ -292,7 +203,7 @@ export const CreateRoomModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Room Icon Studio Picker */}
+          {/* Room Icon Studio Picker (Compulsory Gallery Photo Upload) */}
           <RoomIconStudioPicker
             iconEmoji={iconEmoji}
             iconBg={iconBg}
@@ -301,7 +212,6 @@ export const CreateRoomModal: React.FC = () => {
             onChange={(nextEmoji, nextBg) => {
               setIconEmoji(nextEmoji);
               setIconBg(nextBg);
-              setHasCustomizedIcon(true);
             }}
           />
 

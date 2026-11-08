@@ -417,18 +417,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <p className="text-xs text-slate-400 italic">No bio added yet. Tap edit profile to introduce yourself!</p>
         )}
 
-        {/* Interactive Stats Row - Tap Followers or Following to view full lists */}
-        <div className="flex items-center gap-3 sm:gap-5 pt-3 border-t border-slate-100 text-xs flex-wrap">
+        {/* Interactive Stats Row - Symmetrical 4-Column Grid on Mobile & Desktop */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 pt-3.5 border-t border-slate-100">
           <button
             type="button"
             onClick={() => setFollowModalTab('followers')}
-            className="px-2.5 py-1.5 -ml-2.5 rounded-xl hover:bg-[#F0EBFF] transition-colors cursor-pointer group text-left"
+            className="flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] hover:bg-[#F0EBFF] border border-[#EAE6F0]/80 hover:border-[#5420F5]/30 transition-all cursor-pointer group text-center"
             title="Tap to see who follows you"
           >
-            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm">
+            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm sm:text-base leading-tight">
               {getFollowersForUser(user.username).length.toLocaleString()}
-            </span>{' '}
-            <span className="text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
+            </span>
+            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-bold mt-0.5 truncate w-full">
               Followers
             </span>
           </button>
@@ -436,13 +436,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <button
             type="button"
             onClick={() => setFollowModalTab('following')}
-            className="px-2.5 py-1.5 rounded-xl hover:bg-[#F0EBFF] transition-colors cursor-pointer group text-left"
+            className="flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] hover:bg-[#F0EBFF] border border-[#EAE6F0]/80 hover:border-[#5420F5]/30 transition-all cursor-pointer group text-center"
             title="Tap to see who you are following"
           >
-            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm">
+            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm sm:text-base leading-tight">
               {getFollowingForUser(user.username).length.toLocaleString()}
-            </span>{' '}
-            <span className="text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
+            </span>
+            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-bold mt-0.5 truncate w-full">
               Following
             </span>
           </button>
@@ -450,23 +450,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <button
             type="button"
             onClick={() => setProfileTab('posts')}
-            className="px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer text-left"
+            className="flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] hover:bg-slate-100 border border-[#EAE6F0]/80 transition-all cursor-pointer text-center"
           >
-            <span className="font-black text-[#191525] tabular-nums text-sm">
+            <span className="font-black text-[#191525] tabular-nums text-sm sm:text-base leading-tight">
               {myPosts.length}
-            </span>{' '}
-            <span className="text-[#706B7D] font-semibold">Posts</span>
+            </span>
+            <span className="text-[11px] sm:text-xs text-[#706B7D] font-bold mt-0.5 truncate w-full">
+              Posts
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setProfileTab('saved')}
-            className="px-2.5 py-1.5 rounded-xl hover:bg-pink-50 transition-colors cursor-pointer text-left"
+            className="flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] hover:bg-pink-50 border border-[#EAE6F0]/80 hover:border-pink-200 transition-all cursor-pointer text-center"
           >
-            <span className="font-black text-[#F52D85] tabular-nums text-sm">
+            <span className="font-black text-[#F52D85] tabular-nums text-sm sm:text-base leading-tight">
               {allSavedPosts.length}
-            </span>{' '}
-            <span className="text-[#706B7D] font-semibold">Saved</span>
+            </span>
+            <span className="text-[11px] sm:text-xs text-[#706B7D] font-bold mt-0.5 truncate w-full">
+              Saved
+            </span>
           </button>
         </div>
       </div>
