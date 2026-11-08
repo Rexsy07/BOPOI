@@ -232,22 +232,20 @@ export const PublicProfileView: React.FC = () => {
         )}
 
           {/* Interactive Stats Bar - Symmetrical 3-Column Grid */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3.5 border-t border-slate-100">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
             <button
               type="button"
               disabled={isAnonymous}
               onClick={() => !isAnonymous && setFollowModalTab('followers')}
-              className={`flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0]/80 transition-all text-center ${
-                isAnonymous
-                  ? 'cursor-default'
-                  : 'hover:bg-[#F0EBFF] hover:border-[#5420F5]/30 cursor-pointer group'
+              className={`flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors text-center ${
+                isAnonymous ? 'cursor-default' : 'cursor-pointer group'
               }`}
               title={isAnonymous ? undefined : `See who follows @${profile.username}`}
             >
-              <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm sm:text-base leading-tight">
+              <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
                 {liveFollowersCount.toLocaleString()}
               </span>
-              <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-bold mt-0.5 truncate w-full">
+              <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
                 Followers
               </span>
             </button>
@@ -256,17 +254,15 @@ export const PublicProfileView: React.FC = () => {
               type="button"
               disabled={isAnonymous}
               onClick={() => !isAnonymous && setFollowModalTab('following')}
-              className={`flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0]/80 transition-all text-center ${
-                isAnonymous
-                  ? 'cursor-default'
-                  : 'hover:bg-[#F0EBFF] hover:border-[#5420F5]/30 cursor-pointer group'
+              className={`flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors text-center ${
+                isAnonymous ? 'cursor-default' : 'cursor-pointer group'
               }`}
               title={isAnonymous ? undefined : `See who @${profile.username} follows`}
             >
-              <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm sm:text-base leading-tight">
+              <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
                 {liveFollowingCount.toLocaleString()}
               </span>
-              <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-bold mt-0.5 truncate w-full">
+              <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
                 Following
               </span>
             </button>
@@ -274,12 +270,12 @@ export const PublicProfileView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('posts')}
-              className="flex flex-col items-center justify-center py-2.5 px-1.5 rounded-2xl bg-[#FAF9FC] hover:bg-slate-100 border border-[#EAE6F0]/80 transition-all cursor-pointer text-center"
+              className="flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors cursor-pointer group text-center"
             >
-              <span className="font-black text-[#191525] tabular-nums text-sm sm:text-base leading-tight">
+              <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
                 {studentPosts.length}
               </span>
-              <span className="text-[11px] sm:text-xs text-[#706B7D] font-bold mt-0.5 truncate w-full">
+              <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
                 Posts
               </span>
             </button>
