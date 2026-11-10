@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   Clock,
@@ -9,6 +9,11 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
+import {
+  supabase,
+  computeRelatedSocialPosts,
+  recordPostBanditInteraction,
+} from '../../lib/supabase.ts';
 import { SocialCommentsThread } from '../comments/SocialCommentsThread.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
@@ -16,7 +21,9 @@ import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 export const PollDetailView: React.FC = () => {
   const {
     selectedPost,
+    setSelectedPost,
     socialPosts,
+    user,
     setActiveView,
     goBack,
     votePoll,
@@ -31,6 +38,27 @@ export const PollDetailView: React.FC = () => {
     socialPosts.find((p) => p.id === selectedPost?.id) ||
     socialPosts.find((p) => p.type === 'poll') ||
     socialPosts[0];
+
+  // Record exact reading & voting dwell time when exiting the poll detail view
+  useEffect(() => {
+    if (!post?.id) return;
+    const enteredAt = Date.now();
+    return () => {
+      const dwellMs = Date.now() - enteredAt;
+      if (dwellMs >= 1500) {
+        recordPostBanditInteraction(supabase, post.id, false, dwellMs);
+      }
+    };
+  }, [post?.id]);
+
+  // Compute Item-to-Item Related Polls & Campus Discussions
+  const relatedPosts = useMemo(() => {
+    if (!post) return [];
+    return computeRelatedSocialPosts(post, socialPosts, {
+      userCampus: user?.campus || post.authorCampus,
+      limit: 3,
+    });
+  }, [post, socialPosts, user?.campus]);
 
   if (!post) {
     return (
@@ -270,6 +298,63 @@ export const PollDetailView: React.FC = () => {
         </div>
         <SocialCommentsThread post={post} />
       </div>
+
+      {/* Item-to-Item Related Polls & Campus Debates */}
+      {relatedPosts.length > 0 && (
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs sm:text-sm font-black text-[#191525] tracking-tight">
+              Next Campus Polls &amp; Debates
+            </h3>
+            <span className="text-[10px] font-bold text-[#5420F5] bg-[#F0EBFF] px-2 py-0.5 rounded-full">
+              Recommended Next
+            </span>
+          </div>
+          <div className="space-y-2.5">
+            {relatedPosts.map((rel) => (
+              <div
+                key={rel.id}
+                onClick={() => {
+                  recordPostBanditInteraction(supabase, rel.id, true, 2000);
+                  setSelectedPost(rel);
+                  if (rel.type === 'poll') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    setActiveView('post-detail');
+                  }
+                }}
+                className="bg-white rounded-2xl p-3.5 border border-[#EAE6F0] hover:border-[#5420F5]/40 shadow-2xs transition-all cursor-pointer space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-[#706B7D] truncate">
+                    {rel.isAnonymous ? 'Anonymous Student' : rel.authorName}{' '}
+                    {rel.authorCampus ? `• ${rel.authorCampus}` : ''}
+                  </span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#F0EBFF] text-[#5420F5] capitalize shrink-0">
+                    {rel.type}
+                  </span>
+                </div>
+                {rel.title && (
+                  <p className="text-xs font-black text-[#191525] line-clamp-1">
+                    {rel.title}
+                  </p>
+                )}
+                <p className="text-xs text-[#191525] font-medium line-clamp-2 leading-snug">
+                  {rel.content}
+                </p>
+                <div className="flex items-center gap-3 text-[11px] text-[#706B7D] font-semibold pt-0.5">
+                  <span className="inline-flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-[#F52D85]" /> {rel.likes}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <MessageCircle className="w-3 h-3 text-[#5420F5]" /> {rel.commentsCount}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

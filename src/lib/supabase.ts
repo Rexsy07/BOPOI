@@ -33,6 +33,8 @@ import {
   searchAndRankPosts,
   searchAndRankPeople,
   searchAndRankRooms,
+  computeRoomVelocityAndAffinityScore,
+  computeRelatedSocialPosts,
   rankCommentsByWilsonScore,
   computeDynamicTrendingTopics,
 } from './retentionEngine.ts';
@@ -52,6 +54,8 @@ export {
   searchAndRankPosts,
   searchAndRankPeople,
   searchAndRankRooms,
+  computeRoomVelocityAndAffinityScore,
+  computeRelatedSocialPosts,
   rankCommentsByWilsonScore,
   computeDynamicTrendingTopics,
 };

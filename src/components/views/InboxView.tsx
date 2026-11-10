@@ -47,12 +47,40 @@ export const InboxView: React.FC = () => {
 
   const activeFilter: InboxFilter = inboxFilter === 'unread' ? 'unread' : 'all';
 
-  // Filter messages
-  const filteredMessages = messages.filter((msg) => {
-    if (msg.isReported) return false;
-    if (activeFilter === 'unread') return !msg.isRead;
-    return true;
-  });
+  // Filter and priority-sort messages:
+  // 1. Unread 1-on-1 convo replies bubble to top
+  // 2. Unread root anonymous messages next
+  // 3. Most recent thread reply / message timestamp descending
+  const filteredMessages = [...messages]
+    .filter((msg) => {
+      if (msg.isReported) return false;
+      if (activeFilter === 'unread') {
+        const unreadConvo = getUnreadConvoCount(msg, 'recipient');
+        return !msg.isRead || unreadConvo > 0;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const aUnreadConvo = getUnreadConvoCount(a, 'recipient');
+      const bUnreadConvo = getUnreadConvoCount(b, 'recipient');
+      if ((bUnreadConvo > 0 ? 1 : 0) !== (aUnreadConvo > 0 ? 1 : 0)) {
+        return (bUnreadConvo > 0 ? 1 : 0) - (aUnreadConvo > 0 ? 1 : 0);
+      }
+
+      if ((a.isRead ? 0 : 1) !== (b.isRead ? 0 : 1)) {
+        return (b.isRead ? 0 : 1) - (a.isRead ? 0 : 1);
+      }
+
+      const aLatestReplyTs = Math.max(
+        a.createdTimestamp || 0,
+        ...(a.comments || []).map((c) => c.createdTimestamp || 0)
+      );
+      const bLatestReplyTs = Math.max(
+        b.createdTimestamp || 0,
+        ...(b.comments || []).map((c) => c.createdTimestamp || 0)
+      );
+      return bLatestReplyTs - aLatestReplyTs;
+    });
 
   const handleMessageClick = (msg: AnonymousMessage) => {
     markAsRead(msg.id);

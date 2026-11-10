@@ -540,6 +540,20 @@ export function rankSocialPostsWithBandit(
       stats.impressions > 0 ? stats.dwellMs / Math.max(1, stats.impressions) / 1000 : 0;
     const dwellQualityBoost = 1 + Math.min(0.3, avgDwellSeconds / 25);
 
+    // Impression Fatigue / Fast-Skip Decay: if user has seen a post >= 3 times without
+    // clicking, liking, bookmarking, voting, or dwelling >= 4.5s, decay its score exponentially
+    // (0.72^(impressions - 2)) so fresh unseen posts rotate to the top of the For You feed.
+    const hasPersonalEngagement =
+      stats.clicks > 0 ||
+      stats.meaningfulReads > 0 ||
+      Boolean(post.hasLiked) ||
+      Boolean(post.isBookmarked) ||
+      Boolean(post.userVotedOptionId);
+    const fatigueDecay =
+      !hasPersonalEngagement && stats.impressions >= 3
+        ? Math.pow(0.72, Math.min(8, stats.impressions - 2))
+        : 1.0;
+
     // Deterministic pseudo-random jitter seeded by post ID + 5-minute window so UI doesn't flicker on re-render
     const timeBucket = Math.floor(now / (5 * 60 * 1000));
     let hash = timeBucket;
@@ -551,9 +565,11 @@ export function rankSocialPostsWithBandit(
 
     const timeDecay = Math.pow(postAgeHours + 2, 1.8);
     const exploitScore =
-      ((rawPopularity * contextScore + expectedCTR * 100) * dwellQualityBoost) / timeDecay;
+      (((rawPopularity * contextScore + expectedCTR * 100) * dwellQualityBoost) / timeDecay) *
+      fatigueDecay;
     const exploreScore =
-      (thompsonSample * contextScore * 10 * dwellQualityBoost) / Math.sqrt(postAgeHours + 1);
+      ((thompsonSample * contextScore * 10 * dwellQualityBoost) / Math.sqrt(postAgeHours + 1)) *
+      fatigueDecay;
 
     // Posts with < 15 real tracked impressions or < 2 hours old enter the Exploration pool
     const isExploration = stats.impressions < 15 || postAgeHours < 2.0;
@@ -858,15 +874,69 @@ export function searchAndRankPeople<
 }
 
 /**
- * Searches and ranks Community Rooms using BM25 + fuzzy matching + room velocity.
+ * Computes EWMA multi-window conversational velocity + online presence + user topic affinity
+ * for a CommunityRoom.
+ */
+export function computeRoomVelocityAndAffinityScore(
+  room: CommunityRoom,
+  preferredCategories?: Set<string>,
+  now = Date.now()
+): number {
+  let msgVelocity = 0;
+  for (const m of room.messages || []) {
+    const ageHours = Math.max(0, (now - (m.createdTimestamp || 0)) / (1000 * 60 * 60));
+    if (ageHours <= 1) {
+      msgVelocity += 6.0;
+    } else if (ageHours <= 6) {
+      msgVelocity += 3.5;
+    } else if (ageHours <= 24) {
+      msgVelocity += 1.5;
+    }
+  }
+
+  let affinityBoost = 0;
+  if (preferredCategories && preferredCategories.size > 0) {
+    const roomCatLower = (room.category || '').toLowerCase();
+    const roomTagsLower = (room.tags || []).map((t) => t.toLowerCase());
+    preferredCategories.forEach((pref) => {
+      if (
+        roomCatLower.includes(pref) ||
+        pref.includes(roomCatLower) ||
+        roomTagsLower.some((t) => t.includes(pref))
+      ) {
+        affinityBoost += 10;
+      }
+    });
+  }
+
+  return (
+    (room.isFeatured ? 15 : 0) +
+    (room.isJoined ? 9 : 0) +
+    msgVelocity +
+    (room.onlineCount || 1) * 2.5 +
+    Math.log1p(room.membersCount || 1) * 1.8 +
+    Math.min(20, affinityBoost)
+  );
+}
+
+/**
+ * Searches and ranks Community Rooms using BM25 + fuzzy matching + EWMA room velocity + user topic affinity.
  */
 export function searchAndRankRooms(
   rooms: CommunityRoom[],
   query: string,
-  options?: { topic?: string | null }
+  options?: { topic?: string | null; preferredCategories?: Set<string> }
 ): CommunityRoom[] {
   const q = (query || options?.topic || '').trim();
-  if (!q) return rooms;
+  const now = Date.now();
+
+  if (!q) {
+    return [...rooms].sort(
+      (a, b) =>
+        computeRoomVelocityAndAffinityScore(b, options?.preferredCategories, now) -
+        computeRoomVelocityAndAffinityScore(a, options?.preferredCategories, now)
+    );
+  }
 
   const scored: Array<{ room: CommunityRoom; score: number }> = [];
   for (const room of rooms) {
@@ -884,11 +954,112 @@ export function searchAndRankRooms(
     ]);
     if (bm25 <= 0) continue;
 
-    const activityBoost = Math.log1p((room.onlineCount || 1) * 2 + (room.membersCount || 1)) * 0.25;
-    scored.push({ room, score: bm25 + activityBoost });
+    const velocityScore = computeRoomVelocityAndAffinityScore(
+      room,
+      options?.preferredCategories,
+      now
+    );
+    scored.push({ room, score: bm25 * 5.0 + Math.log1p(velocityScore) });
   }
 
   return scored.sort((a, b) => b.score - a.score).map((s) => s.room);
+}
+
+/**
+ * Computes Item-to-Item Related Social Posts ("More Like This / Next Campus Debate")
+ * for PostDetailView and PollDetailView by blending:
+ * 1. Co-Commenter Bipartite Overlap (shared discussion participants)
+ * 2. BM25 Content, Title & Hashtag Similarity
+ * 3. Category, Type & Campus Affinity
+ * 4. Time-Decayed Engagement Velocity
+ */
+export function computeRelatedSocialPosts(
+  targetPost: SocialPost,
+  allPosts: SocialPost[],
+  options?: { userCampus?: string; limit?: number }
+): SocialPost[] {
+  const maxItems = options?.limit || 3;
+  const now = Date.now();
+  const myCampus = (options?.userCampus || targetPost.authorCampus || '').toLowerCase();
+
+  const targetCommenters = new Set<string>();
+  for (const c of targetPost.comments || []) {
+    if (!c.isAnonymous && c.authorUsername) {
+      targetCommenters.add(c.authorUsername.toLowerCase());
+    }
+  }
+
+  const querySeed = [
+    targetPost.title || '',
+    targetPost.category || '',
+    ...(targetPost.hashtags || []),
+    ...tokenizeSearchString(targetPost.content).slice(0, 10),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const scored: Array<{ post: SocialPost; score: number }> = [];
+
+  for (const candidate of allPosts) {
+    if (candidate.id === targetPost.id) continue;
+
+    // 1. Co-commenter bipartite overlap
+    let sharedCommenters = 0;
+    if (targetCommenters.size > 0) {
+      for (const c of candidate.comments || []) {
+        if (
+          !c.isAnonymous &&
+          c.authorUsername &&
+          targetCommenters.has(c.authorUsername.toLowerCase())
+        ) {
+          sharedCommenters++;
+        }
+      }
+    }
+
+    // 2. BM25 content & hashtag similarity
+    const bm25Sim = querySeed
+      ? scoreBM25FieldMatch(querySeed, [
+          { text: candidate.title, weight: 3.0 },
+          { text: (candidate.hashtags || []).join(' '), weight: 2.8 },
+          { text: candidate.category, weight: 2.5 },
+          { text: candidate.content, weight: 1.2 },
+        ])
+      : 0;
+
+    // 3. Structural category, post type, and campus boosts
+    const sameCategoryBoost =
+      candidate.category &&
+      targetPost.category &&
+      candidate.category.toLowerCase() === targetPost.category.toLowerCase()
+        ? 3.2
+        : 0;
+    const sameTypeBoost = candidate.type === targetPost.type ? 1.8 : 0;
+    const sameCampusBoost =
+      candidate.authorCampus &&
+      myCampus &&
+      candidate.authorCampus.toLowerCase() === myCampus
+        ? 1.5
+        : 0;
+
+    // 4. Time-decayed momentum
+    const velocity = computePostTrendingVelocityScore(candidate, now);
+
+    const totalScore =
+      sharedCommenters * 4.5 +
+      bm25Sim * 1.5 +
+      sameCategoryBoost +
+      sameTypeBoost +
+      sameCampusBoost +
+      Math.log1p(velocity) * 1.2;
+
+    scored.push({ post: candidate, score: totalScore });
+  }
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxItems)
+    .map((s) => s.post);
 }
 
 /**

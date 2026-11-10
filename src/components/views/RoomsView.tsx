@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { CommunityRoom } from '../../types/index.ts';
+import { searchAndRankRooms } from '../../lib/supabase.ts';
 import {
   ChevronLeft,
   Users2,
@@ -24,6 +25,7 @@ import {
 export const RoomsView: React.FC = () => {
   const {
     rooms,
+    socialPosts,
     toggleJoinRoom,
     enterRoom,
     setActiveView,
@@ -52,12 +54,23 @@ export const RoomsView: React.FC = () => {
     'Launch & Trending',
   ];
 
+  // Derive user's preferred categories from liked/bookmarked posts for room affinity scoring
+  const preferredCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of socialPosts || []) {
+      if ((p.hasLiked || p.isBookmarked) && p.category) {
+        set.add(p.category.toLowerCase());
+      }
+    }
+    return set;
+  }, [socialPosts]);
+
   const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => {
-      // 1. Category / Joined filter
+    const categoryFiltered = rooms.filter((room) => {
       if (activeCategory === 'Joined') {
-        if (!room.isJoined) return false;
-      } else if (activeCategory !== 'All') {
+        return Boolean(room.isJoined);
+      }
+      if (activeCategory !== 'All') {
         const rc = room.category.toLowerCase();
         const ac = activeCategory.toLowerCase();
         const matches =
@@ -79,22 +92,13 @@ export const RoomsView: React.FC = () => {
           return false;
         }
       }
-
-      // 2. Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = room.name.toLowerCase().includes(q);
-        const matchesDesc = room.description.toLowerCase().includes(q);
-        const matchesCat = room.category.toLowerCase().includes(q);
-        const matchesTags = room.tags?.some((t) => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesDesc && !matchesCat && !matchesTags) {
-          return false;
-        }
-      }
-
       return true;
     });
-  }, [rooms, activeCategory, searchQuery]);
+
+    return searchAndRankRooms(categoryFiltered, searchQuery, {
+      preferredCategories,
+    });
+  }, [rooms, activeCategory, searchQuery, preferredCategories]);
 
   const handleOpenRoom = (room: CommunityRoom) => {
     enterRoom(room.id);
