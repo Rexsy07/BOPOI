@@ -2,6 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      window.addEventListener(
+        'unhandledrejection',
+        function (event) {
+          var reason = event && event.reason;
+          var msg = reason && (reason.message || String(reason)) || '';
+          var stack = reason && reason.stack || '';
+          if (
+            msg.indexOf('WebSocket closed without opened') !== -1 ||
+            msg.indexOf('failed to connect to websocket') !== -1 ||
+            stack.indexOf('@vite/client') !== -1
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        },
+        true
+      );
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, interactive-widget=resizes-content" />
     <title>Bopoi - Anonymous Messages &amp; Campus Social</title>
     <meta name="description" content="Bopoi is the campus social platform for anonymous messaging, expressive answer sharing, and connected student life." />

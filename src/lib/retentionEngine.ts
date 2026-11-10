@@ -693,23 +693,6 @@ export async function executeActivationPipeline(
     if (supabaseClient && validUserUuid) {
       const mutations: Promise<any>[] = [];
 
-      creatorsToFollowIds
-        .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
-        .forEach((creatorId) => {
-          mutations.push(
-            Promise.resolve(
-              supabaseClient.from('user_follows').upsert(
-                {
-                  follower_id: userId,
-                  following_id: creatorId,
-                  created_at: new Date().toISOString(),
-                },
-                { onConflict: 'follower_id,following_id' }
-              )
-            )
-          );
-        });
-
       roomsToJoinIds
         .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
         .forEach((roomId) => {

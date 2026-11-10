@@ -28,7 +28,9 @@ export const PublicAskView: React.FC = () => {
     setActiveView,
     viewUserProfile,
     openLegalDoc,
+    isAuthenticated,
   } = useBopoi();
+  const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
 
   const recipient = askingRecipient || user;
   const recipientDisplayName =
@@ -245,18 +247,30 @@ export const PublicAskView: React.FC = () => {
         </div>
       </div>
 
-      {/* Viral CTA Below Card */}
+      {/* Context-Aware Bottom CTA */}
       <div className="mt-6 text-center space-y-2.5">
-        <p className="text-xs font-bold text-[#706B7D]">
-          👇 Want classmates to send you anonymous messages too?
-        </p>
-        <button
-          onClick={() => setActiveView('register')}
-          className="px-6 py-3 bg-[#191525] hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
-        >
-          <BopoiLogo variant="icon" size="sm" />
-          <span>Get your own Bopoi link!</span>
-        </button>
+        {isLoggedIn ? (
+          <button
+            onClick={() => setActiveView('inbox')}
+            className="px-6 py-3 bg-[#191525] hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            <BopoiLogo variant="icon" size="sm" />
+            <span>Check My Anonymous Inbox (@{user.username})</span>
+          </button>
+        ) : (
+          <>
+            <p className="text-xs font-bold text-[#706B7D]">
+              Want classmates to send you anonymous messages too?
+            </p>
+            <button
+              onClick={() => setActiveView('register')}
+              className="px-6 py-3 bg-[#191525] hover:bg-slate-800 text-white font-extrabold text-xs rounded-2xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+            >
+              <BopoiLogo variant="icon" size="sm" />
+              <span>Get your own Bopoi link!</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

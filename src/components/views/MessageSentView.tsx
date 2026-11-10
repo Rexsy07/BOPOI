@@ -20,7 +20,9 @@ export const MessageSentView: React.FC = () => {
     markConvoAsRead,
     switchAccount,
     accounts,
+    isAuthenticated,
   } = useBopoi();
+  const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
   const [showThreadModal, setShowThreadModal] = useState(false);
 
   const recipient = askingRecipient || user;
@@ -122,21 +124,41 @@ export const MessageSentView: React.FC = () => {
           </button>
         </div>
 
-        {/* Virality Acquisition Box */}
+        {/* Context-Aware Bottom Card */}
         <div className="bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center">
-          <h3 className="text-sm font-black text-[#191525]">
-            Want your own anonymous link?
-          </h3>
-          <p className="text-xs text-[#706B7D] mt-1">
-            Let your classmates and friends ask you anything. Free in 30 seconds.
-          </p>
-          <button
-            onClick={() => setActiveView('register')}
-            className="mt-3.5 px-6 py-2.5 bg-white border border-[#5420F5] text-[#5420F5] hover:bg-[#F0EBFF] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
-          >
-            <span>Create my link</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          {isLoggedIn ? (
+            <>
+              <h3 className="text-sm font-black text-[#191525]">
+                Continue exploring campus
+              </h3>
+              <p className="text-xs text-[#706B7D] mt-1">
+                Jump back to the live campus feed or check your own anonymous inbox.
+              </p>
+              <button
+                onClick={() => setActiveView('home')}
+                className="mt-3.5 px-6 py-2.5 bg-white border border-[#5420F5] text-[#5420F5] hover:bg-[#F0EBFF] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              >
+                <span>Back to Campus Feed</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-black text-[#191525]">
+                Want your own anonymous link?
+              </h3>
+              <p className="text-xs text-[#706B7D] mt-1">
+                Let your classmates and friends ask you anything. Free in 30 seconds.
+              </p>
+              <button
+                onClick={() => setActiveView('register')}
+                className="mt-3.5 px-6 py-2.5 bg-white border border-[#5420F5] text-[#5420F5] hover:bg-[#F0EBFF] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+              >
+                <span>Create my link</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Bottom Logo stamp */}

@@ -3,6 +3,7 @@ import { X, Search, UserPlus, Check, School } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
 import {
+  BopoiSearchIcon,
   RealPeopleIcon,
   SearchEmptyIcon,
   SparklePolishIcon,
@@ -167,7 +168,9 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
         {/* Search Input */}
         <div className="p-3.5 border-b border-[#EAE6F0] bg-[#FAF9FC]">
           <div className="relative">
-            <Search className="w-4 h-4 text-[#706B7D] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+              <BopoiSearchIcon size={16} />
+            </span>
             <input
               type="text"
               value={searchQuery}
@@ -190,11 +193,11 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
         {/* Scrollable List of People */}
         <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
           {filteredList.length === 0 ? (
-            <div className="py-10 px-4 text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] flex items-center justify-center mx-auto">
-                <RealPeopleIcon size={34} />
+            <div className="py-10 px-4 text-center flex flex-col items-center justify-center space-y-3.5">
+              <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto shadow-2xs p-2">
+                {searchQuery ? <SearchEmptyIcon size={42} /> : <RealPeopleIcon size={42} />}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 max-w-xs mx-auto">
                 <p className="text-sm font-black text-[#191525]">
                   {searchQuery
                     ? `No matches for "${searchQuery}"`
@@ -206,7 +209,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                     ? 'You are not following anyone yet'
                     : `@${targetUsername} isn't following anyone yet`}
                 </p>
-                <p className="text-xs text-[#706B7D] max-w-xs mx-auto leading-relaxed">
+                <p className="text-xs text-[#706B7D] leading-relaxed">
                   {activeTab === 'following' && isMe
                     ? 'Explore Discover to find and follow verified creators and students from your campus!'
                     : 'Share your profile link or join campus rooms to connect with more students.'}
@@ -219,7 +222,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                     onClose();
                     setActiveView('discover');
                   }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer shadow-sm"
                 >
                   <DiscoverCompassNavIcon size={16} />
                   <span>Discover Campus Students</span>

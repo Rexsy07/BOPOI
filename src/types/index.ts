@@ -16,6 +16,7 @@ export interface UserProfile {
   isCreator?: boolean;
   isSuspended?: boolean;
   suspensionReason?: string;
+  onboardingCompleted?: boolean;
   createdAt?: string;
 }
 

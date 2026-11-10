@@ -17,6 +17,7 @@ import {
   CreatePollIcon,
   StudentPostsIcon,
   SparklePolishIcon,
+  RoomBadgeIcon,
 } from '../brand/icons/index.ts';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 
@@ -259,15 +260,13 @@ export const GlobalSearchModal: React.FC = () => {
                     }}
                     className="p-3 rounded-2xl border border-slate-200/80 hover:border-violet-300 bg-slate-50/60 hover:bg-violet-50/40 text-left transition-all flex items-center gap-3 group"
                   >
-                    <div
-                      className={`w-10 h-10 rounded-xl bg-gradient-to-br ${room.iconBg} flex items-center justify-center text-white shadow-xs shrink-0`}
-                    >
-                      <BopoiIcon
-                        name={room.category || room.name}
-                        size={20}
-                        fallbackEmoji={room.iconEmoji}
-                      />
-                    </div>
+                    <RoomBadgeIcon
+                      iconEmoji={room.iconEmoji}
+                      iconBg={room.iconBg}
+                      category={room.category}
+                      roomName={room.name}
+                      size="sm"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-black text-slate-900 truncate group-hover:text-violet-700">

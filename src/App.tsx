@@ -18,12 +18,11 @@ import { BottomNavBar } from './components/navigation/BottomNavBar.tsx';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.tsx';
 import { useMobileKeyboard } from './hooks/useMobileKeyboard.ts';
 
+import { OnboardingView } from './components/views/OnboardingView.tsx';
+
 // Fast Lazy-Loaded Secondary Views for instant initial load and zero-jank navigation
 const HomeLandingView = lazy(() =>
   import('./components/views/HomeLandingView.tsx').then((m) => ({ default: m.HomeLandingView }))
-);
-const OnboardingView = lazy(() =>
-  import('./components/views/OnboardingView.tsx').then((m) => ({ default: m.OnboardingView }))
 );
 const SplashView = lazy(() =>
   import('./components/views/SplashView.tsx').then((m) => ({ default: m.SplashView }))
@@ -156,7 +155,7 @@ const AppContent: React.FC = () => {
       case 'splash':
         return <SplashView />;
       case 'onboarding':
-        return <OnboardingView />;
+        return user.onboardingCompleted ? <HomeView /> : <OnboardingView />;
       case 'confessions':
         return <ConfessionsView />;
       case 'polls':
@@ -206,8 +205,7 @@ const AppContent: React.FC = () => {
 
   const isPreAuthView =
     activeView === 'landing' ||
-    activeView === 'splash' ||
-    activeView === 'onboarding';
+    activeView === 'splash';
 
   const isFullViewportChat = activeView === 'room-detail';
 

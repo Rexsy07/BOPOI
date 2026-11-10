@@ -14,6 +14,7 @@ import {
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 import {
   BopoiIcon,
+  BopoiSearchIcon,
   SearchEmptyIcon,
   LaunchTrendingIcon,
   CreateRoomIcon,
@@ -197,7 +198,9 @@ export const RoomsView: React.FC = () => {
 
       {/* 3. Search Bar */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+          <BopoiSearchIcon size={16} />
+        </span>
         <input
           type="text"
           value={searchQuery}
@@ -247,19 +250,21 @@ export const RoomsView: React.FC = () => {
       {/* 5. Community Rooms List */}
       <div className="space-y-3 pt-1">
         {filteredRooms.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center space-y-3 border border-[#EAE6F0]">
-            <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] flex items-center justify-center mx-auto">
-              <CreateRoomIcon size={38} />
+          <div className="bg-white rounded-3xl p-8 text-center flex flex-col items-center justify-center space-y-3.5 border border-[#EAE6F0] shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto shadow-2xs p-2">
+              {searchQuery ? <SearchEmptyIcon size={42} /> : <CreateRoomIcon size={42} />}
             </div>
-            <h3 className="text-sm font-black text-[#191525]">No rooms found</h3>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
-              {searchQuery
-                ? `No active rooms match "${searchQuery}". Be the first to create this room!`
-                : 'No rooms in this category yet. Be the first to start a conversation!'}
-            </p>
+            <div className="space-y-1 max-w-xs mx-auto">
+              <h3 className="text-sm sm:text-base font-black text-[#191525]">No rooms found</h3>
+              <p className="text-xs text-[#706B7D] leading-relaxed">
+                {searchQuery
+                  ? `No active rooms match "${searchQuery}". Be the first to create this room!`
+                  : 'No rooms in this category yet. Be the first to start a conversation!'}
+              </p>
+            </div>
             <button
               onClick={() => setIsCreateRoomModalOpen(true)}
-              className="px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl shadow-md shadow-[#5420F5]/25 cursor-pointer inline-flex items-center gap-1.5"
+              className="px-4 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl shadow-md shadow-[#5420F5]/25 cursor-pointer inline-flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create This Room</span>

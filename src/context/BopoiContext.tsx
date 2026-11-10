@@ -286,6 +286,7 @@ interface BopoiContextType {
   }) => { success: boolean; error?: string };
   switchAccount: (username: string) => void;
   logoutAccount: () => void;
+  completeOnboarding: (destination?: ActiveAppView) => void;
 
   // Public Ask Target Recipient
   askingRecipient: UserProfile | CreatorProfile | null;
@@ -1081,6 +1082,11 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             isCreator: Boolean(profileRow.is_creator ?? profileRow.is_verified),
             isSuspended: Boolean(profileRow.is_suspended),
             suspensionReason: profileRow.suspension_reason || undefined,
+            onboardingCompleted: Boolean(
+              profileRow.onboarding_completed ??
+                authUser.user_metadata?.onboarding_completed ??
+                true
+            ),
             ...ov,
           };
           setUser(loadedUser);
@@ -3162,6 +3168,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isVerified: false,
       isCreator: false,
       isSuspended: false,
+      onboardingCompleted: false,
     };
 
     const runColdStartActivation = (targetUserId: string) => {
@@ -3206,6 +3213,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               avatar_url: params.avatarUrl,
               campus: params.campus || 'Chrisland University',
               bio: newAccount.bio,
+              onboarding_completed: false,
             },
           },
         })
@@ -3223,8 +3231,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               return [realUser, ...filtered];
             });
             runColdStartActivation(data.user.id);
-            setActiveView('profile');
-            showToast(`Account @${cleanUsername} created!`, 'success');
+            setActiveView('onboarding');
+            showToast(`Account @${cleanUsername} created! Welcome to your campus guide.`, 'success');
             queryClient.invalidateQueries();
           }
         });
@@ -3238,8 +3246,65 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(newAccount);
     setIsAuthenticated(true);
     runColdStartActivation(fallbackId);
+    setActiveView('onboarding');
     showToast(`Account @${cleanUsername} created!`, 'success');
     return { success: true };
+  };
+
+  const completeOnboarding = (destination: ActiveAppView = 'home') => {
+    const targetUserId = user.id;
+    const targetUsername = user.username;
+
+    setUser((prev) => ({
+      ...prev,
+      onboardingCompleted: true,
+    }));
+
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === targetUserId ||
+        acc.username.toLowerCase() === (targetUsername || '').toLowerCase()
+          ? { ...acc, onboardingCompleted: true }
+          : acc
+      )
+    );
+
+    saveAdminUserOverride([targetUserId, targetUsername].filter(Boolean), {
+      onboardingCompleted: true,
+    });
+
+    try {
+      localStorage.setItem('bopoi_onboarding_completed', 'true');
+      if (targetUserId) {
+        localStorage.setItem(`bopoi_onboarding_completed_${targetUserId}`, 'true');
+      }
+      if (targetUsername) {
+        localStorage.setItem(
+          `bopoi_onboarding_completed_${targetUsername.toLowerCase()}`,
+          'true'
+        );
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    if (supabase) {
+      supabase.auth
+        .updateUser({
+          data: { onboarding_completed: true },
+        })
+        .catch(() => {});
+
+      if (targetUserId && /^[0-9a-f-]{36}$/i.test(targetUserId)) {
+        supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('id', targetUserId)
+          .then(() => {});
+      }
+    }
+
+    setActiveView(destination);
   };
 
   const switchAccount = (username: string) => {
@@ -6294,6 +6359,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         registerAccount,
         switchAccount,
         logoutAccount,
+        completeOnboarding,
         askingRecipient,
         setAskingRecipient,
         openPublicAskFor,

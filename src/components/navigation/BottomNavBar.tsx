@@ -27,14 +27,17 @@ export const BottomNavBar: React.FC = () => {
     activeView === 'profile' || activeView === 'saved' || activeView === 'public-profile';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 h-16 bg-white/95 backdrop-blur-md border-t border-[#EAE6F0] px-3 sm:px-6 flex items-center justify-around select-none shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 h-16 pb-[env(safe-area-inset-bottom)] bg-white/95 backdrop-blur-md border-t border-[#EAE6F0] px-3 sm:px-6 flex items-center justify-around select-none shadow-lg">
       {/* 1. Home */}
       <button
         onClick={() => setActiveView('home')}
-        className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all cursor-pointer ${
+        className={`relative flex flex-col items-center justify-center min-w-[56px] h-full py-1 transition-all cursor-pointer ${
           isHomeActive ? 'text-[#5420F5]' : 'text-slate-500 hover:text-slate-800'
         }`}
       >
+        {isHomeActive && (
+          <span className="absolute top-0 w-6 h-0.5 rounded-full bg-[#5420F5]" />
+        )}
         <div className={isHomeActive ? 'scale-110 transition-transform' : 'opacity-75'}>
           <HomeFeedNavIcon size={22} />
         </div>
@@ -46,10 +49,13 @@ export const BottomNavBar: React.FC = () => {
       {/* 2. Discover */}
       <button
         onClick={() => setActiveView('discover')}
-        className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all cursor-pointer ${
+        className={`relative flex flex-col items-center justify-center min-w-[56px] h-full py-1 transition-all cursor-pointer ${
           isDiscoverActive ? 'text-[#5420F5]' : 'text-slate-500 hover:text-slate-800'
         }`}
       >
+        {isDiscoverActive && (
+          <span className="absolute top-0 w-6 h-0.5 rounded-full bg-[#5420F5]" />
+        )}
         <div className={isDiscoverActive ? 'scale-110 transition-transform' : 'opacity-75'}>
           <DiscoverCompassNavIcon size={22} />
         </div>
@@ -70,10 +76,13 @@ export const BottomNavBar: React.FC = () => {
       {/* 4. Inbox */}
       <button
         onClick={() => setActiveView('inbox')}
-        className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all cursor-pointer relative ${
+        className={`relative flex flex-col items-center justify-center min-w-[56px] h-full py-1 transition-all cursor-pointer ${
           isInboxActive ? 'text-[#5420F5]' : 'text-slate-500 hover:text-slate-800'
         }`}
       >
+        {isInboxActive && (
+          <span className="absolute top-0 w-6 h-0.5 rounded-full bg-[#5420F5]" />
+        )}
         <div className="relative">
           <InboxShortcutIcon
             size={22}
@@ -93,10 +102,13 @@ export const BottomNavBar: React.FC = () => {
       {/* 5. Profile & Saved */}
       <button
         onClick={() => setActiveView('profile')}
-        className={`flex flex-col items-center justify-center min-w-[56px] py-1 transition-all cursor-pointer ${
+        className={`relative flex flex-col items-center justify-center min-w-[56px] h-full py-1 transition-all cursor-pointer ${
           isProfileActive ? 'text-[#5420F5]' : 'text-slate-500 hover:text-slate-800'
         }`}
       >
+        {isProfileActive && (
+          <span className="absolute top-0 w-6 h-0.5 rounded-full bg-[#5420F5]" />
+        )}
         <div className={isProfileActive ? 'scale-110 transition-transform' : 'opacity-75'}>
           <ProfileShieldNavIcon size={22} />
         </div>

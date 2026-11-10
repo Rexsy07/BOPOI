@@ -26,6 +26,7 @@ import {
   CreateDiscussionIcon,
   CreatePostIcon,
   CreateRoomIcon,
+  RoomBadgeIcon,
   StoryStudioNavIcon,
   PublicAskNavIcon,
 } from '../brand/icons/index.ts';
@@ -490,7 +491,22 @@ export const PublicProfileView: React.FC = () => {
 
         {activeTab === 'rooms' && (
           <div className="space-y-2.5">
-            {studentRooms.map((r) => {
+            {studentRooms.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
+                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto p-2 shadow-2xs">
+                  <CreateRoomIcon size={36} />
+                </div>
+                <div className="space-y-1 max-w-xs mx-auto">
+                  <p className="text-xs font-bold text-slate-700">
+                    No public rooms joined by {profileName} yet
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Explore live campus rooms to join ongoing student conversations!
+                  </p>
+                </div>
+              </div>
+            ) : (
+            studentRooms.map((r) => {
               const accentHex = r.iconBg || '#5420F5';
               return (
                 <div
@@ -502,19 +518,14 @@ export const PublicProfileView: React.FC = () => {
                   title={`Enter #${r.name}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      style={{
-                        borderColor: `${accentHex}45`,
-                        backgroundColor: `${accentHex}10`,
-                      }}
-                      className="w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 p-1.5 shadow-2xs group-hover:scale-105 transition-transform"
-                    >
-                      <BopoiIcon
-                        name={r.category || r.name}
-                        size={26}
-                        fallbackEmoji={r.iconEmoji || '💬'}
-                      />
-                    </div>
+                    <RoomBadgeIcon
+                      iconEmoji={r.iconEmoji}
+                      iconBg={r.iconBg}
+                      category={r.category}
+                      roomName={r.name}
+                      size="sm"
+                      className="group-hover:scale-105 transition-transform"
+                    />
                     <div className="min-w-0">
                       <h5 className="text-xs font-black text-[#191525] group-hover:text-[#5420F5] transition-colors truncate">
                         {r.name}
@@ -537,7 +548,8 @@ export const PublicProfileView: React.FC = () => {
                   </button>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         )}
       </div>

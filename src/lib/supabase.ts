@@ -1031,6 +1031,7 @@ export async function fetchSupabaseProfiles(
           isCreator: Boolean(r.is_creator ?? r.is_verified),
           isSuspended: Boolean(r.is_suspended),
           suspensionReason: r.suspension_reason || undefined,
+          onboardingCompleted: Boolean(r.onboarding_completed ?? true),
           createdAt: formatRelativeTime(r.created_at),
         };
         return applyOverride(base);

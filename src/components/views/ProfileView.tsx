@@ -38,6 +38,7 @@ import { SocialPost, MessageAnswer } from '../../types/index.ts';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { RegisterView, CAMPUS_OPTIONS } from './RegisterView.tsx';
 import {
+  BopoiSearchIcon,
   BookmarkedIcon,
   DeleteRemoveIcon,
   SearchEmptyIcon,
@@ -703,7 +704,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               {/* Search bar inside user posts */}
               {totalMyItems > 0 && (
                 <div className="relative pt-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 mt-0.5" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center mt-0.5">
+                    <BopoiSearchIcon size={16} />
+                  </span>
                   <input
                     type="text"
                     value={searchQuery}
@@ -1207,7 +1210,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               {/* Search bar inside saved collection */}
               {allSavedPosts.length > 0 && (
                 <div className="relative pt-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 mt-0.5" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center mt-0.5">
+                    <BopoiSearchIcon size={16} />
+                  </span>
                   <input
                     type="text"
                     value={searchQuery}
@@ -1433,9 +1438,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               </div>
             ) : (
               /* Empty state */
-              <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center space-y-4 shadow-xs">
-                <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] text-[#5420F5] flex items-center justify-center mx-auto shadow-2xs p-2">
-                  <BookmarkedIcon size={44} />
+              <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center flex flex-col items-center justify-center space-y-4 shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 text-[#5420F5] flex items-center justify-center mx-auto shadow-2xs p-2">
+                  {searchQuery ? <SearchEmptyIcon size={44} /> : <BookmarkedIcon size={44} />}
                 </div>
                 <div className="max-w-sm mx-auto space-y-1.5">
                   <h3 className="text-base font-black text-[#191525]">

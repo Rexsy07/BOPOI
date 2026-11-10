@@ -21,6 +21,8 @@ import {
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import {
   BopoiIcon,
+  BopoiSearchIcon,
+  RealPeopleIcon,
   SearchEmptyIcon,
   DiscoverCompassNavIcon,
   CreateConfessionIcon,
@@ -429,7 +431,9 @@ export const DiscoverView: React.FC = () => {
         className="space-y-3 scroll-mt-20"
       >
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5420F5]" />
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+            <BopoiSearchIcon size={18} />
+          </span>
           <input
             id="discover-search-input"
             ref={searchInputRef}
@@ -496,12 +500,15 @@ export const DiscoverView: React.FC = () => {
             </div>
 
             {totalResultsCount === 0 ? (
-              <div className="py-8 px-4 text-center space-y-3">
-                <div>
-                  <p className="text-sm font-bold text-[#191525]">
+              <div className="py-10 px-4 text-center flex flex-col items-center justify-center space-y-3.5">
+                <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto shadow-2xs p-2">
+                  <SearchEmptyIcon size={42} />
+                </div>
+                <div className="max-w-sm mx-auto space-y-1">
+                  <p className="text-sm font-black text-[#191525]">
                     No direct matches for "{searchQuery || selectedTopic}"
                   </p>
-                  <p className="text-xs text-[#706B7D] mt-1">
+                  <p className="text-xs text-[#706B7D] leading-relaxed">
                     Be the first on your campus to spark a conversation or anonymous room on this topic:
                   </p>
                 </div>
@@ -969,11 +976,16 @@ export const DiscoverView: React.FC = () => {
         </div>
 
         {rooms.length === 0 ? (
-          <div className="bg-white rounded-3xl p-6 border border-[#EAE6F0] text-center space-y-2 shadow-xs">
-            <p className="text-xs font-bold text-[#191525]">No community rooms yet</p>
-            <p className="text-[11px] text-[#706B7D]">
-              Create the first anonymous room for your campus or faculty!
-            </p>
+          <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto shadow-2xs p-2">
+              <CreateRoomIcon size={36} />
+            </div>
+            <div className="space-y-1 max-w-xs mx-auto">
+              <p className="text-sm font-black text-[#191525]">No community rooms yet</p>
+              <p className="text-xs text-[#706B7D]">
+                Create the first anonymous room for your campus or faculty!
+              </p>
+            </div>
           </div>
         ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1030,11 +1042,16 @@ export const DiscoverView: React.FC = () => {
         </div>
 
         {pymkCreators.length === 0 ? (
-          <div className="bg-white rounded-3xl p-6 border border-[#EAE6F0] text-center space-y-2 shadow-xs">
-            <p className="text-xs font-bold text-[#191525]">No student profiles yet</p>
-            <p className="text-[11px] text-[#706B7D]">
-              Registered campus students will appear here as they join Bopoi.
-            </p>
+          <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto shadow-2xs p-2">
+              <RealPeopleIcon size={36} />
+            </div>
+            <div className="space-y-1 max-w-xs mx-auto">
+              <p className="text-sm font-black text-[#191525]">No student profiles yet</p>
+              <p className="text-xs text-[#706B7D]">
+                Registered campus students will appear here as they join Bopoi.
+              </p>
+            </div>
           </div>
         ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

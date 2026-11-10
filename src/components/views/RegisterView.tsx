@@ -27,6 +27,7 @@ import {
   randomizeCharacterConfig,
   CHARACTER_PRESETS,
 } from '../brand/character/index.ts';
+import { BopoiSearchIcon, SearchEmptyIcon } from '../brand/icons/index.ts';
 
 export const CAMPUS_OPTIONS = [
   {
@@ -198,7 +199,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
       });
       setLoading(false);
       if (res.success) {
-        setActiveView('profile');
+        try {
+          localStorage.removeItem('bopoi_onboarding_completed');
+        } catch {
+          // ignore
+        }
+        setActiveView('onboarding');
       } else if (res.error) {
         showToast(res.error, 'error');
       }
@@ -257,7 +263,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-4 h-4 text-[#706B7D] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+              <BopoiSearchIcon size={16} />
+            </span>
             <input
               type="text"
               value={campusSearchQuery}
@@ -322,11 +330,16 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 );
               })
             ) : (
-              <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-[#EAE6F0] bg-[#FAF9FC]">
-                <p className="text-xs font-bold text-[#191525]">No matching university found</p>
-                <p className="text-[11px] text-[#706B7D] mt-1">
-                  Only Chrisland University is currently available.
-                </p>
+              <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-[#EAE6F0] bg-[#FAF9FC] flex flex-col items-center justify-center space-y-2.5">
+                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto p-2 shadow-2xs">
+                  <SearchEmptyIcon size={36} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#191525]">No matching university found</p>
+                  <p className="text-[11px] text-[#706B7D] mt-1">
+                    Only Chrisland University is currently available.
+                  </p>
+                </div>
               </div>
             )}
           </div>
