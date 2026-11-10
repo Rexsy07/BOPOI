@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { SocialComment, SocialPost } from '../../types/index.ts';
 import { useBopoi } from '../../context/BopoiContext.tsx';
+import { rankCommentsByWilsonScore } from '../../lib/supabase.ts';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { MentionText } from '../ui/MentionText.tsx';
 import {
@@ -72,6 +73,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
 
   // Collapsed threads tracking (all expanded by default)
   const [collapsedThreads, setCollapsedThreads] = useState<Record<string, boolean>>({});
+  const [commentSort, setCommentSort] = useState<'top' | 'newest'>('top');
 
   const bottomInputRef = useRef<HTMLInputElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
@@ -191,19 +193,39 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
   const inlineMentionQuery = getMentionQuery(inlineReplyText);
 
   // Organize comments into root comments and replies map
-  const rootComments: SocialComment[] = [];
-  const repliesByParent: Record<string, SocialComment[]> = {};
+  const { sortedRootComments, repliesByParent } = useMemo(() => {
+    const roots: SocialComment[] = [];
+    const byParent: Record<string, SocialComment[]> = {};
 
-  comments.forEach((c) => {
-    if (c.parentId) {
-      if (!repliesByParent[c.parentId]) {
-        repliesByParent[c.parentId] = [];
+    comments.forEach((c) => {
+      if (c.parentId) {
+        if (!byParent[c.parentId]) {
+          byParent[c.parentId] = [];
+        }
+        byParent[c.parentId].push(c);
+      } else {
+        roots.push(c);
       }
-      repliesByParent[c.parentId].push(c);
-    } else {
-      rootComments.push(c);
-    }
-  });
+    });
+
+    const followedSet = new Set<string>();
+    creators.forEach((cr) => {
+      if (cr.isFollowing && cr.username) {
+        followedSet.add(cr.username.toLowerCase());
+      }
+    });
+
+    const ranked =
+      commentSort === 'newest'
+        ? [...roots].sort((a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0))
+        : rankCommentsByWilsonScore(roots, byParent, {
+            postAuthorUsername: post?.authorUsername,
+            followedUsernames: followedSet,
+            userCampus: user?.campus,
+          });
+
+    return { sortedRootComments: ranked, repliesByParent: byParent };
+  }, [comments, commentSort, creators, post?.authorUsername, user?.campus]);
 
   const toggleThreadCollapse = (commentId: string) => {
     setCollapsedThreads((prev) => ({
@@ -304,8 +326,8 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
 
   return (
     <div className="space-y-4 pt-2 pb-4">
-      {/* Header with counter */}
-      <div className="flex items-center justify-between border-b border-[#EAE6F0] pb-2">
+      {/* Header with counter & Wilson Score / Newest sort toggle */}
+      <div className="flex items-center justify-between border-b border-[#EAE6F0] pb-2 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black text-[#191525] tracking-tight">
             Comments &amp; Threads
@@ -314,15 +336,43 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
             {comments.length}
           </span>
         </div>
-        {replyingTo && (
-          <button
-            onClick={handleCancelReply}
-            className="text-xs text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1 cursor-pointer"
-          >
-            <span>Cancel replying to @{replyingTo.authorName}</span>
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {comments.length > 1 && (
+            <div className="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-[#EAE6F0]">
+              <button
+                type="button"
+                onClick={() => setCommentSort('top')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  commentSort === 'top'
+                    ? 'bg-white text-[#5420F5] shadow-2xs'
+                    : 'text-[#706B7D] hover:text-[#191525]'
+                }`}
+              >
+                Top
+              </button>
+              <button
+                type="button"
+                onClick={() => setCommentSort('newest')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  commentSort === 'newest'
+                    ? 'bg-white text-[#5420F5] shadow-2xs'
+                    : 'text-[#706B7D] hover:text-[#191525]'
+                }`}
+              >
+                Newest
+              </button>
+            </div>
+          )}
+          {replyingTo && (
+            <button
+              onClick={handleCancelReply}
+              className="text-xs text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              <span>Cancel replying to @{replyingTo.authorName}</span>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Comments List */}
@@ -338,7 +388,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {rootComments.map((comment) => {
+          {sortedRootComments.map((comment) => {
             const replies = repliesByParent[comment.id] || [];
             const isCollapsed = collapsedThreads[comment.id] || false;
             const isReplyingThisComment = replyingTo?.commentId === comment.id;

@@ -6,6 +6,11 @@ import {
   fetchPeopleYouMayKnow,
   computeLocalAdamicAdarRecommendations,
   recordPostBanditInteraction,
+  searchAndRankPosts,
+  searchAndRankPeople,
+  searchAndRankRooms,
+  computeDynamicTrendingTopics,
+  computePostTrendingVelocityScore,
 } from '../../lib/supabase.ts';
 import { PYMKRecommendation } from '../../lib/retentionEngine.ts';
 import {
@@ -88,14 +93,10 @@ export const DiscoverView: React.FC = () => {
     }
   }, [isSearchModalOpen, setIsSearchModalOpen]);
 
-  const trendingTopics = [
-    { label: 'Campus Life', tag: 'Campus Life', iconName: 'campus-life' },
-    { label: 'Relationships', tag: 'Love', iconName: 'dating-romance' },
-    { label: 'Tech & Gadgets', tag: 'Tech', iconName: 'tech-coding' },
-    { label: 'Music', tag: 'Fun', iconName: 'music-podcasts' },
-    { label: 'Money', tag: 'Life', iconName: 'money-finances' },
-    { label: 'Fashion', tag: 'Life', iconName: 'fashion-style' },
-  ];
+  const trendingTopics = useMemo(
+    () => computeDynamicTrendingTopics(socialPosts, rooms),
+    [socialPosts, rooms]
+  );
 
   const q = searchQuery.trim().toLowerCase();
   const isSearching = q.length > 0 || Boolean(selectedTopic);
@@ -171,59 +172,21 @@ export const DiscoverView: React.FC = () => {
   }, [creators, accounts, socialPosts, followEdges, isFollowingUser]);
 
   const matchedPeople = useMemo(() => {
-    const myCampus = (user.campus || 'Chrisland University').toLowerCase();
-    const base =
-      campusFilter === 'my-campus'
-        ? allPeople.filter((p) => p.campus.toLowerCase().includes(myCampus))
-        : allPeople;
-    if (!q && !selectedTopic) return base;
-    const term = (q || selectedTopic || '').toLowerCase();
-    return base.filter(
-      (p) =>
-        p.name.toLowerCase().includes(term) ||
-        p.username.toLowerCase().includes(term) ||
-        p.campus.toLowerCase().includes(term) ||
-        p.bio.toLowerCase().includes(term)
-    );
+    return searchAndRankPeople(allPeople, q, {
+      topic: selectedTopic,
+      campusFilter,
+      userCampus: user.campus || 'Chrisland University',
+    });
   }, [allPeople, q, selectedTopic, campusFilter, user.campus]);
 
-  // 3. Filter Posts, Confessions, Polls & Discussions (including poll options & hashtags)
+  // 3. Filter & Rank Posts, Confessions, Polls & Discussions via BM25 + Fuzzy Typo Tolerance + Time-Decayed Trending Velocity
   const filteredPosts = useMemo(() => {
-    const myCampus = (user.campus || 'Chrisland University').toLowerCase();
-    const list = socialPosts.filter((post) => {
-      if (
-        campusFilter === 'my-campus' &&
-        post.authorCampus &&
-        !post.authorCampus.toLowerCase().includes(myCampus)
-      ) {
-        return false;
-      }
-      const matchesQuery =
-        q === '' ||
-        post.content.toLowerCase().includes(q) ||
-        post.title?.toLowerCase().includes(q) ||
-        post.authorName.toLowerCase().includes(q) ||
-        post.authorUsername?.toLowerCase().includes(q) ||
-        post.authorCampus?.toLowerCase().includes(q) ||
-        post.category?.toLowerCase().includes(q) ||
-        post.type.toLowerCase().includes(q) ||
-        post.hashtags?.some((t) => t.toLowerCase().includes(q.replace(/^#/, ''))) ||
-        post.pollOptions?.some((opt) => opt.text.toLowerCase().includes(q));
-
-      const matchesTopic =
-        !selectedTopic ||
-        post.category?.toLowerCase() === selectedTopic.toLowerCase() ||
-        post.content.toLowerCase().includes(selectedTopic.toLowerCase());
-
-      return matchesQuery && matchesTopic;
+    return searchAndRankPosts(socialPosts, q, {
+      topic: selectedTopic,
+      campusFilter,
+      userCampus: user.campus || 'Chrisland University',
+      sortBy,
     });
-
-    if (sortBy === 'latest') {
-      return [...list].sort((a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0));
-    }
-    return [...list].sort(
-      (a, b) => b.likes + b.commentsCount * 2 - (a.likes + a.commentsCount * 2)
-    );
   }, [socialPosts, q, selectedTopic, campusFilter, sortBy, user.campus]);
 
   const filteredPolls = useMemo(
@@ -231,17 +194,9 @@ export const DiscoverView: React.FC = () => {
     [filteredPosts]
   );
 
-  // 4. Filter Rooms AND Room Messages
+  // 4. Filter & Rank Rooms AND Room Messages via BM25 + Activity Velocity
   const filteredRooms = useMemo(() => {
-    if (!q && !selectedTopic) return rooms;
-    const term = (q || selectedTopic || '').toLowerCase();
-    return rooms.filter(
-      (r) =>
-        r.name.toLowerCase().includes(term) ||
-        r.description.toLowerCase().includes(term) ||
-        r.category.toLowerCase().includes(term) ||
-        r.tags?.some((t) => t.toLowerCase().includes(term.replace(/^#/, '')))
-    );
+    return searchAndRankRooms(rooms, q, { topic: selectedTopic });
   }, [rooms, q, selectedTopic]);
 
   const totalResultsCount =
@@ -249,7 +204,7 @@ export const DiscoverView: React.FC = () => {
     filteredPosts.length +
     filteredRooms.length;
 
-  // Redis-Cached Adamic-Adar 2-Hop Triadic Closure Recommendations ("People You May Know")
+  // Redis-Cached Adamic-Adar 2-Hop Triadic Closure + Cold-Start Co-Engagement Recommendations ("People You May Know")
   const [redisPymkList, setRedisPymkList] = useState<PYMKRecommendation[] | null>(null);
 
   useEffect(() => {
@@ -262,6 +217,7 @@ export const DiscoverView: React.FC = () => {
         username: user.username,
         edges: followEdges,
         profiles: creators,
+        posts: socialPosts,
       }
     ).then((res) => {
       if (active && Array.isArray(res) && res.length > 0) {
@@ -271,7 +227,7 @@ export const DiscoverView: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [user.id, user.username, user.campus, followEdges, creators]);
+  }, [user.id, user.username, user.campus, followEdges, creators, socialPosts.length]);
 
   const pymkCreators = useMemo<PYMKRecommendation[]>(() => {
     const localComputed = computeLocalAdamicAdarRecommendations(
@@ -279,7 +235,8 @@ export const DiscoverView: React.FC = () => {
       user.username || '',
       user.campus || 'Chrisland University',
       followEdges,
-      creators
+      creators,
+      socialPosts
     );
     const baseList = redisPymkList && redisPymkList.length > 0 ? redisPymkList : localComputed;
     const byUsername = new Map<string, PYMKRecommendation>();
@@ -815,23 +772,49 @@ export const DiscoverView: React.FC = () => {
                   <BopoiIcon name={item.iconName} size={14} />
                 </span>
                 <span>{item.label}</span>
+                {item.activeCount > 0 && (
+                  <span
+                    className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#F0EBFF] text-[#5420F5]'
+                    }`}
+                  >
+                    {item.activeCount}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Dynamic Quick Search Hashtag Chips from Real Posts & Rooms */}
+        {/* Dynamic Velocity-Ranked Hashtag Chips from Real Posts & Rooms */}
         {(() => {
-          const dynamicTags = Array.from(
-            new Set([
-              ...socialPosts.flatMap((p) =>
-                (p.hashtags || []).map((t) => t.replace(/^#/, '').trim()).filter(Boolean)
-              ),
-              ...rooms.flatMap((r) =>
-                (r.tags || []).map((t) => t.replace(/^#/, '').trim()).filter(Boolean)
-              ),
-            ])
-          ).slice(0, 10);
+          const tagVelocityMap = new Map<string, number>();
+          const now = Date.now();
+          for (const p of socialPosts) {
+            const v = computePostTrendingVelocityScore(p, now);
+            for (const rawTag of p.hashtags || []) {
+              const clean = rawTag.replace(/^#/, '').trim();
+              if (!clean) continue;
+              tagVelocityMap.set(clean, (tagVelocityMap.get(clean) || 0) + v + 1);
+            }
+          }
+          for (const r of rooms) {
+            for (const rawTag of r.tags || []) {
+              const clean = rawTag.replace(/^#/, '').trim();
+              if (!clean) continue;
+              tagVelocityMap.set(
+                clean,
+                (tagVelocityMap.get(clean) || 0) + (r.onlineCount || 1) * 0.5 + 0.5
+              );
+            }
+          }
+
+          const dynamicTags = Array.from(tagVelocityMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([tag]) => tag)
+            .slice(0, 10);
 
           if (dynamicTags.length === 0) return null;
 

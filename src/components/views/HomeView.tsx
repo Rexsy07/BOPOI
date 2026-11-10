@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useBopoi, useCharacterMood } from '../../context/BopoiContext.tsx';
-import { SocialPost, SocialPostType } from '../../types/index.ts';
+import { SocialPost } from '../../types/index.ts';
 import {
   supabase,
+  fetchTwoTowerVectorSignals,
+  TwoTowerPostSignal,
   rankSocialPostsWithBandit,
   recordPostBanditInteraction,
+  computePostTrendingVelocityScore,
 } from '../../lib/supabase.ts';
 import {
   Heart,
@@ -34,6 +37,76 @@ import {
   RoomBadgeIcon,
 } from '../brand/icons/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
+
+/**
+ * Tracks real viewport impressions and reading dwell time using IntersectionObserver.
+ * A post only records a real impression if >= 55% of the card stays in the viewport
+ * continuously for >= 1500ms (1.5s), and records exact dwell duration when leaving view.
+ */
+const FeedPostImpressionObserver: React.FC<{
+  postId: string;
+  onCardClick: () => void;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ postId, onCardClick, className, children }) => {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const enteredAtRef = useRef<number | null>(null);
+  const qualifiedImpressionRef = useRef<boolean>(false);
+  const qualificationTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+
+    const flushDwellIfQualified = () => {
+      if (qualificationTimerRef.current !== null) {
+        window.clearTimeout(qualificationTimerRef.current);
+        qualificationTimerRef.current = null;
+      }
+      if (enteredAtRef.current !== null && qualifiedImpressionRef.current) {
+        const dwellMs = Date.now() - enteredAtRef.current;
+        if (dwellMs >= 1500) {
+          recordPostBanditInteraction(supabase, postId, false, dwellMs);
+        }
+      }
+      enteredAtRef.current = null;
+      qualifiedImpressionRef.current = false;
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+          if (enteredAtRef.current === null) {
+            enteredAtRef.current = Date.now();
+            qualifiedImpressionRef.current = false;
+            qualificationTimerRef.current = window.setTimeout(() => {
+              qualifiedImpressionRef.current = true;
+            }, 1500);
+          }
+        } else {
+          flushDwellIfQualified();
+        }
+      },
+      { threshold: [0, 0.55] }
+    );
+
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+      flushDwellIfQualified();
+    };
+  }, [postId]);
+
+  return (
+    <div ref={cardRef} onClick={onCardClick} className={className}>
+      {children}
+    </div>
+  );
+};
 
 export const HomeView: React.FC = () => {
   const {
@@ -65,6 +138,44 @@ export const HomeView: React.FC = () => {
 
   const [feedCategory, setFeedCategory] = useState<string>('All');
   const [visiblePostsLimit, setVisiblePostsLimit] = useState<number>(20);
+  const [twoTowerSignals, setTwoTowerSignals] = useState<Record<string, TwoTowerPostSignal>>({});
+
+  // Fetch 768-dim Two-Tower pgvector / neural cosine similarity signals from server
+  useEffect(() => {
+    if (socialPosts.length === 0) return;
+    let cancelled = false;
+
+    const engagedTexts = socialPosts
+      .filter((p) => p.hasLiked || p.isBookmarked)
+      .slice(0, 8)
+      .map((p) => `${p.title || ''} ${p.content}`.trim());
+
+    const snapshot = socialPosts.slice(0, 250).map((p) => ({
+      id: p.id,
+      type: p.type,
+      category: p.category,
+      title: p.title,
+      content: p.content,
+      hashtags: p.hashtags,
+      authorCampus: p.authorCampus,
+    }));
+
+    fetchTwoTowerVectorSignals({
+      userId: user.id || user.username || 'guest',
+      campus: user.campus || 'Chrisland University',
+      bio: user.bio || '',
+      recentEngagedSignals: engagedTexts,
+      postsSnapshot: snapshot,
+    }).then((signals) => {
+      if (!cancelled && signals && Object.keys(signals).length > 0) {
+        setTwoTowerSignals(signals);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, user.username, user.campus, user.bio, socialPosts.length]);
 
   // Active campus broadcasts targeting all campuses or the current student's campus
   const activeAnnouncements = useMemo(() => {
@@ -139,8 +250,9 @@ export const HomeView: React.FC = () => {
       campus: user.campus || 'Chrisland University',
       followedUsernames,
       preferredCategories,
+      twoTowerSignals,
     };
-  }, [user.id, user.username, user.campus, followEdges, creators, socialPosts]);
+  }, [user.id, user.username, user.campus, followEdges, creators, socialPosts, twoTowerSignals]);
 
   // Memoized filter & Multi-Armed Bandit re-ranking with pinned post priority
   const filteredPosts = useMemo(() => {
@@ -182,17 +294,10 @@ export const HomeView: React.FC = () => {
         return list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
       case 'trending': {
         const now = Date.now();
-        list.sort((a, b) => {
-          const ageA = Math.max(0.5, (now - (a.createdTimestamp || now)) / (1000 * 60 * 60));
-          const ageB = Math.max(0.5, (now - (b.createdTimestamp || now)) / (1000 * 60 * 60));
-          const scoreA =
-            (a.likes + a.commentsCount * 2 + (a.pollTotalVotes || 0) * 1.5) /
-            Math.pow(ageA + 2, 1.5);
-          const scoreB =
-            (b.likes + b.commentsCount * 2 + (b.pollTotalVotes || 0) * 1.5) /
-            Math.pow(ageB + 2, 1.5);
-          return scoreB - scoreA;
-        });
+        list.sort(
+          (a, b) =>
+            computePostTrendingVelocityScore(b, now) - computePostTrendingVelocityScore(a, now)
+        );
         return list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
       }
       case 'for-you':
@@ -445,9 +550,10 @@ export const HomeView: React.FC = () => {
           const isDiscussion = post.type === 'discussion';
 
           return (
-            <div
+            <FeedPostImpressionObserver
               key={post.id}
-              onClick={() => handleCardClick(post)}
+              postId={post.id}
+              onCardClick={() => handleCardClick(post)}
               className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EAE6F0] shadow-xs hover:border-[#5420F5]/30 hover:shadow-md transition-all cursor-pointer space-y-3"
             >
               {/* Card Author Header - Clickable to open public profile */}
@@ -646,7 +752,7 @@ export const HomeView: React.FC = () => {
                   )}
                 </button>
               </div>
-            </div>
+            </FeedPostImpressionObserver>
           );
         })}
           {filteredPosts.length > visiblePostsLimit && (

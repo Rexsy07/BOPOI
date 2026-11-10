@@ -18,6 +18,9 @@ import {
 } from '../types/index.ts';
 import {
   fetchPersonalizedSocialFeed,
+  fetchTwoTowerVectorSignals,
+  TwoTowerPostSignal,
+  DynamicTrendingTopic,
   fetchPeopleYouMayKnow,
   executeActivationPipeline,
   rankSocialPostsWithBandit,
@@ -25,10 +28,18 @@ import {
   triggerPostVectorGeneration,
   invalidateGraphCacheForUser,
   computeLocalAdamicAdarRecommendations,
+  computePostTrendingVelocityScore,
+  scoreBM25FieldMatch,
+  searchAndRankPosts,
+  searchAndRankPeople,
+  searchAndRankRooms,
+  rankCommentsByWilsonScore,
+  computeDynamicTrendingTopics,
 } from './retentionEngine.ts';
 
 export {
   fetchPersonalizedSocialFeed,
+  fetchTwoTowerVectorSignals,
   fetchPeopleYouMayKnow,
   executeActivationPipeline,
   rankSocialPostsWithBandit,
@@ -36,7 +47,15 @@ export {
   triggerPostVectorGeneration,
   invalidateGraphCacheForUser,
   computeLocalAdamicAdarRecommendations,
+  computePostTrendingVelocityScore,
+  scoreBM25FieldMatch,
+  searchAndRankPosts,
+  searchAndRankPeople,
+  searchAndRankRooms,
+  rankCommentsByWilsonScore,
+  computeDynamicTrendingTopics,
 };
+export type { TwoTowerPostSignal, DynamicTrendingTopic };
 
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || '';
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() || '';
@@ -470,10 +489,14 @@ export function markAdminDeletedAnswer(messageIdOrAnswerId: string): void {
 /**
  * Fetch real Social Posts (with Poll Options, Comments, Likes, Bookmarks, and User Votes) from Supabase
  */
-export async function fetchSupabaseSocialPosts(currentUserId?: string): Promise<SocialPost[] | null> {
+export async function fetchSupabaseSocialPosts(
+  currentUserId?: string,
+  options?: { limit?: number; beforeCreatedAt?: string }
+): Promise<SocialPost[] | null> {
   if (!supabase) return null;
   try {
-    const { data: postsRows, error } = await supabase
+    const batchLimit = Math.min(500, Math.max(50, options?.limit || 250));
+    let query = supabase
       .from('social_posts')
       .select(
         `
@@ -483,7 +506,13 @@ export async function fetchSupabaseSocialPosts(currentUserId?: string): Promise<
       `
       )
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(batchLimit);
+
+    if (options?.beforeCreatedAt) {
+      query = query.lt('created_at', options.beforeCreatedAt);
+    }
+
+    const { data: postsRows, error } = await query;
 
     if (error || !postsRows) return null;
 

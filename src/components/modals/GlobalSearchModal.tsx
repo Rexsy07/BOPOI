@@ -7,6 +7,11 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
+import {
+  searchAndRankPosts,
+  searchAndRankRooms,
+  searchAndRankPeople,
+} from '../../lib/supabase.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
 import {
   BopoiIcon,
@@ -31,6 +36,7 @@ export const GlobalSearchModal: React.FC = () => {
     rooms,
     creators,
     accounts,
+    user,
     setSelectedPost,
     setActiveView,
     enterRoom,
@@ -75,6 +81,7 @@ export const GlobalSearchModal: React.FC = () => {
         avatarUrl: string;
         campus: string;
         bio: string;
+        isCreator?: boolean;
       }
     >();
     creators.forEach((c) => {
@@ -85,6 +92,7 @@ export const GlobalSearchModal: React.FC = () => {
         avatarUrl: c.avatarUrl || '',
         campus: c.campus || 'Nigerian Campus',
         bio: c.bio || '',
+        isCreator: true,
       });
     });
     accounts.forEach((a) => {
@@ -96,6 +104,7 @@ export const GlobalSearchModal: React.FC = () => {
           avatarUrl: a.avatarUrl,
           campus: a.campus || 'Nigerian Campus',
           bio: a.bio,
+          isCreator: Boolean(a.isVerified || a.isCreator),
         });
       }
     });
@@ -103,45 +112,26 @@ export const GlobalSearchModal: React.FC = () => {
   }, [creators, accounts]);
 
   const matchedPosts = useMemo(() => {
-    const list = socialPosts.filter((p) => {
-      if (activeFilter === 'polls' && p.type !== 'poll') return false;
-      if (!query) return true;
-      const inContent = p.content.toLowerCase().includes(query);
-      const inTitle = p.title?.toLowerCase().includes(query);
-      const inAuthor = p.authorName.toLowerCase().includes(query) || p.authorUsername?.toLowerCase().includes(query);
-      const inCampus = p.authorCampus?.toLowerCase().includes(query);
-      const inCategory = p.category?.toLowerCase().includes(query);
-      const inTags = p.hashtags?.some((t) => t.toLowerCase().includes(query.replace(/^#/, '')));
-      return inContent || inTitle || inAuthor || inCampus || inCategory || inTags;
+    const basePool =
+      activeFilter === 'polls' ? socialPosts.filter((p) => p.type === 'poll') : socialPosts;
+    const ranked = searchAndRankPosts(basePool, query, {
+      userCampus: user?.campus || 'Chrisland University',
+      sortBy: 'trending',
     });
-    return list.slice(0, query ? 12 : 4);
-  }, [socialPosts, query, activeFilter]);
+    return ranked.slice(0, query ? 12 : 4);
+  }, [socialPosts, query, activeFilter, user?.campus]);
 
   const matchedRooms = useMemo(() => {
-    const list = rooms.filter((r) => {
-      if (!query) return true;
-      return (
-        r.name.toLowerCase().includes(query) ||
-        r.description.toLowerCase().includes(query) ||
-        r.category.toLowerCase().includes(query) ||
-        r.tags?.some((t) => t.toLowerCase().includes(query.replace(/^#/, '')))
-      );
-    });
-    return list.slice(0, query ? 8 : 4);
+    const ranked = searchAndRankRooms(rooms, query);
+    return ranked.slice(0, query ? 8 : 4);
   }, [rooms, query]);
 
   const matchedPeople = useMemo(() => {
-    const list = allPeople.filter((p) => {
-      if (!query) return true;
-      return (
-        p.name.toLowerCase().includes(query) ||
-        p.username.toLowerCase().includes(query) ||
-        p.campus.toLowerCase().includes(query) ||
-        p.bio.toLowerCase().includes(query)
-      );
+    const ranked = searchAndRankPeople(allPeople, query, {
+      userCampus: user?.campus || 'Chrisland University',
     });
-    return list.slice(0, query ? 8 : 4);
-  }, [allPeople, query]);
+    return ranked.slice(0, query ? 8 : 4);
+  }, [allPeople, query, user?.campus]);
 
   const trendingTags = ['UNILAG', 'Confessions', 'Carryover', 'HostelLife', 'CampusCrush', 'UI', 'OAU', 'Covenant'];
 

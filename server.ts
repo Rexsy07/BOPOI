@@ -231,7 +231,7 @@ async function startServer() {
   });
 
   // ==========================================================================
-  // 4. USER TOWER EMBEDDING GENERATION ENDPOINT
+  // 4. USER TOWER EMBEDDING & 768-DIM TWO-TOWER CANDIDATE RETRIEVAL ENDPOINTS
   // ==========================================================================
   app.post('/api/retention/user-embedding', async (req, res) => {
     try {
@@ -246,6 +246,112 @@ async function startServer() {
       res.json({ ok: true, dimensions: embedding.length, embedding });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Failed to compute user embedding' });
+    }
+  });
+
+  app.post('/api/retention/feed-candidates', async (req, res) => {
+    try {
+      const {
+        userId = 'guest',
+        campus = 'Chrisland University',
+        bio = '',
+        interestTags = [],
+        recentEngagedSignals = [],
+        postsSnapshot = [],
+      } = req.body || {};
+
+      // 1. Compute or fetch 768-dim User Tower vector from Redis / Gemini
+      const userEmbedding = await getOrCreateUserTowerEmbedding({
+        userId: String(userId),
+        campus: String(campus),
+        bio: String(bio),
+        interestTags: Array.isArray(interestTags) ? interestTags : [],
+        recentEngagedSignals: Array.isArray(recentEngagedSignals) ? recentEngagedSignals : [],
+      });
+
+      const signals: Record<
+        string,
+        { cosineSimilarity: number; serverImpressions?: number; serverClicks?: number }
+      > = {};
+
+      // 2. Query Supabase pgvector Two-Tower RPC (`get_personalized_candidates`) first
+      const sb = getServerSupabase();
+      if (sb) {
+        try {
+          const { data: rpcCandidates, error: rpcError } = await sb.rpc(
+            'get_personalized_candidates',
+            {
+              p_user_embedding: userEmbedding,
+              p_limit: 300,
+            }
+          );
+
+          if (!rpcError && Array.isArray(rpcCandidates)) {
+            for (const row of rpcCandidates) {
+              if (!row?.id) continue;
+              const rawSim = Number(row.cosine_similarity ?? 0.5);
+              signals[String(row.id)] = {
+                cosineSimilarity: Number(Math.min(0.99, Math.max(0.15, rawSim)).toFixed(4)),
+                serverImpressions: Number(row.impressions_count || 0),
+                serverClicks: Number(row.clicks_count || 0),
+              };
+            }
+          }
+        } catch {
+          // Fallback to server-side 768-dim vector dot product below
+        }
+      }
+
+      // 3. Compute exact 768-dim cosine similarity for any candidate posts not yet scored by RPC
+      if (Array.isArray(postsSnapshot) && postsSnapshot.length > 0) {
+        const { buildSemanticHashEmbedding768 } = await import(
+          './src/server/vectorEdgeListener.ts'
+        );
+        const { getPostEmbeddingCacheKey } = await import('./src/server/redisCache.ts');
+
+        for (const item of postsSnapshot.slice(0, 300)) {
+          if (!item?.id || signals[item.id]) continue;
+          const postId = String(item.id);
+          let postVec = await redisCache.get<number[]>(getPostEmbeddingCacheKey(postId));
+
+          if (!postVec || postVec.length !== userEmbedding.length) {
+            const compositeText = [
+              item.type ? `Type: ${item.type}` : '',
+              item.category ? `Category: ${item.category}` : '',
+              item.authorCampus ? `Campus: ${item.authorCampus}` : '',
+              item.title ? `Title: ${item.title}` : '',
+              `Content: ${item.content || ''}`,
+              Array.isArray(item.hashtags) && item.hashtags.length > 0
+                ? `Tags: ${item.hashtags.join(' ')}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' | ');
+            postVec = buildSemanticHashEmbedding768(compositeText);
+          }
+
+          // Both userEmbedding and postVec are unit L2-normalized 768-dim vectors
+          let dot = 0;
+          const len = Math.min(userEmbedding.length, postVec.length);
+          for (let i = 0; i < len; i++) {
+            dot += userEmbedding[i] * postVec[i];
+          }
+          // Map [-1, 1] cosine similarity into [0.15, 0.99] positive ranking affinity
+          const normalizedSim = Math.min(0.99, Math.max(0.15, (dot + 1) / 2));
+          signals[postId] = {
+            cosineSimilarity: Number(normalizedSim.toFixed(4)),
+          };
+        }
+      }
+
+      res.json({
+        ok: true,
+        dimensions: userEmbedding.length,
+        scoredCount: Object.keys(signals).length,
+        signals,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Two-Tower candidate scoring failed' });
     }
   });
 
