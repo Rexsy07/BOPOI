@@ -17,6 +17,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
+import { UserProfile } from '../../types/index.ts';
 import { supabase } from '../../lib/supabase.ts';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
 import {
@@ -142,10 +143,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
     };
   }, [username, accounts]);
 
-  // Login state
+  // Login & Sign-up animation stage state
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginStage, setLoginStage] = useState<'idle' | 'verifying' | 'confirmed'>('idle');
+  const [confirmedLoginUser, setConfirmedLoginUser] = useState<UserProfile | null>(null);
+  const [signupStage, setSignupStage] = useState<'idle' | 'verifying' | 'confirmed'>('idle');
 
   const handleRandomizeCharacter = () => {
     const next = serializeCharacterConfig(randomizeCharacterConfig());
@@ -154,6 +159,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
   const handleSignUpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || signupStage !== 'idle') return;
     const cleanName = displayName.trim();
     const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cleanName || !cleanUser) {
@@ -187,39 +193,66 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
     }
 
     setLoading(true);
+    setSignupStage('verifying');
     setTimeout(() => {
-      const res = registerAccount({
-        displayName: cleanName,
-        username: cleanUser,
-        email: email.trim() || `${cleanUser}@bopoi.edu.ng`,
-        password,
-        campus: campus.trim(),
-        avatarUrl: characterUri,
-        selectedTags,
-      });
-      setLoading(false);
-      if (res.success) {
-        try {
-          localStorage.removeItem('bopoi_onboarding_completed');
-        } catch {
-          // ignore
+      setSignupStage('confirmed');
+      setTimeout(() => {
+        const res = registerAccount({
+          displayName: cleanName,
+          username: cleanUser,
+          email: email.trim() || `${cleanUser}@bopoi.edu.ng`,
+          password,
+          campus: campus.trim(),
+          avatarUrl: characterUri,
+          selectedTags,
+        });
+        setLoading(false);
+        if (res.success) {
+          try {
+            localStorage.removeItem('bopoi_onboarding_completed');
+          } catch {
+            // ignore
+          }
+          setActiveView('onboarding');
+        } else {
+          setSignupStage('idle');
+          if (res.error) {
+            showToast(res.error, 'error');
+          }
         }
-        setActiveView('onboarding');
-      } else if (res.error) {
-        showToast(res.error, 'error');
-      }
-    }, 300);
+      }, 480);
+    }, 450);
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loginStage !== 'idle') return;
     setLoginError(null);
-    const res = loginAccount(loginIdentifier, loginPassword);
+    setLoginStage('verifying');
+
+    const [res] = await Promise.all([
+      loginAccount(loginIdentifier, loginPassword, { deferCommit: true }),
+      new Promise((resolve) => setTimeout(resolve, 520)),
+    ]);
+
     if (!res.success) {
-      setLoginError(res.error || 'Unable to sign in.');
+      setLoginStage('idle');
+      setLoginError(res.error || 'Unable to sign in. Please check your credentials.');
       return;
     }
-    setActiveView('profile');
+
+    if (res.user) {
+      setConfirmedLoginUser(res.user);
+    }
+    setLoginStage('confirmed');
+
+    setTimeout(() => {
+      if (res.commit) {
+        res.commit();
+      } else {
+        setActiveView('profile');
+      }
+    }, 650);
   };
 
   const filteredCampuses = CAMPUS_OPTIONS.filter(
@@ -742,16 +775,34 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               {/* Primary Submit */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-xl shadow-md shadow-[#5420F5]/25 active:scale-[0.98] transition-all cursor-pointer"
+                disabled={loading || signupStage !== 'idle'}
+                className={`w-full py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden ${
+                  signupStage === 'confirmed'
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/25 scale-[0.99]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-[#5420F5]/25 active:scale-[0.98]'
+                } disabled:cursor-not-allowed`}
               >
-                {loading ? 'Setting up your link...' : 'Sign Up & Get My Link'}
+                {signupStage === 'verifying' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Creating your campus identity...</span>
+                  </>
+                ) : signupStage === 'confirmed' ? (
+                  <>
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </span>
+                    <span>Account ready! Launching campus guide...</span>
+                  </>
+                ) : (
+                  <span>Sign Up &amp; Get My Link</span>
+                )}
               </button>
             </form>
           </>
         ) : (
           /* LOG IN VIEW */
-          <div className="space-y-5">
+          <div className="space-y-5 animate-in fade-in duration-200">
             <div>
               <h1 className="text-2xl font-black text-[#191525] tracking-tight">
                 Welcome back
@@ -768,13 +819,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 </label>
                 <input
                   type="text"
+                  disabled={loginStage !== 'idle'}
                   value={loginIdentifier}
                   onChange={(e) => {
                     setLoginIdentifier(e.target.value);
                     setLoginError(null);
                   }}
                   placeholder="Enter your username or email"
-                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] bg-[#FAF9FC]"
+                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] disabled:opacity-60"
                   required
                 />
               </div>
@@ -783,27 +835,100 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 <label className="block text-xs font-bold text-[#191525] mb-1">
                   Password
                 </label>
-                <input
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] bg-[#FAF9FC]"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    disabled={loginStage !== 'idle'}
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      setLoginError(null);
+                    }}
+                    placeholder="••••••••••••"
+                    className="w-full pl-4 pr-11 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] disabled:opacity-60"
+                    required
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showLoginPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {loginError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
-                  {loginError}
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <span className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
+                    <X className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              {loginStage === 'confirmed' && confirmedLoginUser && (
+                <div className="p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <CampusCharacterAvatar
+                    value={confirmedLoginUser.avatarUrl}
+                    seed={confirmedLoginUser.username}
+                    size={40}
+                    rounded="xl"
+                    className="ring-2 ring-emerald-500/40 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-emerald-950 truncate">
+                      Signed in as {confirmedLoginUser.displayName}
+                    </p>
+                    <p className="text-[11px] font-semibold text-emerald-700 truncate">
+                      @{confirmedLoginUser.username} · {confirmedLoginUser.campus || 'Campus'}
+                    </p>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 animate-in zoom-in-75 duration-200">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-xl shadow-md shadow-[#5420F5]/25 active:scale-[0.98] transition-all cursor-pointer"
+                disabled={loginStage !== 'idle'}
+                className={`w-full py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden ${
+                  loginStage === 'confirmed'
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/25 scale-[0.99]'
+                    : loginStage === 'verifying'
+                    ? 'bg-[#4314E2] text-white shadow-[#5420F5]/20 scale-[0.99]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-[#5420F5]/25 active:scale-[0.98]'
+                } disabled:cursor-not-allowed`}
               >
-                Log In to Account
+                {loginStage === 'verifying' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Verifying your credentials...</span>
+                  </>
+                ) : loginStage === 'confirmed' ? (
+                  <>
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </span>
+                    <span>
+                      {confirmedLoginUser
+                        ? `Welcome back, @${confirmedLoginUser.username}!`
+                        : 'Verified! Entering campus...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 shrink-0" />
+                    <span>Log In to Account</span>
+                  </>
+                )}
               </button>
             </form>
           </div>

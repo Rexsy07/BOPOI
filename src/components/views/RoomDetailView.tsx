@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { RoomMessage, RoomAssignedPersona } from '../../types/index.ts';
+import { uploadRoomMediaFile, detectRoomMediaFileType } from '../../lib/supabase.ts';
 import {
   ChevronLeft,
   Users2,
@@ -18,6 +19,8 @@ import {
   RefreshCw,
   Wifi,
   ImagePlus,
+  Film,
+  Loader2,
 } from 'lucide-react';
 import { PersonaMaskIcon } from '../brand/masks/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
@@ -67,12 +70,20 @@ export const RoomDetailView: React.FC = () => {
   const [showRequiredCustomModal, setShowRequiredCustomModal] = useState(false);
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [replyingTo, setReplyingTo] = useState<RoomMessage | null>(null);
+  const [pendingMedia, setPendingMedia] = useState<{
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    fileName: string;
+  } | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
   const prevMessagesCount = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
 
   // Find active room
   const activeRoom =
@@ -193,9 +204,62 @@ export const RoomDetailView: React.FC = () => {
     ? (assignedPersona?.maskId || 'masked-student')
     : 'public-profile';
 
+  const handleMediaFileSelected = async (file: File | null | undefined) => {
+    if (!file || !activeRoom) return;
+    if (!detectRoomMediaFileType(file)) {
+      showToast('Please select an image or video file.', 'error');
+      return;
+    }
+
+    setIsUploadingMedia(true);
+    try {
+      const uploaded = await uploadRoomMediaFile(file, activeRoom.id);
+      setPendingMedia({
+        mediaUrl: uploaded.mediaUrl,
+        mediaType: uploaded.mediaType,
+        fileName: file.name || (uploaded.mediaType === 'video' ? 'video.mp4' : 'photo.jpg'),
+      });
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 40);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to upload media file.', 'error');
+    } finally {
+      setIsUploadingMedia(false);
+      if (mediaInputRef.current) {
+        mediaInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handlePasteMedia = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file && detectRoomMediaFileType(file)) {
+          e.preventDefault();
+          handleMediaFileSelected(file);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleDropMedia = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isLoggedIn || (activeRoom.isLocked && !isAdminUnlocked)) return;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && detectRoomMediaFileType(file)) {
+      handleMediaFileSelected(file);
+    }
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim()) return;
+    if ((!messageText.trim() && !pendingMedia) || isUploadingMedia) return;
 
     if (activeRoom.isLocked && !isAdminUnlocked) {
       showToast('This room is locked by Campus Moderators.', 'error');
@@ -207,6 +271,15 @@ export const RoomDetailView: React.FC = () => {
       return;
     }
 
+    const replyPreviewText = replyingTo
+      ? replyingTo.text ||
+        (replyingTo.mediaType === 'video'
+          ? '🎬 Video'
+          : replyingTo.mediaUrl
+          ? '📷 Photo'
+          : '')
+      : '';
+
     sendRoomMessage(
       activeRoom.id,
       messageText.trim(),
@@ -216,13 +289,20 @@ export const RoomDetailView: React.FC = () => {
         ? {
             id: replyingTo.id,
             authorName: replyingTo.authorAlias || replyingTo.authorName,
-            text: replyingTo.text,
+            text: replyPreviewText,
           }
         : undefined,
-      effectiveIsAnonymous ? effectiveMaskId : undefined
+      effectiveIsAnonymous ? effectiveMaskId : undefined,
+      pendingMedia
+        ? {
+            mediaUrl: pendingMedia.mediaUrl,
+            mediaType: pendingMedia.mediaType,
+          }
+        : undefined
     );
 
     setMessageText('');
+    setPendingMedia(null);
     setReplyingTo(null);
 
     setTimeout(() => {
@@ -273,6 +353,8 @@ export const RoomDetailView: React.FC = () => {
 
   return (
     <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDropMedia}
       style={
         dynamicChatHeight
           ? { height: dynamicChatHeight, maxHeight: dynamicChatHeight }
@@ -623,10 +705,45 @@ export const RoomDetailView: React.FC = () => {
                     </span>
                   </div>
 
+                  {/* Uploaded Image or Video Attachment */}
+                  {msg.mediaUrl && (
+                    <div className="pt-0.5">
+                      {msg.mediaType === 'video' ||
+                      msg.mediaUrl.startsWith('data:video/') ||
+                      /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(msg.mediaUrl) ? (
+                        <div className="rounded-xl overflow-hidden bg-black/95 border border-black/10 max-h-72">
+                          <video
+                            src={msg.mediaUrl}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="w-full max-h-72 object-contain rounded-xl"
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
+                          className="block w-full rounded-xl overflow-hidden border border-black/10 bg-black/5 cursor-pointer group/img focus:outline-none"
+                          title="Tap to view full image"
+                        >
+                          <img
+                            src={msg.mediaUrl}
+                            alt={msg.text || 'Room photo'}
+                            loading="lazy"
+                            className="w-full max-h-72 object-cover group-hover/img:scale-[1.01] transition-transform"
+                          />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Message Text */}
-                  <p className="text-xs font-medium leading-relaxed select-text whitespace-pre-wrap break-words">
-                    {msg.text}
-                  </p>
+                  {msg.text && (
+                    <p className="text-xs font-medium leading-relaxed select-text whitespace-pre-wrap break-words">
+                      {msg.text}
+                    </p>
+                  )}
 
                   {/* Reactions Display */}
                   {msg.reactions && Object.keys(msg.reactions).length > 0 && (
@@ -738,7 +855,16 @@ export const RoomDetailView: React.FC = () => {
             <CornerDownRight className="w-3.5 h-3.5 text-[#FFC928] shrink-0" />
             <span className="truncate">
               Replying to <strong>{replyingTo.authorName}</strong>:{' '}
-              <span className="text-slate-300">"{replyingTo.text}"</span>
+              <span className="text-slate-300">
+                "
+                {replyingTo.text ||
+                  (replyingTo.mediaType === 'video'
+                    ? '🎬 Video'
+                    : replyingTo.mediaUrl
+                    ? '📷 Photo'
+                    : '')}
+                "
+              </span>
             </span>
           </div>
           <button
@@ -835,10 +961,62 @@ export const RoomDetailView: React.FC = () => {
               </div>
             </div>
 
+            {/* Pending Image / Video Attachment Preview Bar */}
+            {(pendingMedia || isUploadingMedia) && (
+              <div className="shrink-0 mb-1.5 p-2 px-3 rounded-2xl bg-white border border-[#5420F5]/30 shadow-xs flex items-center justify-between gap-2.5 animate-in fade-in duration-150">
+                {isUploadingMedia ? (
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#5420F5]">
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Uploading media to room...</span>
+                  </div>
+                ) : pendingMedia ? (
+                  <>
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {pendingMedia.mediaType === 'video' ? (
+                        <div className="w-12 h-12 rounded-xl bg-slate-900 overflow-hidden shrink-0 relative flex items-center justify-center border border-slate-200">
+                          <video
+                            src={pendingMedia.mediaUrl}
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <Film className="w-4 h-4 text-white" />
+                          </span>
+                        </div>
+                      ) : (
+                        <img
+                          src={pendingMedia.mediaUrl}
+                          alt="Upload preview"
+                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EAE6F0]"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#5420F5] bg-[#F0EBFF] px-2 py-0.5 rounded-md">
+                          {pendingMedia.mediaType === 'video' ? '🎬 Video Ready' : '📷 Photo Ready'}
+                        </span>
+                        <p className="text-[11px] font-semibold text-[#706B7D] truncate mt-0.5">
+                          Add a caption below or hit send
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingMedia(null)}
+                      className="p-1.5 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                      title="Remove attachment"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            )}
+
             {/* 7. Bottom Chat Composer Form */}
             <form
               onSubmit={handleSend}
-              className="shrink-0 bg-white border border-[#EAE6F0] rounded-2xl p-1.5 pl-2.5 shadow-md flex items-center gap-2 min-w-0"
+              className="shrink-0 bg-white border border-[#EAE6F0] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
             >
               <button
                 type="button"
@@ -849,13 +1027,44 @@ export const RoomDetailView: React.FC = () => {
                 <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={22} />
               </button>
 
+              {/* Hidden file input for Photo & Video upload */}
+              <input
+                ref={mediaInputRef}
+                type="file"
+                accept="image/*,video/*,.mp4,.webm,.mov,.m4v,.heic,.heif"
+                className="hidden"
+                onChange={(e) => handleMediaFileSelected(e.target.files?.[0])}
+              />
+
+              {/* Photo / Video Upload Trigger Button */}
+              <button
+                type="button"
+                disabled={isUploadingMedia}
+                onClick={() => mediaInputRef.current?.click()}
+                className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                  pendingMedia
+                    ? 'bg-[#F0EBFF] border-[#5420F5]/40 text-[#5420F5]'
+                    : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                } disabled:opacity-50`}
+                title="Upload photo or video"
+              >
+                {isUploadingMedia ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-4 h-4" />
+                )}
+              </button>
+
               <input
                 ref={inputRef}
                 type="text"
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
+                onPaste={handlePasteMedia}
                 placeholder={
-                  activeRoom.isLocked
+                  pendingMedia
+                    ? `Add a caption as ${effectiveAlias} (optional)...`
+                    : activeRoom.isLocked
                     ? `Message locked room as Admin (${effectiveAlias})...`
                     : `Message as ${effectiveAlias}...`
                 }
@@ -864,7 +1073,7 @@ export const RoomDetailView: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={!messageText.trim()}
+                disabled={(!messageText.trim() && !pendingMedia) || isUploadingMedia}
                 className="p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0"
                 title="Send to anonymous room"
               >
@@ -1085,6 +1294,29 @@ export const RoomDetailView: React.FC = () => {
           updateRoomIcon(activeRoom.id, nextEmoji, nextBg);
         }}
       />
+
+      {/* Fullscreen Image Lightbox Modal */}
+      {lightboxImageUrl && (
+        <div
+          onClick={() => setLightboxImageUrl(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImageUrl(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-colors"
+            title="Close image preview"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img
+            src={lightboxImageUrl}
+            alt="Room full view"
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-[88vh] object-contain rounded-2xl shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 };

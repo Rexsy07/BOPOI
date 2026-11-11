@@ -1,5 +1,10 @@
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured, formatRelativeTime } from '../lib/supabase.ts';
+import {
+  supabase,
+  isSupabaseConfigured,
+  formatRelativeTime,
+  parseRoomMessageMedia,
+} from '../lib/supabase.ts';
 import { RoomMessage, SocialComment } from '../types/index.ts';
 
 export interface RawRoomMessageRow {
@@ -14,6 +19,8 @@ export interface RawRoomMessageRow {
   author_alias?: string | null;
   is_anonymous?: boolean;
   text: string;
+  media_url?: string | null;
+  media_type?: string | null;
   reply_to_id?: string | null;
   reply_to_author_name?: string | null;
   reply_to_text?: string | null;
@@ -54,6 +61,7 @@ export interface RealtimeSubscriptionHandlers {
  */
 export function mapRoomMessageRow(row: RawRoomMessageRow): RoomMessage {
   const createdTs = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+  const parsedMedia = parseRoomMessageMedia(row.text, row.media_url, row.media_type);
   return {
     id: row.id,
     roomId: row.room_id,
@@ -64,7 +72,9 @@ export function mapRoomMessageRow(row: RawRoomMessageRow): RoomMessage {
     authorMaskEmoji: row.author_mask_emoji || undefined,
     authorAlias: row.author_alias || undefined,
     isAnonymous: Boolean(row.is_anonymous ?? true),
-    text: row.text || '',
+    text: parsedMedia.text,
+    mediaUrl: parsedMedia.mediaUrl,
+    mediaType: parsedMedia.mediaType,
     createdAt: formatRelativeTime(row.created_at),
     createdTimestamp: Number.isNaN(createdTs) ? Date.now() : createdTs,
     likes: row.likes_count ?? 0,

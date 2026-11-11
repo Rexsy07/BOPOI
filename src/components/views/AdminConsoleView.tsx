@@ -1841,7 +1841,30 @@ export const AdminConsoleView: React.FC = () => {
                                     <span className="text-[10px] font-mono text-[#706B7D] ml-2">
                                       {m.createdAt}
                                     </span>
-                                    <p className="text-xs text-[#191525] mt-0.5 break-words">{m.text}</p>
+                                    {m.mediaUrl && (
+                                      <div className="mt-1">
+                                        {m.mediaType === 'video' ? (
+                                          <video
+                                            src={m.mediaUrl}
+                                            controls
+                                            playsInline
+                                            preload="metadata"
+                                            className="max-h-28 rounded-xl border border-[#EAE6F0]"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={m.mediaUrl}
+                                            alt={m.text || 'Room media'}
+                                            className="max-h-28 rounded-xl border border-[#EAE6F0] object-cover"
+                                          />
+                                        )}
+                                      </div>
+                                    )}
+                                    {m.text && (
+                                      <p className="text-xs text-[#191525] mt-0.5 break-words">
+                                        {m.text}
+                                      </p>
+                                    )}
                                   </div>
                                   <button
                                     type="button"

@@ -81,6 +81,9 @@ import {
   triggerPostVectorGeneration,
   invalidateGraphCacheForUser,
   recordPostBanditInteraction,
+  encodeRoomMessageWithMedia,
+  saveLocalRoomMessageBackup,
+  removeLocalRoomMessageBackup,
 } from '../lib/supabase.ts';
 import { initRealtimeSubscriptions } from '../services/realtime.ts';
 
@@ -151,7 +154,11 @@ function areRoomsEqualFast(a: CommunityRoom[], b: CommunityRoom[]): boolean {
       ra.isFeatured !== rb.isFeatured ||
       ra.isAnonymousOnly !== rb.isAnonymousOnly ||
       maLen !== mbLen ||
-      (maLen > 0 && ra.messages![maLen - 1].id !== rb.messages![mbLen - 1].id)
+      (maLen > 0 &&
+        (ra.messages![maLen - 1].id !== rb.messages![mbLen - 1].id ||
+          (ra.messages![maLen - 1].mediaUrl || '') !==
+            (rb.messages![mbLen - 1].mediaUrl || '') ||
+          ra.messages![maLen - 1].likes !== rb.messages![mbLen - 1].likes))
     ) {
       return false;
     }
@@ -272,7 +279,16 @@ interface BopoiContextType {
   // Multi-Account & Auth Actions
   accounts: UserProfile[];
   isAuthenticated: boolean;
-  loginAccount: (usernameOrEmail: string, password?: string) => { success: boolean; error?: string };
+  loginAccount: (
+    usernameOrEmail: string,
+    password?: string,
+    options?: { deferCommit?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    user?: UserProfile;
+    commit?: () => void;
+  }>;
   registerAccount: (params: {
     displayName: string;
     username: string;
@@ -376,7 +392,8 @@ interface BopoiContextType {
     isAnonymous?: boolean,
     authorAlias?: string,
     replyTo?: RoomMessage['replyTo'],
-    authorMaskEmoji?: string
+    authorMaskEmoji?: string,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' }
   ) => void;
   toggleRoomMessageLike: (roomId: string, messageId: string) => void;
   addRoomMessageReaction: (roomId: string, messageId: string, emoji: string) => void;
@@ -1033,6 +1050,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncAdminTablesFromSupabase();
   }, [user.id, isAdminUnlocked]);
 
+  const pendingAuthTransitionRef = useRef(false);
+
   // ============================================================================
   // SUPABASE AUTH SESSION & REAL-TIME DATABASE SYNCHRONIZATION
   // ============================================================================
@@ -1089,8 +1108,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ),
             ...ov,
           };
-          setUser(loadedUser);
-          setIsAuthenticated(true);
+          if (!pendingAuthTransitionRef.current) {
+            setUser(loadedUser);
+            setIsAuthenticated(true);
+          }
         }
 
         const { data: safetyRow } = await sb
@@ -1116,7 +1137,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: authSub } = sb.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         setIsAuthenticated(false);
-      } else {
+      } else if (!pendingAuthTransitionRef.current) {
         loadSessionAndProfile();
       }
     });
@@ -1211,6 +1232,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               (m) =>
                 m.id.startsWith('rm_') &&
                 m.text === incomingMsg.text &&
+                (m.mediaUrl || '') === (incomingMsg.mediaUrl || '') &&
                 m.authorName === incomingMsg.authorName &&
                 Math.abs(m.createdTimestamp - incomingMsg.createdTimestamp) < 15000
             );
@@ -2040,13 +2062,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const inFlightMsgs = localRoom.messages.filter(
           (m) =>
             m.id.startsWith('rm_') &&
-            now - m.createdTimestamp < 12000 &&
             !serverMsgs.some(
               (sm) =>
                 sm.id === m.id ||
                 (sm.text === m.text &&
+                  (sm.mediaUrl || '') === (m.mediaUrl || '') &&
                   sm.authorName === m.authorName &&
-                  Math.abs(sm.createdTimestamp - m.createdTimestamp) < 15000)
+                  Math.abs(sm.createdTimestamp - m.createdTimestamp) < 120000)
             )
         );
         if (inFlightMsgs.length === 0) return baseRoom;
@@ -3033,7 +3055,16 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const loginAccount = (usernameOrEmail: string, password?: string) => {
+  const loginAccount = async (
+    usernameOrEmail: string,
+    password?: string,
+    options?: { deferCommit?: boolean }
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    user?: UserProfile;
+    commit?: () => void;
+  }> => {
     const query = usernameOrEmail.replace(/^@/, '').trim().toLowerCase();
     if (!query) {
       return { success: false, error: 'Please enter your username or email.' };
@@ -3048,65 +3079,146 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!password || !password.trim()) {
         return { success: false, error: 'Please enter your account password to sign in.' };
       }
-      const targetEmail = query.includes('@') ? query : found?.email || `${query}@bopoi.edu.ng`;
-      sb.auth
-        .signInWithPassword({
-          email: targetEmail,
-          password,
-        })
-        .then(async ({ data, error }) => {
-          if (error || !data.user) {
-            showToast(error?.message || 'Invalid login credentials.', 'error');
-            return;
-          }
-          const { data: profileRow } = await sb
+
+      if (options?.deferCommit) {
+        pendingAuthTransitionRef.current = true;
+      }
+
+      try {
+        let targetEmail = query.includes('@') ? query : found?.email || '';
+        let preloadedProfile: any = null;
+
+        if (!targetEmail) {
+          const { data: lookupRow } = await sb
             .from('profiles')
             .select('*')
-            .eq('id', data.user.id)
+            .ilike('username', query)
             .maybeSingle();
-          if (profileRow) {
-            const loadedUser: UserProfile = {
-              id: profileRow.id,
-              username: profileRow.username,
-              displayName: profileRow.display_name,
-              email: profileRow.email || data.user.email || '',
-              avatarUrl: profileRow.avatar_url,
-              bio: profileRow.bio || '',
-              linkActive: profileRow.link_active ?? true,
-              followersCount: profileRow.followers_count ?? 0,
-              followingCount: profileRow.following_count ?? 0,
-              campus: profileRow.campus || 'Chrisland University',
-              customPrompt:
-                profileRow.custom_prompt || "There's something you've been wanting to ask...",
-              isAdmin: Boolean(profileRow.is_admin || profileRow.role === 'admin'),
-              isVerified: Boolean(profileRow.is_verified || profileRow.is_creator),
-              isSuspended: Boolean(profileRow.is_suspended),
-              suspensionReason: profileRow.suspension_reason || undefined,
-              role:
-                profileRow.role ||
-                (profileRow.is_admin ? 'admin' : profileRow.is_creator ? 'creator' : 'student'),
-            };
-            setUser(loadedUser);
-            setIsAuthenticated(true);
-            setSelectedMessage(null);
-            setAccounts((prev) => [
-              loadedUser,
-              ...prev.filter((a) => a.username.toLowerCase() !== loadedUser.username.toLowerCase()),
-            ]);
-            setActiveView('profile');
-            showToast(`Welcome back, ${loadedUser.displayName} (@${loadedUser.username})!`, 'success');
-            queryClient.invalidateQueries();
+          if (lookupRow) {
+            preloadedProfile = lookupRow;
+            if (lookupRow.email) {
+              targetEmail = String(lookupRow.email).trim().toLowerCase();
+            }
           }
+        }
+
+        if (!targetEmail) {
+          targetEmail = `${query}@bopoi.edu.ng`;
+        }
+
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: targetEmail,
+          password,
         });
-      return { success: true };
+
+        if (error || !data.user) {
+          pendingAuthTransitionRef.current = false;
+          return {
+            success: false,
+            error: error?.message || 'Invalid username/email or password.',
+          };
+        }
+
+        const profileRow =
+          preloadedProfile && preloadedProfile.id === data.user.id
+            ? preloadedProfile
+            : (
+                await sb
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', data.user.id)
+                  .maybeSingle()
+              ).data;
+
+        const meta = data.user.user_metadata || {};
+        const resolvedUsername =
+          profileRow?.username ||
+          meta.username ||
+          (query.includes('@') ? query.split('@')[0] : query);
+        const resolvedDisplayName =
+          profileRow?.display_name || meta.display_name || resolvedUsername;
+
+        const loadedUser: UserProfile = {
+          id: profileRow?.id || data.user.id,
+          username: resolvedUsername,
+          displayName: resolvedDisplayName,
+          email: profileRow?.email || data.user.email || targetEmail,
+          avatarUrl:
+            profileRow?.avatar_url ||
+            meta.avatar_url ||
+            found?.avatarUrl ||
+            user.avatarUrl,
+          bio: profileRow?.bio || meta.bio || '',
+          linkActive: profileRow?.link_active ?? true,
+          followersCount: profileRow?.followers_count ?? 0,
+          followingCount: profileRow?.following_count ?? 0,
+          campus: profileRow?.campus || meta.campus || 'Chrisland University',
+          customPrompt:
+            profileRow?.custom_prompt || "There's something you've been wanting to ask...",
+          isAdmin: Boolean(profileRow?.is_admin || profileRow?.role === 'admin'),
+          isVerified: Boolean(profileRow?.is_verified || profileRow?.is_creator),
+          isSuspended: Boolean(profileRow?.is_suspended),
+          suspensionReason: profileRow?.suspension_reason || undefined,
+          role:
+            profileRow?.role ||
+            (profileRow?.is_admin ? 'admin' : profileRow?.is_creator ? 'creator' : 'student'),
+          onboardingCompleted: true,
+        };
+
+        const commitLogin = () => {
+          pendingAuthTransitionRef.current = false;
+          setUser(loadedUser);
+          setIsAuthenticated(true);
+          setSelectedMessage(null);
+          setAccounts((prev) => [
+            loadedUser,
+            ...prev.filter((a) => a.username.toLowerCase() !== loadedUser.username.toLowerCase()),
+          ]);
+          setActiveView('profile');
+          showToast(
+            `Welcome back, ${loadedUser.displayName} (@${loadedUser.username})!`,
+            'success'
+          );
+          queryClient.invalidateQueries();
+        };
+
+        if (!options?.deferCommit) {
+          commitLogin();
+        }
+
+        return {
+          success: true,
+          user: loadedUser,
+          commit: commitLogin,
+        };
+      } catch (err: any) {
+        pendingAuthTransitionRef.current = false;
+        return {
+          success: false,
+          error: err?.message || 'Unable to sign in right now. Please try again.',
+        };
+      }
     }
 
     if (found && !found.isAdmin && found.role !== 'admin') {
-      setUser(found);
-      setIsAuthenticated(true);
-      setSelectedMessage(null);
-      showToast(`Welcome back, ${found.displayName} (@${found.username})!`, 'success');
-      return { success: true };
+      const commitLocalLogin = () => {
+        pendingAuthTransitionRef.current = false;
+        setUser(found);
+        setIsAuthenticated(true);
+        setSelectedMessage(null);
+        setActiveView('profile');
+        showToast(`Welcome back, ${found.displayName} (@${found.username})!`, 'success');
+      };
+
+      if (!options?.deferCommit) {
+        commitLocalLogin();
+      }
+
+      return {
+        success: true,
+        user: found,
+        commit: commitLocalLogin,
+      };
     }
 
     return {
@@ -4557,12 +4669,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isAnonymous: boolean = true,
     authorAlias?: string,
     replyTo?: RoomMessage['replyTo'],
-    authorMaskEmoji?: string
+    authorMaskEmoji?: string,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' }
   ) => {
     if (!requireAuth('chat in rooms')) return;
     if (!canUserWrite('send room messages')) return;
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed && !media?.mediaUrl) return;
 
     const targetRoom = rooms.find((r) => r.id === roomId);
     if (targetRoom?.isLocked && !isAdminUnlocked) {
@@ -4570,10 +4683,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const blocked = findBlockedWord(trimmed);
-    if (blocked) {
-      showToast(`Message blocked: contains prohibited word ("${blocked}").`, 'error');
-      return;
+    if (trimmed) {
+      const blocked = findBlockedWord(trimmed);
+      if (blocked) {
+        showToast(`Message blocked: contains prohibited word ("${blocked}").`, 'error');
+        return;
+      }
     }
 
     const isAnon = targetRoom?.isAnonymousOnly ? true : (isAnonymous ?? true);
@@ -4590,6 +4705,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authorAlias: isAnon ? chosenName : undefined,
       isAnonymous: isAnon,
       text: trimmed,
+      mediaUrl: media?.mediaUrl,
+      mediaType: media?.mediaType,
       createdAt: 'Just now',
       createdTimestamp: Date.now(),
       likes: 0,
@@ -4612,13 +4729,62 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     const tempMsgId = newMsg.id;
+    saveLocalRoomMessageBackup(roomId, newMsg);
+    realtimeManager.publish('ROOM_MESSAGE_NEW', { roomId, message: newMsg });
+
+    const serializedText = encodeRoomMessageWithMedia(
+      trimmed,
+      media?.mediaUrl,
+      media?.mediaType
+    );
+
+    const reconcileRealMsgId = (realId: string) => {
+      if (!realId) return;
+      removeLocalRoomMessageBackup(tempMsgId, roomId);
+      saveLocalRoomMessageBackup(roomId, { ...newMsg, id: realId });
+      setRooms((prev) =>
+        prev.map((r) => {
+          if (r.id !== roomId || !r.messages) return r;
+          const alreadyHasReal = r.messages.some((m) => m.id === realId);
+          if (alreadyHasReal) {
+            return {
+              ...r,
+              messages: r.messages.filter((m) => m.id !== tempMsgId),
+            };
+          }
+          return {
+            ...r,
+            messages: r.messages.map((m) =>
+              m.id === tempMsgId ? { ...m, id: realId } : m
+            ),
+          };
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
+    };
 
     if (supabase && /^[0-9a-f-]{36}$/i.test(roomId)) {
-      supabase
-        .from('room_messages')
-        .insert({
+      (async () => {
+        const sb = supabase;
+        if (!sb) return;
+
+        let sessionUserId: string | null = null;
+        try {
+          const { data: sessionData } = await sb.auth.getSession();
+          if (sessionData?.session?.user?.id) {
+            sessionUserId = sessionData.session.user.id;
+          }
+        } catch {
+          // ignore
+        }
+
+        const primaryAuthorUserId =
+          sessionUserId || (user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null);
+        const validReplyToId =
+          replyTo?.id && /^[0-9a-f-]{36}$/i.test(replyTo.id) ? replyTo.id : null;
+
+        const basePayload = {
           room_id: roomId,
-          author_user_id: user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null,
           author_name: newMsg.authorName,
           author_username: newMsg.authorUsername,
           author_avatar: newMsg.authorAvatar || null,
@@ -4626,41 +4792,80 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           author_mask_emoji: newMsg.authorMaskEmoji || null,
           author_alias: newMsg.authorAlias || null,
           is_anonymous: isAnon,
-          text: trimmed,
-          reply_to_id:
-            replyTo?.id && /^[0-9a-f-]{36}$/i.test(replyTo.id) ? replyTo.id : null,
+          text: serializedText,
+          reply_to_id: validReplyToId,
           reply_to_author_name: replyTo?.authorName || null,
           reply_to_text: replyTo?.text || null,
-        })
-        .select('id')
-        .single()
-        .then(({ data: inserted }) => {
-          if (inserted?.id) {
-            const realId = String(inserted.id);
-            setRooms((prev) =>
-              prev.map((r) => {
-                if (r.id !== roomId || !r.messages) return r;
-                const alreadyHasReal = r.messages.some((m) => m.id === realId);
-                if (alreadyHasReal) {
-                  return {
-                    ...r,
-                    messages: r.messages.filter((m) => m.id !== tempMsgId),
-                  };
-                }
-                return {
-                  ...r,
-                  messages: r.messages.map((m) =>
-                    m.id === tempMsgId ? { ...m, id: realId } : m
-                  ),
-                };
-              })
-            );
+        };
+
+        let { data: inserted, error } = await sb
+          .from('room_messages')
+          .insert({
+            ...basePayload,
+            author_user_id: primaryAuthorUserId,
+          })
+          .select('id')
+          .single();
+
+        if (error && primaryAuthorUserId !== null) {
+          const retry = await sb
+            .from('room_messages')
+            .insert({
+              ...basePayload,
+              author_user_id: null,
+            })
+            .select('id')
+            .single();
+          inserted = retry.data;
+          error = retry.error;
+        }
+
+        if (!error && inserted?.id) {
+          reconcileRealMsgId(String(inserted.id));
+          return;
+        }
+
+        // Fallback to server-side persistence if client insert was blocked by RLS
+        try {
+          const res = await fetch('/api/rooms/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomId,
+              authorUserId: primaryAuthorUserId,
+              authorName: newMsg.authorName,
+              authorUsername: newMsg.authorUsername,
+              authorAvatar: newMsg.authorAvatar || null,
+              authorCampus: newMsg.authorCampus || null,
+              authorMaskEmoji: newMsg.authorMaskEmoji || null,
+              authorAlias: newMsg.authorAlias || null,
+              isAnonymous: isAnon,
+              text: serializedText,
+              replyToId: validReplyToId,
+              replyToAuthorName: replyTo?.authorName || null,
+              replyToText: replyTo?.text || null,
+            }),
+          });
+          if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
+            const json = await res.json();
+            if (json?.id) {
+              reconcileRealMsgId(String(json.id));
+            }
           }
-          queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
-        });
+        } catch {
+          // Kept in local room message backup store
+        }
+      })();
     }
 
-    showToast('Message sent to room!', 'success');
+    showToast(
+      media?.mediaType === 'video'
+        ? 'Video sent to room!'
+        : media?.mediaUrl
+        ? 'Photo sent to room!'
+        : 'Message sent to room!',
+      'success'
+    );
   };
 
   const toggleRoomMessageLike = (roomId: string, messageId: string) => {

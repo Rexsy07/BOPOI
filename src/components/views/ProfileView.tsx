@@ -271,7 +271,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   };
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-4 sm:py-6 px-4 sm:px-6 pb-24 text-[#191525]">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-4 sm:py-6 px-4 sm:px-6 pb-24 text-[#191525] animate-in fade-in duration-300">
       <div className="max-w-2xl mx-auto space-y-4">
         {/* 1. Header Bar */}
       <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0]">

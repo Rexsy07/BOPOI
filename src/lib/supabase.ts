@@ -457,6 +457,7 @@ export function markAdminDeletedRoom(roomId: string): void {
 
 export function markAdminDeletedRoomMessage(messageId: string): void {
   addToStringSet(ADMIN_DELETED_ROOM_MSGS_KEY, [messageId]);
+  removeLocalRoomMessageBackup(messageId);
 }
 
 export function getAdminPostOverrides(): Record<string, Partial<SocialPost>> {
@@ -625,6 +626,286 @@ export async function fetchSupabaseSocialPosts(
   }
 }
 
+const ROOM_MEDIA_ENVELOPE_REGEX = /^\[BOPOI_MEDIA:(image|video)\|([^\]]+)\]\n?([\s\S]*)$/;
+
+export function encodeRoomMessageWithMedia(
+  text: string,
+  mediaUrl?: string,
+  mediaType?: 'image' | 'video'
+): string {
+  if (!mediaUrl) return text;
+  const resolvedType: 'image' | 'video' = mediaType === 'video' ? 'video' : 'image';
+  return `[BOPOI_MEDIA:${resolvedType}|${mediaUrl}]\n${text || ''}`;
+}
+
+export function parseRoomMessageMedia(
+  rawText?: string | null,
+  rowMediaUrl?: string | null,
+  rowMediaType?: string | null
+): {
+  text: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
+} {
+  const str = String(rawText || '');
+  const match = str.match(ROOM_MEDIA_ENVELOPE_REGEX);
+  if (match) {
+    return {
+      mediaType: match[1] === 'video' ? 'video' : 'image',
+      mediaUrl: match[2],
+      text: match[3] || '',
+    };
+  }
+  if (rowMediaUrl) {
+    return {
+      text: str,
+      mediaUrl: rowMediaUrl,
+      mediaType: rowMediaType === 'video' ? 'video' : 'image',
+    };
+  }
+  return { text: str };
+}
+
+const LOCAL_ROOM_MESSAGES_BACKUP_KEY = 'bopoi_room_messages_backup_v1';
+
+export function getLocalRoomMessagesBackup(): Record<string, RoomMessage[]> {
+  return readJsonMap<RoomMessage[]>(LOCAL_ROOM_MESSAGES_BACKUP_KEY);
+}
+
+export function saveLocalRoomMessageBackup(roomId: string, msg: RoomMessage): void {
+  if (!roomId || !msg?.id) return;
+  const map = getLocalRoomMessagesBackup();
+  const list = Array.isArray(map[roomId]) ? [...map[roomId]] : [];
+  const existingIdx = list.findIndex(
+    (m) =>
+      m.id === msg.id ||
+      (m.id.startsWith('rm_') &&
+        m.text === msg.text &&
+        (m.mediaUrl || '') === (msg.mediaUrl || '') &&
+        m.authorName === msg.authorName &&
+        Math.abs(m.createdTimestamp - msg.createdTimestamp) < 60000)
+  );
+  if (existingIdx !== -1) {
+    list[existingIdx] = { ...list[existingIdx], ...msg };
+  } else {
+    list.push(msg);
+  }
+  // Keep latest 40 messages per room to respect localStorage quota
+  map[roomId] = list.slice(-40);
+  writeJsonMap(LOCAL_ROOM_MESSAGES_BACKUP_KEY, map);
+}
+
+export function removeLocalRoomMessageBackup(messageId: string, roomId?: string): void {
+  if (!messageId) return;
+  const map = getLocalRoomMessagesBackup();
+  let changed = false;
+  for (const rId of Object.keys(map)) {
+    if (roomId && rId !== roomId) continue;
+    const list = map[rId];
+    if (Array.isArray(list)) {
+      const filtered = list.filter((m) => m.id !== messageId);
+      if (filtered.length !== list.length) {
+        map[rId] = filtered;
+        changed = true;
+      }
+    }
+  }
+  if (changed) {
+    writeJsonMap(LOCAL_ROOM_MESSAGES_BACKUP_KEY, map);
+  }
+}
+
+export function detectRoomMediaFileType(file: File): 'image' | 'video' | null {
+  const mime = (file.type || '').toLowerCase();
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('image/')) return 'image';
+  const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+  if (['mp4', 'webm', 'mov', 'm4v', 'ogv', '3gp', 'mkv'].includes(ext)) return 'video';
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'avif', 'bmp'].includes(ext)) {
+    return 'image';
+  }
+  return null;
+}
+
+function readFileAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlToBlob(dataUrl: string, fallbackMime = 'image/jpeg'): Blob {
+  const markerIdx = dataUrl.indexOf(';base64,');
+  if (!dataUrl.startsWith('data:') || markerIdx === -1) {
+    return new Blob([], { type: fallbackMime });
+  }
+  const mime = dataUrl.slice(5, markerIdx).split(';')[0].trim() || fallbackMime;
+  const base64 = dataUrl.slice(markerIdx + 8);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+function compressImageToDataUrl(file: File, maxDimension = 1280, quality = 0.84): Promise<string> {
+  if (file.type === 'image/gif') {
+    return readFileAsDataUrl(file);
+  }
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxDimension || height > maxDimension) {
+        if (width >= height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        readFileAsDataUrl(file).then(resolve).catch(reject);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const outMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      resolve(canvas.toDataURL(outMime, quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      readFileAsDataUrl(file).then(resolve).catch(reject);
+    };
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Uploads an image or video file for a Community Room message.
+ * 1. Compresses images client-side.
+ * 2. Attempts direct upload to Supabase Storage (`avatars` or `room-media` bucket) for a permanent CDN URL.
+ * 3. Falls back to `/api/rooms/upload-media` (Server Media Store with HTTP 206 byte-range video streaming).
+ * 4. Falls back to client dataUrl if offline.
+ */
+export async function uploadRoomMediaFile(
+  file: File,
+  roomId: string
+): Promise<{ mediaUrl: string; mediaType: 'image' | 'video' }> {
+  const detectedKind = detectRoomMediaFileType(file);
+  if (!detectedKind) {
+    throw new Error('Only image and video files are supported.');
+  }
+
+  const isVideo = detectedKind === 'video';
+  const maxBytes = isVideo ? 25 * 1024 * 1024 : 12 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    throw new Error(
+      isVideo
+        ? 'Video file is too large (maximum 25 MB).'
+        : 'Image file is too large (maximum 12 MB).'
+    );
+  }
+
+  const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image';
+  const compressedImageDataUrl = !isVideo ? await compressImageToDataUrl(file) : null;
+
+  // 1. Direct Supabase Storage upload (`avatars` or `room-media` bucket) when configured
+  if (supabase) {
+    const cleanRoom = String(roomId || 'room')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 24);
+    const rawExt = (file.name || '').split('.').pop()?.toLowerCase() || '';
+    const ext = isVideo
+      ? ['mp4', 'webm', 'mov', 'ogv'].includes(rawExt)
+        ? rawExt
+        : 'mp4'
+      : file.type === 'image/gif'
+      ? 'gif'
+      : file.type === 'image/png'
+      ? 'png'
+      : 'jpg';
+    const contentType = isVideo
+      ? file.type || (ext === 'webm' ? 'video/webm' : ext === 'mov' ? 'video/quicktime' : 'video/mp4')
+      : file.type === 'image/gif'
+      ? 'image/gif'
+      : file.type === 'image/png'
+      ? 'image/png'
+      : 'image/jpeg';
+    const uploadBlob: Blob =
+      !isVideo && compressedImageDataUrl && file.type !== 'image/gif'
+        ? dataUrlToBlob(compressedImageDataUrl, contentType)
+        : file;
+    const storagePath = `room-media/${cleanRoom}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 8)}.${ext}`;
+
+    for (const bucketName of ['avatars', 'room-media']) {
+      try {
+        const { error: upErr } = await supabase.storage
+          .from(bucketName)
+          .upload(storagePath, uploadBlob, {
+            contentType,
+            upsert: true,
+          });
+        if (!upErr) {
+          const { data: pubData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
+          if (pubData?.publicUrl) {
+            return {
+              mediaUrl: pubData.publicUrl,
+              mediaType,
+            };
+          }
+        }
+      } catch {
+        // Try next bucket or server endpoint
+      }
+    }
+  }
+
+  // 2. Upload via backend `/api/rooms/upload-media` endpoint
+  const dataUrl = compressedImageDataUrl || (await readFileAsDataUrl(file));
+  try {
+    const res = await fetch('/api/rooms/upload-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dataUrl,
+        mimeType: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+        mediaType,
+        roomId,
+      }),
+    });
+
+    const contentTypeHeader = res.headers.get('content-type') || '';
+    if (res.ok && contentTypeHeader.includes('application/json')) {
+      const json = await res.json();
+      if (json?.ok && json.mediaUrl) {
+        return {
+          mediaUrl: String(json.mediaUrl),
+          mediaType: json.mediaType === 'video' ? 'video' : 'image',
+        };
+      }
+    }
+  } catch {
+    // Fallback to direct client dataUrl if offline
+  }
+
+  return {
+    mediaUrl: dataUrl,
+    mediaType,
+  };
+}
+
 /**
  * Fetch real Community Rooms (with Messages, Assigned Personas, and Memberships) from Supabase
  */
@@ -662,38 +943,63 @@ export async function fetchSupabaseRooms(currentUserId?: string): Promise<Commun
     const deletedRooms = readStringSet(ADMIN_DELETED_ROOMS_KEY);
     const deletedRoomMsgs = readStringSet(ADMIN_DELETED_ROOM_MSGS_KEY);
     const roomOverrides = getAdminRoomOverrides();
+    const localBackupMap = getLocalRoomMessagesBackup();
 
     return roomRows
       .filter((row: any) => !deletedRooms.has(row.id))
       .map((row: any): CommunityRoom => {
         const rawMsgs = Array.isArray(row.room_messages) ? row.room_messages : [];
-        const mappedMsgs: RoomMessage[] = [...rawMsgs]
+        const dbMappedMsgs: RoomMessage[] = [...rawMsgs]
           .filter((m: any) => !deletedRoomMsgs.has(m.id))
           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-          .map((m: any) => ({
-            id: m.id,
-            roomId: m.room_id,
-            authorName: m.author_name,
-            authorUsername: m.author_username,
-            authorAvatar: m.author_avatar || undefined,
-            authorCampus: m.author_campus || undefined,
-            authorMaskEmoji: m.author_mask_emoji || undefined,
-            authorAlias: m.author_alias || undefined,
-            isAnonymous: Boolean(m.is_anonymous),
-            text: m.text,
-            createdAt: formatRelativeTime(m.created_at),
-            createdTimestamp: new Date(m.created_at).getTime() || Date.now(),
-            likes: m.likes_count ?? 0,
-            hasLiked: likedRoomMsgIds.has(m.id),
-            reactions: m.reactions && typeof m.reactions === 'object' ? m.reactions : {},
-            replyTo: m.reply_to_id
-              ? {
-                  id: m.reply_to_id,
-                  authorName: m.reply_to_author_name || 'Student',
-                  text: m.reply_to_text || '',
-                }
-              : undefined,
-          }));
+          .map((m: any) => {
+            const parsedMedia = parseRoomMessageMedia(m.text, m.media_url, m.media_type);
+            return {
+              id: m.id,
+              roomId: m.room_id,
+              authorName: m.author_name,
+              authorUsername: m.author_username,
+              authorAvatar: m.author_avatar || undefined,
+              authorCampus: m.author_campus || undefined,
+              authorMaskEmoji: m.author_mask_emoji || undefined,
+              authorAlias: m.author_alias || undefined,
+              isAnonymous: Boolean(m.is_anonymous),
+              text: parsedMedia.text,
+              mediaUrl: parsedMedia.mediaUrl,
+              mediaType: parsedMedia.mediaType,
+              createdAt: formatRelativeTime(m.created_at),
+              createdTimestamp: new Date(m.created_at).getTime() || Date.now(),
+              likes: m.likes_count ?? 0,
+              hasLiked: likedRoomMsgIds.has(m.id),
+              reactions: m.reactions && typeof m.reactions === 'object' ? m.reactions : {},
+              replyTo: m.reply_to_id
+                ? {
+                    id: m.reply_to_id,
+                    authorName: m.reply_to_author_name || 'Student',
+                    text: m.reply_to_text || '',
+                  }
+                : undefined,
+            };
+          });
+
+        const roomBackupMsgs = Array.isArray(localBackupMap[row.id])
+          ? localBackupMap[row.id].filter(
+              (bm) =>
+                !deletedRoomMsgs.has(bm.id) &&
+                !dbMappedMsgs.some(
+                  (dm) =>
+                    dm.id === bm.id ||
+                    (dm.text === bm.text &&
+                      (dm.mediaUrl || '') === (bm.mediaUrl || '') &&
+                      dm.authorName === bm.authorName &&
+                      Math.abs(dm.createdTimestamp - bm.createdTimestamp) < 120000)
+                )
+            )
+          : [];
+
+        const mappedMsgs: RoomMessage[] = [...dbMappedMsgs, ...roomBackupMsgs].sort(
+          (a, b) => a.createdTimestamp - b.createdTimestamp
+        );
 
         const personasMap: Record<string, RoomAssignedPersona> = {};
         const rawPersonas = Array.isArray(row.room_assigned_personas)

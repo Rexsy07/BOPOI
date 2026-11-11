@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -19,12 +20,21 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const ROOM_MEDIA_DIR = '/tmp/bopoi-room-media';
+
+try {
+  if (!fs.existsSync(ROOM_MEDIA_DIR)) {
+    fs.mkdirSync(ROOM_MEDIA_DIR, { recursive: true });
+  }
+} catch {
+  // Ignore if read-only fs
+}
 
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '35mb' }));
 
   // Start background Supabase Realtime Edge Listener for automatic post vectorization
   startSupabaseVectorEdgeSubscription();
@@ -416,6 +426,249 @@ async function startServer() {
       res.json({ ok: true, persisted });
     } catch (err: any) {
       res.status(500).json({ ok: false, error: err?.message || 'Room icon sync failed' });
+    }
+  });
+
+  // ==========================================================================
+  // 7. ROOM IMAGE & VIDEO UPLOAD + STREAMING ENDPOINTS
+  // ==========================================================================
+  app.post('/api/rooms/upload-media', async (req, res) => {
+    try {
+      const { dataUrl, mimeType, mediaType, roomId } = req.body || {};
+      if (!dataUrl || typeof dataUrl !== 'string') {
+        res.status(400).json({ ok: false, error: 'dataUrl is required' });
+        return;
+      }
+
+      const base64MarkerIdx = dataUrl.indexOf(';base64,');
+      if (!dataUrl.startsWith('data:') || base64MarkerIdx === -1) {
+        res.status(400).json({ ok: false, error: 'Invalid base64 dataUrl format' });
+        return;
+      }
+
+      const headerMime = dataUrl.slice(5, base64MarkerIdx).split(';')[0].trim();
+      const detectedMime = String(mimeType || headerMime || 'application/octet-stream')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      const base64Payload = dataUrl.slice(base64MarkerIdx + 8);
+      const buffer = Buffer.from(base64Payload, 'base64');
+
+      const resolvedType: 'image' | 'video' =
+        mediaType === 'video' || detectedMime.startsWith('video/') ? 'video' : 'image';
+
+      const extMap: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+        'image/avif': 'avif',
+        'image/heic': 'jpg',
+        'image/heif': 'jpg',
+        'video/mp4': 'mp4',
+        'video/webm': 'webm',
+        'video/quicktime': 'mov',
+        'video/x-m4v': 'mp4',
+        'video/ogg': 'ogv',
+        'video/3gpp': 'mp4',
+      };
+      const ext = extMap[detectedMime] || (resolvedType === 'video' ? 'mp4' : 'jpg');
+      const cleanRoom = String(roomId || 'room')
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .slice(0, 24);
+      const fileName = `${cleanRoom}_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 8)}.${ext}`;
+
+      // 1. Try uploading to Supabase Storage (`avatars` or `room-media` bucket) if configured
+      const sb = getServerSupabase();
+      if (sb) {
+        for (const bucketName of ['avatars', 'room-media']) {
+          try {
+            const storagePath = `room-media/${fileName}`;
+            const { error: upErr } = await sb.storage
+              .from(bucketName)
+              .upload(storagePath, buffer, {
+                contentType: detectedMime,
+                upsert: true,
+              });
+            if (!upErr) {
+              const { data: pubData } = sb.storage.from(bucketName).getPublicUrl(storagePath);
+              if (pubData?.publicUrl) {
+                res.json({
+                  ok: true,
+                  mediaUrl: pubData.publicUrl,
+                  mediaType: resolvedType,
+                  source: `supabase-storage:${bucketName}`,
+                });
+                return;
+              }
+            }
+          } catch {
+            // Try next bucket or fallback to local server media streaming below
+          }
+        }
+      }
+
+      // 2. Save to local server media directory and serve via `/api/rooms/media/:fileName`
+      const filePath = path.join(ROOM_MEDIA_DIR, fileName);
+      fs.writeFileSync(filePath, buffer);
+
+      res.json({
+        ok: true,
+        mediaUrl: `/api/rooms/media/${fileName}`,
+        mediaType: resolvedType,
+        source: 'server-media-store',
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Media upload failed' });
+    }
+  });
+
+  app.post('/api/rooms/send-message', async (req, res) => {
+    try {
+      const {
+        roomId,
+        authorUserId,
+        authorName,
+        authorUsername,
+        authorAvatar,
+        authorCampus,
+        authorMaskEmoji,
+        authorAlias,
+        isAnonymous,
+        text,
+        replyToId,
+        replyToAuthorName,
+        replyToText,
+      } = req.body || {};
+
+      if (!roomId || typeof text !== 'string') {
+        res.status(400).json({ ok: false, error: 'roomId and text are required' });
+        return;
+      }
+
+      const sb = getServerSupabase();
+      if (!sb || !/^[0-9a-f-]{36}$/i.test(String(roomId))) {
+        res.json({ ok: true, persisted: false });
+        return;
+      }
+
+      const validUserUuid =
+        authorUserId && /^[0-9a-f-]{36}$/i.test(String(authorUserId))
+          ? String(authorUserId)
+          : null;
+      const validReplyUuid =
+        replyToId && /^[0-9a-f-]{36}$/i.test(String(replyToId)) ? String(replyToId) : null;
+
+      let { data: inserted, error } = await sb
+        .from('room_messages')
+        .insert({
+          room_id: String(roomId),
+          author_user_id: validUserUuid,
+          author_name: String(authorName || 'Anonymous Student'),
+          author_username: String(authorUsername || 'anon_student'),
+          author_avatar: authorAvatar || null,
+          author_campus: authorCampus || null,
+          author_mask_emoji: authorMaskEmoji || null,
+          author_alias: authorAlias || null,
+          is_anonymous: Boolean(isAnonymous ?? true),
+          text,
+          reply_to_id: validReplyUuid,
+          reply_to_author_name: replyToAuthorName || null,
+          reply_to_text: replyToText || null,
+        })
+        .select('id')
+        .single();
+
+      if (error && validUserUuid) {
+        const retry = await sb
+          .from('room_messages')
+          .insert({
+            room_id: String(roomId),
+            author_user_id: null,
+            author_name: String(authorName || 'Anonymous Student'),
+            author_username: String(authorUsername || 'anon_student'),
+            author_avatar: authorAvatar || null,
+            author_campus: authorCampus || null,
+            author_mask_emoji: authorMaskEmoji || null,
+            author_alias: authorAlias || null,
+            is_anonymous: Boolean(isAnonymous ?? true),
+            text,
+            reply_to_id: validReplyUuid,
+            reply_to_author_name: replyToAuthorName || null,
+            reply_to_text: replyToText || null,
+          })
+          .select('id')
+          .single();
+        inserted = retry.data;
+        error = retry.error;
+      }
+
+      res.json({
+        ok: !error && Boolean(inserted?.id),
+        persisted: !error && Boolean(inserted?.id),
+        id: inserted?.id || null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Room message persist failed' });
+    }
+  });
+
+  app.get('/api/rooms/media/:fileName', (req, res) => {
+    try {
+      const safeName = path.basename(String(req.params.fileName || ''));
+      const filePath = path.join(ROOM_MEDIA_DIR, safeName);
+      if (!safeName || !fs.existsSync(filePath)) {
+        res.status(404).end();
+        return;
+      }
+
+      const ext = path.extname(safeName).toLowerCase().replace('.', '');
+      const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        gif: 'image/gif',
+        mp4: 'video/mp4',
+        webm: 'video/webm',
+        mov: 'video/quicktime',
+        ogv: 'video/ogg',
+      };
+      const contentType = mimeMap[ext] || 'application/octet-stream';
+      const stat = fs.statSync(filePath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+
+      // Support HTTP byte-range requests for smooth HTML5 <video> scrubbing & playback
+      if (range && contentType.startsWith('video/')) {
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunksize = end - start + 1;
+        const fileStream = fs.createReadStream(filePath, { start, end });
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+        });
+        fileStream.pipe(res);
+        return;
+      }
+
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      fs.createReadStream(filePath).pipe(res);
+    } catch {
+      res.status(500).end();
     }
   });
 

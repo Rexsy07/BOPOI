@@ -177,6 +177,8 @@ export interface RoomMessage {
   authorAlias?: string;
   isAnonymous?: boolean;
   text: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
   createdAt: string;
   createdTimestamp: number;
   likes: number;
