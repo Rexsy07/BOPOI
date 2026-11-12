@@ -11,6 +11,8 @@ import {
   searchAndRankRooms,
   computeDynamicTrendingTopics,
   computePostTrendingVelocityScore,
+  resolveDiscoverTopicDefinition,
+  inferCanonicalPostCategory,
 } from '../../lib/supabase.ts';
 import { PYMKRecommendation } from '../../lib/retentionEngine.ts';
 import {
@@ -22,6 +24,7 @@ import {
   Check,
   UserPlus,
   Hash,
+  X,
 } from 'lucide-react';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import {
@@ -171,15 +174,19 @@ export const DiscoverView: React.FC = () => {
     return Array.from(map.values());
   }, [creators, accounts, socialPosts, followEdges, isFollowingUser]);
 
+  // Only match people when the user explicitly types a search query `q` in the search input;
+  // tapping a Trending Topic chip ('Campus Life', 'Relationships', etc.) should only show Posts, Polls & Rooms.
   const matchedPeople = useMemo(() => {
+    if (!q) return [];
     return searchAndRankPeople(allPeople, q, {
       topic: selectedTopic,
       campusFilter,
       userCampus: user.campus || 'Chrisland University',
+      posts: socialPosts,
     });
-  }, [allPeople, q, selectedTopic, campusFilter, user.campus]);
+  }, [allPeople, q, selectedTopic, campusFilter, user.campus, socialPosts]);
 
-  // 3. Filter & Rank Posts, Confessions, Polls & Discussions via BM25 + Fuzzy Typo Tolerance + Time-Decayed Trending Velocity
+  // 3. Filter & Rank Posts, Confessions, Polls & Discussions via Topic Taxonomy + BM25 + Time-Decayed Trending Velocity
   const filteredPosts = useMemo(() => {
     return searchAndRankPosts(socialPosts, q, {
       topic: selectedTopic,
@@ -194,10 +201,15 @@ export const DiscoverView: React.FC = () => {
     [filteredPosts]
   );
 
-  // 4. Filter & Rank Rooms AND Room Messages via BM25 + Activity Velocity
+  // 4. Filter & Rank Rooms AND Room Messages via Topic Taxonomy + BM25 + Activity Velocity
   const filteredRooms = useMemo(() => {
     return searchAndRankRooms(rooms, q, { topic: selectedTopic });
   }, [rooms, q, selectedTopic]);
+
+  const activeTopicDef = useMemo(
+    () => resolveDiscoverTopicDefinition(selectedTopic),
+    [selectedTopic]
+  );
 
   const totalResultsCount =
     matchedPeople.length +
@@ -424,35 +436,81 @@ export const DiscoverView: React.FC = () => {
         {/* ================================================================= */}
         {isSearching && (
           <div className="bg-white rounded-2xl border border-[#EAE6F0] shadow-xs overflow-hidden animate-in fade-in duration-150">
+            {/* Active Topic Header Banner when a Trending Topic chip is selected */}
+            {activeTopicDef && (
+              <div className="px-4 py-3 bg-gradient-to-r from-[#F0EBFF] via-purple-50/60 to-white border-b border-[#EAE6F0] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-white border border-[#5420F5]/20 shadow-2xs flex items-center justify-center shrink-0">
+                    <BopoiIcon name={activeTopicDef.iconName} size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs sm:text-sm font-black text-[#191525] truncate">
+                        {activeTopicDef.label}
+                      </h4>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#5420F5] text-white shrink-0">
+                        Topic Feed
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#706B7D] truncate">
+                      {activeTopicDef.description}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTopic(null);
+                    setActiveResultTab('all');
+                  }}
+                  className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-slate-500 hover:text-[#191525] border border-[#EAE6F0] transition-colors cursor-pointer shrink-0"
+                  title="Clear topic filter"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Simple Filter Bar */}
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 bg-[#FAF9FC]">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {(
                   [
-                    { id: 'all', label: 'All' },
-                    { id: 'posts', label: 'Posts' },
-                    { id: 'people', label: 'People' },
-                    { id: 'rooms', label: 'Rooms' },
-                    { id: 'polls', label: 'Polls' },
+                    { id: 'all', label: 'All', count: totalResultsCount, show: true },
+                    { id: 'posts', label: 'Posts', count: filteredPosts.length, show: true },
+                    { id: 'polls', label: 'Polls', count: filteredPolls.length, show: true },
+                    { id: 'rooms', label: 'Rooms', count: filteredRooms.length, show: true },
+                    { id: 'people', label: 'People', count: matchedPeople.length, show: q.length > 0 },
                   ] as const
-                ).map((tab) => (
+                )
+                  .filter((tab) => tab.show)
+                  .map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveResultTab(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer shrink-0 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer shrink-0 inline-flex items-center gap-1.5 ${
                       activeResultTab === tab.id
                         ? 'bg-[#5420F5] text-white'
                         : 'text-[#706B7D] hover:text-[#191525] hover:bg-slate-200/60'
                     }`}
                   >
-                    {tab.label}
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                        activeResultTab === tab.id
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-200/80 text-slate-600'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
                   </button>
                 ))}
               </div>
 
               <span className="text-xs font-bold text-slate-500 shrink-0 pl-2">
-                {totalResultsCount} {totalResultsCount === 1 ? 'result' : 'results'}
+                {totalResultsCount} {totalResultsCount === 1 ? 'match' : 'matches'}
               </span>
             </div>
 
@@ -531,13 +589,13 @@ export const DiscoverView: React.FC = () => {
                               <p className="text-[11px] text-[#706B7D]">
                                 {post.createdAt}
                                 {post.authorCampus ? ` • ${post.authorCampus}` : ''}
-                                {post.category ? ` • ${post.category}` : ''}
+                                {` • ${inferCanonicalPostCategory(post)}`}
                               </p>
                             </div>
                           </div>
 
                           <span className="text-[11px] font-bold text-[#5420F5] bg-[#F0EBFF] px-2.5 py-1 rounded-lg capitalize shrink-0">
-                            {post.type}
+                            {inferCanonicalPostCategory(post)}
                           </span>
                         </div>
 
@@ -614,8 +672,9 @@ export const DiscoverView: React.FC = () => {
                       </div>
                     ))}
 
-                {/* 2. People & Students */}
-                {(activeResultTab === 'all' || activeResultTab === 'people') &&
+                {/* 2. People & Students (Only shown when searching by text query `q`, never on Topic chips) */}
+                {q.length > 0 &&
+                  (activeResultTab === 'all' || activeResultTab === 'people') &&
                   matchedPeople.slice(0, activeResultTab === 'people' ? 20 : 6).map((person) => (
                     <div
                       key={person.username}
@@ -756,8 +815,20 @@ export const DiscoverView: React.FC = () => {
             const isSelected = selectedTopic === item.tag;
             return (
               <button
-                key={item.label}
-                onClick={() => setSelectedTopic(isSelected ? null : item.tag)}
+                key={item.tag}
+                onClick={() => {
+                  const nextTopic = isSelected ? null : item.tag;
+                  setSelectedTopic(nextTopic);
+                  setActiveResultTab('all');
+                  if (nextTopic) {
+                    setTimeout(() => {
+                      searchSectionRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }, 40);
+                  }
+                }}
                 className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-[#5420F5] text-white shadow-md shadow-[#5420F5]/25'

@@ -8,6 +8,8 @@ import {
   Send,
   ChevronRight,
   ArrowLeft,
+  Loader2,
+  Check,
 } from 'lucide-react';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
@@ -43,14 +45,19 @@ export const CreateContentModal: React.FC = () => {
   const [hashtags, setHashtags] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [publishStage, setPublishStage] = useState<'idle' | 'publishing' | 'confirmed'>('idle');
+
   if (!isCreateModalOpen) return null;
 
   const handleClose = () => {
+    if (publishStage === 'publishing') return;
     setIsCreateModalOpen(false);
     setSelectedType(null);
     setContent('');
     setTitle('');
     setPollOptions(['', '']);
+    setPublishStage('idle');
+    setIsSubmitting(false);
   };
 
   const handleSelectType = (type: SocialPostType) => {
@@ -66,7 +73,7 @@ export const CreateContentModal: React.FC = () => {
       setCategory('Campus Life');
     } else {
       setIsAnonymous(!isLoggedIn);
-      setCategory('General');
+      setCategory('Campus Life');
     }
   };
 
@@ -90,9 +97,11 @@ export const CreateContentModal: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting || publishStage !== 'idle') return;
     if (!content.trim() && !title.trim()) return;
 
     setIsSubmitting(true);
+    setPublishStage('publishing');
 
     const parsedHashtags = hashtags
       .split(' ')
@@ -104,29 +113,42 @@ export const CreateContentModal: React.FC = () => {
         ? pollOptions.filter((o) => o.trim().length > 0).map((o) => ({ text: o.trim() }))
         : undefined;
 
-    createSocialPost({
-      type: selectedType || 'post',
-      content: content.trim(),
-      title: title.trim() || undefined,
-      category,
-      hashtags: parsedHashtags.length > 0 ? parsedHashtags : undefined,
-      isAnonymous: selectedType === 'confession' ? true : isAnonymous,
-      pollOptions: validPollOptions,
-    });
+    const targetType = selectedType || 'post';
 
-    setIsSubmitting(false);
-    handleClose();
+    setTimeout(() => {
+      createSocialPost({
+        type: targetType,
+        content: content.trim(),
+        title: title.trim() || undefined,
+        category,
+        hashtags: parsedHashtags.length > 0 ? parsedHashtags : undefined,
+        isAnonymous: targetType === 'confession' ? true : isAnonymous,
+        pollOptions: validPollOptions,
+      });
 
-    // Navigate to appropriate feed
-    if (selectedType === 'confession') {
-      setActiveView('confessions');
-    } else if (selectedType === 'poll') {
-      setActiveView('home');
-    } else if (selectedType === 'discussion') {
-      setActiveView('discussions');
-    } else {
-      setActiveView('home');
-    }
+      setPublishStage('confirmed');
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+        setPublishStage('idle');
+        setIsCreateModalOpen(false);
+        setSelectedType(null);
+        setContent('');
+        setTitle('');
+        setPollOptions(['', '']);
+
+        // Navigate to appropriate feed
+        if (targetType === 'confession') {
+          setActiveView('confessions');
+        } else if (targetType === 'poll') {
+          setActiveView('home');
+        } else if (targetType === 'discussion') {
+          setActiveView('discussions');
+        } else {
+          setActiveView('home');
+        }
+      }, 500);
+    }, 420);
   };
 
   const getHeaderIcon = (type: SocialPostType | null) => {
@@ -381,8 +403,15 @@ export const CreateContentModal: React.FC = () => {
                 <label className="text-xs font-bold text-slate-700 block mb-1.5">Category</label>
                 <div className="flex flex-wrap gap-1.5">
                   {(selectedType === 'confession'
-                    ? ['Love', 'School', 'Life', 'Fun']
-                    : ['Campus Life', 'Relationships', 'Tech', 'Music', 'Entertainment', 'Lifestyle']
+                    ? ['Love', 'School', 'Relationships', 'Campus Life', 'Money', 'Fashion']
+                    : [
+                        'Campus Life',
+                        'Relationships',
+                        'Tech & Gadgets',
+                        'Music',
+                        'Money',
+                        'Fashion',
+                      ]
                   ).map((cat) => (
                     <button
                       key={cat}
@@ -503,18 +532,41 @@ export const CreateContentModal: React.FC = () => {
               <div className="pt-2 flex items-center gap-3">
                 <button
                   type="button"
+                  disabled={publishStage !== 'idle'}
                   onClick={handleClose}
-                  className="w-1/3 py-3 border border-[#EAE6F0] rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="w-1/3 py-3 border border-[#EAE6F0] rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 py-3 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-xl shadow-lg shadow-[#5420F5]/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  disabled={isSubmitting || publishStage !== 'idle'}
+                  className={`flex-1 py-3 font-extrabold text-sm rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
+                    publishStage === 'confirmed'
+                      ? 'bg-emerald-600 text-white shadow-emerald-600/25 scale-[0.99]'
+                      : publishStage === 'publishing'
+                      ? 'bg-[#4314E2] text-white shadow-[#5420F5]/20 scale-[0.99]'
+                      : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-[#5420F5]/25 active:scale-[0.98]'
+                  }`}
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Publish to Campus Feed</span>
+                  {publishStage === 'publishing' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      <span>Publishing to campus feed...</span>
+                    </>
+                  ) : publishStage === 'confirmed' ? (
+                    <>
+                      <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </span>
+                      <span>Published! Opening feed...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 shrink-0" />
+                      <span>Publish to Campus Feed</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

@@ -743,8 +743,746 @@ export function scoreBM25FieldMatch(
   return totalScore * (0.5 + 0.5 * Math.pow(coverageRatio, 1.5));
 }
 
+export interface DiscoverTopicDefinition {
+  label: string;
+  tag: string;
+  iconName: string;
+  description: string;
+  categories: string[];
+  tokens: string[];
+  phrases: string[];
+}
+
+export const DISCOVER_TOPIC_TAXONOMY: DiscoverTopicDefinition[] = [
+  {
+    label: 'Campus Life',
+    tag: 'Campus Life',
+    iconName: 'campus-life',
+    description: 'Hostel gist, lectures, exams, campus events & daily student life',
+    categories: [
+      'campus life',
+      'campus life & academics',
+      'study & exam survival',
+      'hostel & dorm (food)',
+      'coffee & chill',
+      'school',
+      'campus',
+      'study',
+      'academics',
+      'general',
+      'life',
+      'fun',
+    ],
+    tokens: [
+      'campus',
+      'hostel',
+      'dorm',
+      'roommate',
+      'roommates',
+      'lecture',
+      'lectures',
+      'lecturer',
+      'lecturers',
+      'exam',
+      'exams',
+      'test',
+      'quiz',
+      'semester',
+      'department',
+      'faculty',
+      'course',
+      'courses',
+      'matric',
+      'convocation',
+      'library',
+      'cafeteria',
+      'canteen',
+      'handout',
+      'cgpa',
+      'gpa',
+      'fresher',
+      'freshers',
+      'finalist',
+      'finalists',
+      'classmate',
+      'classmates',
+      'shuttle',
+      'portal',
+      'school',
+      'uni',
+      'university',
+      'assignment',
+      'attendance',
+      'carryover',
+      'dean',
+      'hod',
+      'senate',
+      'chapel',
+      'fellowship',
+      'hall',
+      'warden',
+      'porter',
+    ],
+    phrases: [
+      'campus life',
+      'night class',
+      'hall of residence',
+      'group project',
+      'morning class',
+      '8am class',
+      'exam hall',
+      'lecture theatre',
+      'student union',
+    ],
+  },
+  {
+    label: 'Relationships',
+    tag: 'Relationships',
+    iconName: 'dating-romance',
+    description: 'Crushes, dating, situationships, heartbreak & love confessions',
+    categories: [
+      'relationships',
+      'love',
+      'dating & romance',
+      'dating',
+      'romance',
+      'crush',
+    ],
+    tokens: [
+      'love',
+      'crush',
+      'crushing',
+      'relationship',
+      'relationships',
+      'dating',
+      'date',
+      'boyfriend',
+      'girlfriend',
+      'partner',
+      'heartbreak',
+      'heartbroken',
+      'situationship',
+      'situationships',
+      'babe',
+      'bae',
+      'single',
+      'couples',
+      'couple',
+      'breakup',
+      'toxic',
+      'redflag',
+      'greenflag',
+      'valentine',
+      'talkingstage',
+      'married',
+      'marriage',
+      'kiss',
+      'cheating',
+      'loyal',
+      'loyalty',
+      'romance',
+      'romantic',
+      'flirt',
+      'flirting',
+      'ghosted',
+      'ghosting',
+      'admirer',
+      'soulmate',
+      'confess',
+    ],
+    phrases: [
+      'talking stage',
+      'red flag',
+      'green flag',
+      'my ex',
+      'his ex',
+      'her ex',
+      'your ex',
+      'secret admirer',
+      'shoot my shot',
+      'shoot your shot',
+      'serve breakfast',
+      'served breakfast',
+      'dating life',
+      'in love',
+    ],
+  },
+  {
+    label: 'Tech & Gadgets',
+    tag: 'Tech & Gadgets',
+    iconName: 'tech-coding',
+    description: 'Coding, laptops, phones, AI tools, gaming & student tech builders',
+    categories: [
+      'tech & gadgets',
+      'tech',
+      'tech & coding',
+      'gaming & entertainment',
+      'gadgets',
+      'coding',
+    ],
+    tokens: [
+      'tech',
+      'technology',
+      'coding',
+      'code',
+      'coder',
+      'programmer',
+      'programming',
+      'developer',
+      'developers',
+      'software',
+      'hardware',
+      'laptop',
+      'laptops',
+      'macbook',
+      'iphone',
+      'iphones',
+      'android',
+      'samsung',
+      'pixel',
+      'ipad',
+      'gadget',
+      'gadgets',
+      'ai',
+      'chatgpt',
+      'openai',
+      'gemini',
+      'claude',
+      'python',
+      'javascript',
+      'typescript',
+      'react',
+      'nodejs',
+      'frontend',
+      'backend',
+      'fullstack',
+      'cybersecurity',
+      'blockchain',
+      'web3',
+      'github',
+      'hackathon',
+      'startup',
+      'wifi',
+      'airpods',
+      'playstation',
+      'ps5',
+      'xbox',
+      'gaming',
+      'gamer',
+      'fifa',
+      'codm',
+      'valorant',
+      'algorithm',
+      'computer',
+      'gpu',
+      'starlink',
+    ],
+    phrases: [
+      'tech & gadgets',
+      'tech & coding',
+      'computer science',
+      'software engineering',
+      'artificial intelligence',
+      'machine learning',
+      'data science',
+      'ui ux',
+      'web development',
+    ],
+  },
+  {
+    label: 'Music',
+    tag: 'Music',
+    iconName: 'music-podcasts',
+    description: 'Afrobeats, campus playlists, new albums, concerts & podcasts',
+    categories: [
+      'music',
+      'music & podcasts',
+      'podcasts',
+    ],
+    tokens: [
+      'music',
+      'musical',
+      'song',
+      'songs',
+      'album',
+      'albums',
+      'ep',
+      'track',
+      'tracks',
+      'afrobeats',
+      'afrobeat',
+      'amapiano',
+      'hiphop',
+      'rap',
+      'rnb',
+      'gospel',
+      'playlist',
+      'playlists',
+      'spotify',
+      'applemusic',
+      'audiomack',
+      'boomplay',
+      'concert',
+      'dj',
+      'headphones',
+      'earbuds',
+      'burna',
+      'wizkid',
+      'davido',
+      'asake',
+      'rema',
+      'ayra',
+      'tems',
+      'omah',
+      'shallipopi',
+      'odumodublvck',
+      'seyivibes',
+      'olamide',
+      'fireboy',
+      'ckay',
+      'pheelz',
+      'bnxn',
+      'victony',
+      'ruger',
+      'zinoleesky',
+      'mohbad',
+      'simi',
+      'adekunle',
+      'tiwa',
+      'verse',
+      'chorus',
+      'lyrics',
+      'melody',
+      'beats',
+      'freestyle',
+      'karaoke',
+      'podcast',
+      'podcasts',
+      'aux',
+      'banger',
+    ],
+    phrases: [
+      'music & podcasts',
+      'new album',
+      'new song',
+      'late night playlist',
+      'burna boy',
+      'ayra starr',
+      'omah lay',
+      'apple music',
+      'pass the aux',
+      'song of the year',
+    ],
+  },
+  {
+    label: 'Money',
+    tag: 'Money',
+    iconName: 'money-finances',
+    description: 'Side hustles, student allowances, savings, crypto, gigs & finances',
+    categories: [
+      'money',
+      'money & finances',
+      'finance',
+      'finances',
+      'ideas & life hacks',
+      'business',
+    ],
+    tokens: [
+      'money',
+      'finance',
+      'finances',
+      'financial',
+      'allowance',
+      'pocketmoney',
+      'hustle',
+      'hustling',
+      'business',
+      'entrepreneur',
+      'income',
+      'salary',
+      'wage',
+      'stipend',
+      'naira',
+      'dollar',
+      'dollars',
+      'crypto',
+      'bitcoin',
+      'usdt',
+      'forex',
+      'trading',
+      'invest',
+      'investing',
+      'investment',
+      'savings',
+      'budget',
+      'budgeting',
+      'broke',
+      'sapa',
+      'urgent2k',
+      '2k',
+      '5k',
+      '10k',
+      '20k',
+      '50k',
+      '100k',
+      'debit',
+      'credit',
+      'opay',
+      'palmpay',
+      'kuda',
+      'moniepoint',
+      'gtbank',
+      'zenith',
+      'loan',
+      'debt',
+      'freelance',
+      'freelancing',
+      'remote',
+      'gig',
+      'billing',
+      'giveaway',
+      'cash',
+      'wealth',
+      'sidehustle',
+      'tuition',
+      'fees',
+      'profitable',
+      'profit',
+    ],
+    phrases: [
+      'money & finances',
+      'urgent 2k',
+      'side hustle',
+      'pocket money',
+      'credit alert',
+      'debit alert',
+      'financial literacy',
+      'make money',
+      'how to earn',
+      'school fees',
+      'bank app',
+    ],
+  },
+  {
+    label: 'Fashion',
+    tag: 'Fashion',
+    iconName: 'fashion-style',
+    description: 'Campus drip, fit checks, sneakers, thrifting, skincare & style',
+    categories: [
+      'fashion',
+      'fashion & style',
+      'style',
+      'drip',
+    ],
+    tokens: [
+      'fashion',
+      'style',
+      'stylish',
+      'drip',
+      'dripping',
+      'outfit',
+      'outfits',
+      'ootd',
+      'wear',
+      'wearing',
+      'clothes',
+      'clothing',
+      'dress',
+      'dresses',
+      'shirt',
+      'shirts',
+      'hoodie',
+      'hoodies',
+      'jeans',
+      'denim',
+      'cargo',
+      'cargos',
+      'trousers',
+      'skirt',
+      'sneakers',
+      'sneaker',
+      'kicks',
+      'shoes',
+      'heels',
+      'slides',
+      'crocs',
+      'jordan',
+      'jordans',
+      'nike',
+      'adidas',
+      'newbalance',
+      'puma',
+      'balenciaga',
+      'zara',
+      'shein',
+      'thrift',
+      'thrifting',
+      'vintage',
+      'streetwear',
+      'aesthetic',
+      'accessories',
+      'jewelry',
+      'necklace',
+      'wristband',
+      'sunglasses',
+      'shades',
+      'totebag',
+      'perfume',
+      'cologne',
+      'fragrance',
+      'skincare',
+      'hairstyle',
+      'braids',
+      'locs',
+      'haircut',
+      'fade',
+      'tailor',
+      'ankara',
+      'asoebi',
+      'agbada',
+      'bubu',
+      'corset',
+      'wardrobe',
+      'runway',
+      'designer',
+      'boutique',
+      'jersey',
+    ],
+    phrases: [
+      'fashion & style',
+      'fit check',
+      'rate my fit',
+      'rate the fit',
+      'this fit',
+      'my fit',
+      'campus drip',
+      'tote bag',
+      'street style',
+      'thrift store',
+      'skin care',
+      'best dressed',
+    ],
+  },
+];
+
+export function resolveDiscoverTopicDefinition(
+  topicQuery?: string | null
+): DiscoverTopicDefinition | null {
+  if (!topicQuery) return null;
+  const norm = topicQuery.trim().toLowerCase();
+  if (!norm) return null;
+
+  for (const def of DISCOVER_TOPIC_TAXONOMY) {
+    if (
+      def.tag.toLowerCase() === norm ||
+      def.label.toLowerCase() === norm ||
+      def.categories.includes(norm)
+    ) {
+      return def;
+    }
+  }
+  return null;
+}
+
 /**
- * Searches and ranks SocialPosts using BM25 + fuzzy typo tolerance + time-decayed Trending velocity.
+ * Computes exact keyword, phrase, hashtag, and category relevance of a text/post against a Discover Topic
+ * without Levenshtein typo false-positives (e.g. "love" matching "have", or "ai" matching "said").
+ */
+function computeKeywordAndPhraseScore(
+  def: DiscoverTopicDefinition,
+  titleText: string,
+  bodyText: string,
+  hashtags: string[]
+): number {
+  const combinedRaw = ` ${titleText} ${bodyText} ${hashtags.join(' ')} `.toLowerCase();
+  const titleTokens = new Set(tokenizeSearchString(titleText));
+  const bodyTokens = new Set(tokenizeSearchString(bodyText));
+  const tagTokens = new Set(
+    hashtags.flatMap((h) => tokenizeSearchString(h.replace(/^#/, '')))
+  );
+
+  let score = 0;
+
+  // 1. Exact phrase matches
+  for (const phrase of def.phrases) {
+    if (combinedRaw.includes(phrase)) {
+      score += 4.0;
+    }
+  }
+
+  // 2. Exact word-boundary token matches
+  for (const tok of def.tokens) {
+    if (tagTokens.has(tok)) {
+      score += 4.2;
+    } else if (titleTokens.has(tok)) {
+      score += 3.4;
+    } else if (bodyTokens.has(tok)) {
+      score += 2.4;
+    }
+  }
+
+  return score;
+}
+
+/**
+ * Infers the most accurate canonical category for a post when its saved category is generic
+ * ('Campus Life', 'General', 'Life', 'Fun') and its content clearly belongs to a specific topic.
+ */
+export function inferCanonicalPostCategory(input: {
+  category?: string;
+  title?: string;
+  content: string;
+  hashtags?: string[];
+  pollOptions?: { text: string }[];
+}): string {
+  const rawCat = (input.category || '').trim();
+  const catLower = rawCat.toLowerCase();
+
+  // If the post already has an explicit specialized category, keep its canonical label
+  for (const def of DISCOVER_TOPIC_TAXONOMY) {
+    if (def.tag !== 'Campus Life' && def.categories.includes(catLower)) {
+      return def.tag;
+    }
+  }
+
+  const pollText = (input.pollOptions || []).map((o) => o.text).join(' ');
+  const bodyText = `${input.content || ''} ${pollText}`;
+  const titleText = input.title || '';
+  const hashtags = input.hashtags || [];
+
+  let bestTopic: DiscoverTopicDefinition | null = null;
+  let bestScore = 0;
+
+  // Check specialized topics first (Relationships, Tech & Gadgets, Music, Money, Fashion)
+  for (const def of DISCOVER_TOPIC_TAXONOMY) {
+    if (def.tag === 'Campus Life') continue;
+    const kwScore = computeKeywordAndPhraseScore(def, titleText, bodyText, hashtags);
+    if (kwScore > bestScore) {
+      bestScore = kwScore;
+      bestTopic = def;
+    }
+  }
+
+  const campusDef = DISCOVER_TOPIC_TAXONOMY[0];
+  const campusKwScore = computeKeywordAndPhraseScore(campusDef, titleText, bodyText, hashtags);
+
+  // If a specialized topic clearly dominates the post's content, assign its canonical tag
+  if (bestTopic && bestScore >= 2.4 && bestScore > campusKwScore) {
+    return bestTopic.tag;
+  }
+
+  return rawCat || 'Campus Life';
+}
+
+/**
+ * Scores how strongly a SocialPost belongs to a Discover Topic (`Campus Life`, `Relationships`,
+ * `Tech & Gadgets`, `Music`, `Money`, `Fashion`). Returns 0 if the post does not belong.
+ */
+export function scorePostTopicRelevance(post: SocialPost, topicQuery: string): number {
+  const def = resolveDiscoverTopicDefinition(topicQuery);
+  if (!def) {
+    // Fallback for custom user-typed hashtag/topic strings
+    return scoreBM25FieldMatch(topicQuery, [
+      { text: post.category, weight: 3.5 },
+      { text: (post.hashtags || []).join(' '), weight: 3.0 },
+      { text: post.title, weight: 2.0 },
+      { text: post.content, weight: 1.2 },
+    ]);
+  }
+
+  const pollText = (post.pollOptions || []).map((o) => o.text).join(' ');
+  const bodyText = `${post.content || ''} ${pollText}`;
+  const titleText = post.title || '';
+  const hashtags = post.hashtags || [];
+  const rawCatLower = (post.category || '').trim().toLowerCase();
+  const inferredCatLower = inferCanonicalPostCategory(post).toLowerCase();
+
+  const kwScore = computeKeywordAndPhraseScore(def, titleText, bodyText, hashtags);
+
+  if (def.tag !== 'Campus Life') {
+    const explicitCategoryMatch =
+      def.categories.includes(rawCatLower) ||
+      inferredCatLower === def.tag.toLowerCase();
+    if (!explicitCategoryMatch && kwScore <= 0) {
+      return 0;
+    }
+    return (explicitCategoryMatch ? 6.0 : 0) + kwScore;
+  }
+
+  // Special handling for 'Campus Life':
+  // On a university platform, posts about Relationships, Music, Tech, Money, or Fashion often
+  // incidentally mention words like "campus", "department", or "semester". If `inferCanonicalPostCategory`
+  // determined that a post's primary topic is one of the 5 specialized topics, keep it in that
+  // specialized topic rather than duplicating it into Campus Life.
+  const isSpecializedTopicPost =
+    inferredCatLower !== 'campus life' &&
+    inferredCatLower !== 'school' &&
+    inferredCatLower !== 'general' &&
+    DISCOVER_TOPIC_TAXONOMY.some(
+      (t) => t.tag !== 'Campus Life' && t.tag.toLowerCase() === inferredCatLower
+    );
+
+  if (isSpecializedTopicPost) {
+    const hasExplicitCampusHashtag = hashtags.some(
+      (h) => h.replace(/^#/, '').toLowerCase() === 'campuslife'
+    );
+    if (!hasExplicitCampusHashtag) {
+      return 0;
+    }
+  }
+
+  if (kwScore > 0) {
+    const catBonus = def.categories.includes(rawCatLower) ? 4.0 : 1.5;
+    return catBonus + kwScore;
+  }
+
+  // If the post has no explicit specialized topic (i.e. it is a general campus post, confession,
+  // poll, or discussion), include it under Campus Life so Campus Life always shows real student posts.
+  if (!isSpecializedTopicPost) {
+    return def.categories.includes(rawCatLower) || !rawCatLower ? 2.5 : 1.5;
+  }
+
+  return 0;
+}
+
+/**
+ * Scores how strongly a CommunityRoom belongs to a Discover Topic.
+ */
+export function scoreRoomTopicRelevance(room: CommunityRoom, topicQuery: string): number {
+  const def = resolveDiscoverTopicDefinition(topicQuery);
+  const recentMsgsText = (room.messages || [])
+    .slice(-15)
+    .map((m) => m.text)
+    .join(' ');
+
+  if (!def) {
+    return scoreBM25FieldMatch(topicQuery, [
+      { text: room.name, weight: 3.8 },
+      { text: room.category, weight: 2.8 },
+      { text: (room.tags || []).join(' '), weight: 2.5 },
+      { text: room.description, weight: 1.5 },
+      { text: recentMsgsText, weight: 0.9 },
+    ]);
+  }
+
+  const catLower = (room.category || '').trim().toLowerCase();
+  const explicitCatMatch = def.categories.includes(catLower);
+  const kwScore = computeKeywordAndPhraseScore(
+    def,
+    room.name || '',
+    `${room.description || ''} ${recentMsgsText}`,
+    room.tags || []
+  );
+
+  if (!explicitCatMatch && kwScore <= 0) {
+    return 0;
+  }
+
+  return (explicitCatMatch ? 6.0 : 0) + kwScore;
+}
+
+/**
+ * Searches and ranks SocialPosts using exact Topic Taxonomy matching + BM25 + time-decayed Trending velocity.
  */
 export function searchAndRankPosts(
   posts: SocialPost[],
@@ -772,20 +1510,16 @@ export function searchAndRankPosts(
       continue;
     }
 
+    let topicRelevance = 0;
     if (topic) {
-      const topicMatch = scoreBM25FieldMatch(topic, [
-        { text: post.category, weight: 3.5 },
-        { text: (post.hashtags || []).join(' '), weight: 3.0 },
-        { text: post.title, weight: 2.0 },
-        { text: post.content, weight: 1.2 },
-      ]);
-      if (topicMatch <= 0) continue;
+      topicRelevance = scorePostTopicRelevance(post, topic);
+      if (topicRelevance <= 0) continue;
     }
 
-    let relevance = 1.0;
+    let queryRelevance = 0;
     if (q.length > 0) {
       const pollText = (post.pollOptions || []).map((o) => o.text).join(' ');
-      relevance = scoreBM25FieldMatch(q, [
+      queryRelevance = scoreBM25FieldMatch(q, [
         { text: post.title, weight: 3.5 },
         { text: post.authorUsername, weight: 3.2 },
         { text: post.authorName, weight: 2.8 },
@@ -796,8 +1530,17 @@ export function searchAndRankPosts(
         { text: post.content, weight: 1.2 },
         { text: post.authorCampus, weight: 1.5 },
       ]);
-      if (relevance <= 0) continue;
+      if (queryRelevance <= 0) continue;
     }
+
+    const relevance =
+      q.length > 0 && topic
+        ? queryRelevance + topicRelevance
+        : q.length > 0
+        ? queryRelevance
+        : topic
+        ? topicRelevance
+        : 1.0;
 
     const velocity = computePostTrendingVelocityScore(post, now);
     scored.push({ post, relevance, velocity });
@@ -806,21 +1549,22 @@ export function searchAndRankPosts(
   return scored
     .sort((a, b) => {
       if (options?.sortBy === 'latest') {
-        if (q.length > 0 && Math.abs(b.relevance - a.relevance) > 1.5) {
+        if ((q.length > 0 || topic) && Math.abs(b.relevance - a.relevance) > 2.5) {
           return b.relevance - a.relevance;
         }
         return (b.post.createdTimestamp || 0) - (a.post.createdTimestamp || 0);
       }
-      // Combine BM25 relevance with time-decayed engagement velocity
-      const combinedA = q.length > 0 ? a.relevance * 3.0 + Math.log1p(a.velocity) : a.velocity;
-      const combinedB = q.length > 0 ? b.relevance * 3.0 + Math.log1p(b.velocity) : b.velocity;
+      // Combine topic/query relevance with time-decayed engagement velocity
+      const hasFilter = q.length > 0 || Boolean(topic);
+      const combinedA = hasFilter ? a.relevance * 2.5 + Math.log1p(a.velocity) : a.velocity;
+      const combinedB = hasFilter ? b.relevance * 2.5 + Math.log1p(b.velocity) : b.velocity;
       return combinedB - combinedA;
     })
     .map((s) => s.post);
 }
 
 /**
- * Searches and ranks People / Profiles using BM25 + fuzzy matching + campus & social affinity.
+ * Searches and ranks People / Profiles using BM25 + exact topic bio/post affinity + campus & social affinity.
  */
 export function searchAndRankPeople<
   T extends {
@@ -839,9 +1583,11 @@ export function searchAndRankPeople<
     topic?: string | null;
     campusFilter?: 'all' | 'my-campus';
     userCampus?: string;
+    posts?: SocialPost[];
   }
 ): T[] {
-  const q = (query || options?.topic || '').trim();
+  const q = (query || '').trim();
+  const topic = (options?.topic || '').trim();
   const myCampus = (options?.userCampus || 'Chrisland University').toLowerCase();
 
   const filtered =
@@ -849,7 +1595,10 @@ export function searchAndRankPeople<
       ? people.filter((p) => (p.campus || '').toLowerCase().includes(myCampus))
       : people;
 
-  if (!q) return filtered;
+  // Topic chips ('Campus Life', 'Relationships', 'Tech & Gadgets', 'Music', 'Money', 'Fashion')
+  // filter Posts, Polls, Confessions, Discussions, and Rooms — never return a user directory list
+  // unless the user has actually typed a search query `q`.
+  if (!q) return [];
 
   const scored: Array<{ person: T; score: number }> = [];
   for (const person of filtered) {
@@ -920,17 +1669,18 @@ export function computeRoomVelocityAndAffinityScore(
 }
 
 /**
- * Searches and ranks Community Rooms using BM25 + fuzzy matching + EWMA room velocity + user topic affinity.
+ * Searches and ranks Community Rooms using exact Topic Taxonomy matching + BM25 + EWMA room velocity + user topic affinity.
  */
 export function searchAndRankRooms(
   rooms: CommunityRoom[],
   query: string,
   options?: { topic?: string | null; preferredCategories?: Set<string> }
 ): CommunityRoom[] {
-  const q = (query || options?.topic || '').trim();
+  const q = (query || '').trim();
+  const topic = (options?.topic || '').trim();
   const now = Date.now();
 
-  if (!q) {
+  if (!q && !topic) {
     return [...rooms].sort(
       (a, b) =>
         computeRoomVelocityAndAffinityScore(b, options?.preferredCategories, now) -
@@ -940,26 +1690,36 @@ export function searchAndRankRooms(
 
   const scored: Array<{ room: CommunityRoom; score: number }> = [];
   for (const room of rooms) {
-    const recentMsgsText = (room.messages || [])
-      .slice(-15)
-      .map((m) => m.text)
-      .join(' ');
+    let topicRelevance = 0;
+    if (topic) {
+      topicRelevance = scoreRoomTopicRelevance(room, topic);
+      if (topicRelevance <= 0) continue;
+    }
 
-    const bm25 = scoreBM25FieldMatch(q, [
-      { text: room.name, weight: 3.8 },
-      { text: room.category, weight: 2.8 },
-      { text: (room.tags || []).join(' '), weight: 2.5 },
-      { text: room.description, weight: 1.5 },
-      { text: recentMsgsText, weight: 0.9 },
-    ]);
-    if (bm25 <= 0) continue;
+    let queryRelevance = 0;
+    if (q) {
+      const recentMsgsText = (room.messages || [])
+        .slice(-15)
+        .map((m) => m.text)
+        .join(' ');
 
+      queryRelevance = scoreBM25FieldMatch(q, [
+        { text: room.name, weight: 3.8 },
+        { text: room.category, weight: 2.8 },
+        { text: (room.tags || []).join(' '), weight: 2.5 },
+        { text: room.description, weight: 1.5 },
+        { text: recentMsgsText, weight: 0.9 },
+      ]);
+      if (queryRelevance <= 0) continue;
+    }
+
+    const relevance = q && topic ? queryRelevance + topicRelevance : q ? queryRelevance : topicRelevance;
     const velocityScore = computeRoomVelocityAndAffinityScore(
       room,
       options?.preferredCategories,
       now
     );
-    scored.push({ room, score: bm25 * 5.0 + Math.log1p(velocityScore) });
+    scored.push({ room, score: relevance * 4.5 + Math.log1p(velocityScore) });
   }
 
   return scored.sort((a, b) => b.score - a.score).map((s) => s.room);
@@ -1129,114 +1889,58 @@ export function rankCommentsByWilsonScore(
 
 /**
  * Dynamically computes velocity-weighted Trending Topics & emerging hashtags from live
- * campus posts and room conversations so Discover reflects real-time campus momentum.
+ * campus posts and room conversations using the exact same `scorePostTopicRelevance` and
+ * `scoreRoomTopicRelevance` rules used when filtering on tap.
  */
 export function computeDynamicTrendingTopics(
   posts: SocialPost[],
   rooms: CommunityRoom[]
 ): DynamicTrendingTopic[] {
-  const baseCatalog: Array<{
-    label: string;
-    tag: string;
-    iconName: string;
-    keywords: string[];
-  }> = [
-    {
-      label: 'Campus Life',
-      tag: 'Campus Life',
-      iconName: 'campus-life',
-      keywords: ['campus', 'hostel', 'lecture', 'exam', 'semester', 'lecturer', 'department', 'school'],
-    },
-    {
-      label: 'Relationships',
-      tag: 'Love',
-      iconName: 'dating-romance',
-      keywords: ['love', 'crush', 'relationship', 'dating', 'ex', 'heartbreak', 'situationship', 'babe'],
-    },
-    {
-      label: 'Tech & Gadgets',
-      tag: 'Tech',
-      iconName: 'tech-coding',
-      keywords: ['tech', 'coding', 'laptop', 'ai', 'software', 'iphone', 'dev', 'gadget', 'crypto'],
-    },
-    {
-      label: 'Music',
-      tag: 'Fun',
-      iconName: 'music-podcasts',
-      keywords: ['music', 'song', 'album', 'afrobeats', 'playlist', 'party', 'concert', 'burna', 'wizkid', 'davido'],
-    },
-    {
-      label: 'Money',
-      tag: 'Life',
-      iconName: 'money-finances',
-      keywords: ['money', 'finance', 'urgent', '2k', 'allowance', 'side hustle', 'business', 'naira', 'savings'],
-    },
-    {
-      label: 'Fashion',
-      tag: 'Life',
-      iconName: 'fashion-style',
-      keywords: ['fashion', 'style', 'drip', 'outfit', 'fit', 'wear', 'thrifting', 'sneakers'],
-    },
-  ];
-
   const now = Date.now();
 
-  return baseCatalog
-    .map((topic) => {
-      let velocityScore = 1.0;
-      let activeCount = 0;
-      const hashtagCounts = new Map<string, number>();
+  return DISCOVER_TOPIC_TAXONOMY.map((topic) => {
+    let velocityScore = 1.0;
+    let activeCount = 0;
+    const hashtagCounts = new Map<string, number>();
 
-      for (const post of posts) {
-        const blob = `${post.category || ''} ${post.title || ''} ${post.content} ${(
-          post.hashtags || []
-        ).join(' ')}`.toLowerCase();
-
-        const matchesCategory =
-          (post.category || '').toLowerCase() === topic.tag.toLowerCase() ||
-          (post.category || '').toLowerCase() === topic.label.toLowerCase() ||
-          topic.keywords.some((kw) => blob.includes(kw));
-
-        if (matchesCategory) {
-          activeCount++;
-          velocityScore += computePostTrendingVelocityScore(post, now);
-          for (const h of post.hashtags || []) {
-            const cleanH = h.startsWith('#') ? h : `#${h}`;
-            hashtagCounts.set(cleanH, (hashtagCounts.get(cleanH) || 0) + 1);
-          }
+    for (const post of posts) {
+      const rel = scorePostTopicRelevance(post, topic.tag);
+      if (rel > 0) {
+        activeCount++;
+        velocityScore += computePostTrendingVelocityScore(post, now);
+        for (const h of post.hashtags || []) {
+          const cleanH = h.startsWith('#') ? h : `#${h}`;
+          hashtagCounts.set(cleanH, (hashtagCounts.get(cleanH) || 0) + 1);
         }
       }
+    }
 
-      for (const room of rooms) {
-        const rBlob = `${room.name} ${room.category} ${room.description}`.toLowerCase();
-        if (
-          room.category.toLowerCase() === topic.tag.toLowerCase() ||
-          topic.keywords.some((kw) => rBlob.includes(kw))
-        ) {
-          activeCount++;
-          velocityScore += (room.onlineCount || 1) * 1.5;
-        }
+    for (const room of rooms) {
+      const roomRel = scoreRoomTopicRelevance(room, topic.tag);
+      if (roomRel > 0) {
+        activeCount++;
+        velocityScore += (room.onlineCount || 1) * 1.5;
       }
+    }
 
-      let topHashtag: string | undefined;
-      let bestTagCount = 0;
-      hashtagCounts.forEach((cnt, tag) => {
-        if (cnt > bestTagCount) {
-          bestTagCount = cnt;
-          topHashtag = tag;
-        }
-      });
+    let topHashtag: string | undefined;
+    let bestTagCount = 0;
+    hashtagCounts.forEach((cnt, tag) => {
+      if (cnt > bestTagCount) {
+        bestTagCount = cnt;
+        topHashtag = tag;
+      }
+    });
 
-      return {
-        label: topic.label,
-        tag: topic.tag,
-        iconName: topic.iconName,
-        velocityScore: Number(velocityScore.toFixed(2)),
-        activeCount,
-        topHashtag,
-      };
-    })
-    .sort((a, b) => b.velocityScore - a.velocityScore);
+    return {
+      label: topic.label,
+      tag: topic.tag,
+      iconName: topic.iconName,
+      velocityScore: Number(velocityScore.toFixed(2)),
+      activeCount,
+      topHashtag,
+    };
+  });
 }
 
 // ============================================================================

@@ -84,6 +84,7 @@ import {
   encodeRoomMessageWithMedia,
   saveLocalRoomMessageBackup,
   removeLocalRoomMessageBackup,
+  inferCanonicalPostCategory,
 } from '../lib/supabase.ts';
 import { initRealtimeSubscriptions } from '../services/realtime.ts';
 
@@ -289,17 +290,25 @@ interface BopoiContextType {
     user?: UserProfile;
     commit?: () => void;
   }>;
-  registerAccount: (params: {
-    displayName: string;
-    username: string;
-    email: string;
-    password?: string;
-    campus?: string;
-    bio?: string;
-    avatarUrl: string;
-    selectedTags?: string[];
-    facultyId?: string;
-  }) => { success: boolean; error?: string };
+  registerAccount: (
+    params: {
+      displayName: string;
+      username: string;
+      email: string;
+      password?: string;
+      campus?: string;
+      bio?: string;
+      avatarUrl: string;
+      selectedTags?: string[];
+      facultyId?: string;
+    },
+    options?: { deferCommit?: boolean }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    user?: UserProfile;
+    commit?: () => void;
+  }>;
   switchAccount: (username: string) => void;
   logoutAccount: () => void;
   completeOnboarding: (destination?: ActiveAppView) => void;
@@ -3227,17 +3236,25 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
-  const registerAccount = (params: {
-    displayName: string;
-    username: string;
-    email: string;
-    password?: string;
-    campus?: string;
-    bio?: string;
-    avatarUrl: string;
-    selectedTags?: string[];
-    facultyId?: string;
-  }) => {
+  const registerAccount = async (
+    params: {
+      displayName: string;
+      username: string;
+      email: string;
+      password?: string;
+      campus?: string;
+      bio?: string;
+      avatarUrl: string;
+      selectedTags?: string[];
+      facultyId?: string;
+    },
+    options?: { deferCommit?: boolean }
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    user?: UserProfile;
+    commit?: () => void;
+  }> => {
     const cleanUsername = params.username
       .trim()
       .toLowerCase()
@@ -3313,9 +3330,11 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     };
 
-    if (supabase) {
-      supabase.auth
-        .signUp({
+    const sb = supabase;
+    if (sb) {
+      try {
+        pendingAuthTransitionRef.current = true;
+        const { data, error } = await sb.auth.signUp({
           email: cleanEmail,
           password: params.password,
           options: {
@@ -3328,39 +3347,105 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               onboarding_completed: false,
             },
           },
-        })
-        .then(({ data, error }) => {
-          if (error) {
-            showToast(error.message || 'Unable to register account.', 'error');
-            return;
-          }
-          if (data?.user?.id) {
-            const realUser: UserProfile = { ...newAccount, id: data.user.id };
-            setUser(realUser);
-            setIsAuthenticated(true);
-            setAccounts((prev) => {
-              const filtered = prev.filter((a) => a.username.toLowerCase() !== cleanUsername);
-              return [realUser, ...filtered];
-            });
-            runColdStartActivation(data.user.id);
-            setActiveView('onboarding');
-            showToast(`Account @${cleanUsername} created! Welcome to your campus guide.`, 'success');
-            queryClient.invalidateQueries();
-          }
         });
-      return { success: true };
+
+        if (error) {
+          const msg = error.message || '';
+          const isRateLimit =
+            msg.toLowerCase().includes('rate limit') ||
+            msg.toLowerCase().includes('email rate');
+          if (!isRateLimit) {
+            pendingAuthTransitionRef.current = false;
+            return {
+              success: false,
+              error: msg || 'Unable to register account. Please check your details.',
+            };
+          }
+        }
+
+        const resolvedId = data?.user?.id || fallbackId;
+        const realUser: UserProfile = { ...newAccount, id: resolvedId };
+
+        if (data?.user?.id) {
+          sb.from('profiles')
+            .upsert(
+              {
+                id: data.user.id,
+                username: cleanUsername,
+                display_name: realUser.displayName,
+                email: cleanEmail,
+                avatar_url: realUser.avatarUrl,
+                bio: realUser.bio,
+                campus: realUser.campus,
+                custom_prompt: realUser.customPrompt,
+                link_active: true,
+                onboarding_completed: false,
+              },
+              { onConflict: 'id' }
+            )
+            .then(() => {});
+        }
+
+        const commitRegistration = () => {
+          pendingAuthTransitionRef.current = false;
+          try {
+            localStorage.removeItem('bopoi_onboarding_completed');
+          } catch {
+            // ignore
+          }
+          setUser(realUser);
+          setIsAuthenticated(true);
+          setAccounts((prev) => {
+            const filtered = prev.filter((a) => a.username.toLowerCase() !== cleanUsername);
+            return [realUser, ...filtered];
+          });
+          runColdStartActivation(resolvedId);
+          setActiveView('onboarding');
+          showToast(`Account @${cleanUsername} created! Welcome to your campus guide.`, 'success');
+          queryClient.invalidateQueries();
+        };
+
+        if (!options?.deferCommit) {
+          commitRegistration();
+        }
+
+        return {
+          success: true,
+          user: realUser,
+          commit: commitRegistration,
+        };
+      } catch {
+        pendingAuthTransitionRef.current = false;
+      }
     }
 
-    setAccounts((prev) => {
-      const filtered = prev.filter((a) => a.username.toLowerCase() !== cleanUsername);
-      return [newAccount, ...filtered];
-    });
-    setUser(newAccount);
-    setIsAuthenticated(true);
-    runColdStartActivation(fallbackId);
-    setActiveView('onboarding');
-    showToast(`Account @${cleanUsername} created!`, 'success');
-    return { success: true };
+    const commitLocalRegistration = () => {
+      pendingAuthTransitionRef.current = false;
+      try {
+        localStorage.removeItem('bopoi_onboarding_completed');
+      } catch {
+        // ignore
+      }
+      setAccounts((prev) => {
+        const filtered = prev.filter((a) => a.username.toLowerCase() !== cleanUsername);
+        return [newAccount, ...filtered];
+      });
+      setUser(newAccount);
+      setIsAuthenticated(true);
+      runColdStartActivation(fallbackId);
+      setActiveView('onboarding');
+      showToast(`Account @${cleanUsername} created!`, 'success');
+    };
+
+    if (!options?.deferCommit) {
+      commitLocalRegistration();
+    }
+
+    return {
+      success: true,
+      user: newAccount,
+      commit: commitLocalRegistration,
+    };
   };
 
   const completeOnboarding = (destination: ActiveAppView = 'home') => {
@@ -5166,6 +5251,16 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? undefined
       : applyMoodToAvatarUrl(user.avatarUrl, chosenMood, user.username);
 
+    const resolvedCategory = inferCanonicalPostCategory({
+      category: params.category || (params.type === 'confession' ? 'School' : 'Campus Life'),
+      title: params.title,
+      content: params.content,
+      hashtags: params.hashtags,
+      pollOptions: params.pollOptions,
+    });
+    const defaultHashtag =
+      resolvedCategory.replace(/[^a-zA-Z0-9]/g, '') || 'CampusLife';
+
     const tempPostId = `post_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newPost: SocialPost = {
       id: tempPostId,
@@ -5177,10 +5272,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authorUserId: user.id || undefined,
       authorIsVerified: Boolean(!isAnon && (user.isVerified || user.isCreator)),
       isAnonymous: isAnon,
-      category: params.category || (params.type === 'confession' ? 'School' : 'Campus Life'),
+      category: resolvedCategory,
       title: params.title,
       content: params.content.trim(),
-      hashtags: params.hashtags && params.hashtags.length > 0 ? params.hashtags : ['CampusLife'],
+      hashtags: params.hashtags && params.hashtags.length > 0 ? params.hashtags : [defaultHashtag],
       createdAt: 'Just now',
       createdTimestamp: Date.now(),
       likes: 0,

@@ -8,6 +8,7 @@ import {
   rankSocialPostsWithBandit,
   recordPostBanditInteraction,
   computePostTrendingVelocityScore,
+  scorePostTopicRelevance,
 } from '../../lib/supabase.ts';
 import {
   Heart,
@@ -261,30 +262,14 @@ export const HomeView: React.FC = () => {
     if (feedCategory !== 'All') {
       const fc = feedCategory.toLowerCase();
       list = list.filter((p) => {
-        const cat = (p.category || '').toLowerCase();
-        const text = (p.content + ' ' + (p.title || '')).toLowerCase();
         if (fc.includes('student posts')) return true;
         if (fc.includes('money') || fc.includes('finance')) {
-          return (
-            cat.includes('money') ||
-            cat.includes('finance') ||
-            text.includes('money') ||
-            text.includes('k') ||
-            text.includes('salary') ||
-            text.includes('naira')
-          );
+          return scorePostTopicRelevance(p, 'Money') > 0;
         }
         if (fc.includes('fashion') || fc.includes('style')) {
-          return (
-            cat.includes('fashion') ||
-            cat.includes('style') ||
-            text.includes('outfit') ||
-            text.includes('wear') ||
-            text.includes('drip') ||
-            text.includes('fit')
-          );
+          return scorePostTopicRelevance(p, 'Fashion') > 0;
         }
-        return cat.includes(fc) || text.includes(fc);
+        return scorePostTopicRelevance(p, feedCategory) > 0;
       });
     }
 

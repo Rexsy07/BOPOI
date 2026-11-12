@@ -32,6 +32,7 @@ import {
   LogOut,
   Users,
   UserPlus,
+  Loader2,
 } from 'lucide-react';
 import { useBopoi, useCharacterMood } from '../../context/BopoiContext.tsx';
 import { SocialPost, MessageAnswer } from '../../types/index.ts';
@@ -149,6 +150,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   const [newWord, setNewWord] = useState('');
   const [supportSubject, setSupportSubject] = useState('General Question');
   const [supportMessage, setSupportMessage] = useState('');
+  const [saveProfileStage, setSaveProfileStage] = useState<'idle' | 'saving' | 'confirmed'>('idle');
+  const [supportStage, setSupportStage] = useState<'idle' | 'sending' | 'confirmed'>('idle');
 
   if (!isAuthenticated || !user.username || user.username === 'student') {
     return <RegisterView initialMode="login" />;
@@ -233,14 +236,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile({
-      displayName: editName.trim(),
-      bio: editBio.trim(),
-      campus: editCampus.trim(),
-      customPrompt:
-        editCustomPrompt.trim() || "There's something you've been wanting to ask...",
-    });
-    setActiveModal(null);
+    if (saveProfileStage !== 'idle') return;
+    setSaveProfileStage('saving');
+    setTimeout(() => {
+      updateProfile({
+        displayName: editName.trim(),
+        bio: editBio.trim(),
+        campus: editCampus.trim(),
+        customPrompt:
+          editCustomPrompt.trim() || "There's something you've been wanting to ask...",
+      });
+      setSaveProfileStage('confirmed');
+      setTimeout(() => {
+        setSaveProfileStage('idle');
+        setActiveModal(null);
+      }, 480);
+    }, 360);
   };
 
   const handleAddWord = (e: React.FormEvent) => {
@@ -1804,16 +1815,36 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
+                  disabled={saveProfileStage !== 'idle'}
                   onClick={() => setActiveModal(null)}
-                  className="flex-1 py-3 text-xs font-bold text-slate-600 hover:text-black cursor-pointer"
+                  className="flex-1 py-3 text-xs font-bold text-slate-600 hover:text-black cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-[#5420F5] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#5420F5]/20 hover:bg-[#4314E2] cursor-pointer"
+                  disabled={saveProfileStage !== 'idle'}
+                  className={`flex-1 py-3 text-white font-extrabold text-xs rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ${
+                    saveProfileStage === 'confirmed'
+                      ? 'bg-emerald-600 shadow-emerald-600/20 scale-[0.99]'
+                      : saveProfileStage === 'saving'
+                      ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
+                      : 'bg-[#5420F5] shadow-[#5420F5]/20 hover:bg-[#4314E2] active:scale-[0.98]'
+                  }`}
                 >
-                  Save Changes
+                  {saveProfileStage === 'saving' ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      <span>Saving...</span>
+                    </>
+                  ) : saveProfileStage === 'confirmed' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+                      <span>Saved!</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1961,13 +1992,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (supportStage !== 'idle') return;
                 if (!supportMessage.trim()) {
                   showToast('Please enter a message for support.', 'error');
                   return;
                 }
-                submitSupportTicket(supportSubject, supportMessage);
-                setSupportMessage('');
-                setActiveModal(null);
+                setSupportStage('sending');
+                setTimeout(() => {
+                  submitSupportTicket(supportSubject, supportMessage);
+                  setSupportStage('confirmed');
+                  setTimeout(() => {
+                    setSupportStage('idle');
+                    setSupportMessage('');
+                    setActiveModal(null);
+                  }, 480);
+                }, 360);
               }}
               className="pt-3 border-t border-[#EAE6F0] space-y-3"
             >
@@ -1997,9 +2036,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#5420F5] text-white text-xs font-extrabold rounded-xl hover:bg-[#4314E2] cursor-pointer shadow-xs"
+                disabled={supportStage !== 'idle'}
+                className={`w-full py-3 text-white text-xs font-extrabold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:cursor-not-allowed ${
+                  supportStage === 'confirmed'
+                    ? 'bg-emerald-600 shadow-emerald-600/20 scale-[0.99]'
+                    : supportStage === 'sending'
+                    ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2] active:scale-[0.98]'
+                }`}
               >
-                Send Support Ticket
+                {supportStage === 'sending' ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span>Sending ticket...</span>
+                  </>
+                ) : supportStage === 'confirmed' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+                    <span>Ticket Sent to Campus Safety!</span>
+                  </>
+                ) : (
+                  <span>Send Support Ticket</span>
+                )}
               </button>
             </form>
           </div>

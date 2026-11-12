@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Shield, Sparkles, Lock, AlertCircle, ArrowLeft, Users } from 'lucide-react';
+import { Send, Shield, Sparkles, Lock, AlertCircle, ArrowLeft, Users, Loader2, Check } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
 import { BopoiInteractiveMascot } from '../brand/BopoiInteractiveMascot.tsx';
@@ -47,6 +47,7 @@ export const PublicAskView: React.FC = () => {
   const [messageText, setMessageText] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [sendStage, setSendStage] = useState<'idle' | 'sending' | 'confirmed'>('idle');
 
   const handleIcebreaker = (prompt: string) => {
     setMessageText(prompt);
@@ -55,6 +56,7 @@ export const PublicAskView: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (sending || sendStage !== 'idle') return;
     setErrorMsg(null);
 
     if (!recipientLinkActive) {
@@ -62,18 +64,26 @@ export const PublicAskView: React.FC = () => {
       return;
     }
 
-    const res = sendAnonymousMessage(recipientUsername, messageText);
-    if (!res.success) {
-      setErrorMsg(res.error || 'Unable to send message.');
-      return;
-    }
-
     setSending(true);
+    setSendStage('sending');
+
     setTimeout(() => {
-      setSending(false);
-      setMessageText('');
-      setActiveView('message-sent');
-    }, 350);
+      const res = sendAnonymousMessage(recipientUsername, messageText);
+      if (!res.success) {
+        setSending(false);
+        setSendStage('idle');
+        setErrorMsg(res.error || 'Unable to send message.');
+        return;
+      }
+
+      setSendStage('confirmed');
+      setTimeout(() => {
+        setSending(false);
+        setSendStage('idle');
+        setMessageText('');
+        setActiveView('message-sent');
+      }, 480);
+    }, 380);
   };
 
   return (
@@ -211,11 +221,33 @@ export const PublicAskView: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={sending || !messageText.trim()}
-                className="w-full py-4 px-6 bg-[#5420F5] hover:bg-[#4314E2] disabled:opacity-50 text-white font-black text-sm rounded-2xl shadow-lg shadow-[#5420F5]/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer"
+                disabled={sending || sendStage !== 'idle' || !messageText.trim()}
+                className={`w-full py-4 px-6 disabled:opacity-60 text-white font-black text-sm rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed ${
+                  sendStage === 'confirmed'
+                    ? 'bg-emerald-600 shadow-emerald-600/25 scale-[0.99]'
+                    : sendStage === 'sending'
+                    ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2] shadow-[#5420F5]/25 active:scale-[0.98]'
+                }`}
               >
-                <Send className="w-4 h-4" />
-                <span>{sending ? 'Sending...' : `Send Anonymously to ${recipientDisplayName}`}</span>
+                {sendStage === 'sending' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Encrypting &amp; delivering anonymously...</span>
+                  </>
+                ) : sendStage === 'confirmed' ? (
+                  <>
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </span>
+                    <span>Delivered anonymously to @{recipientUsername}!</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 shrink-0" />
+                    <span>Send Anonymously to {recipientDisplayName}</span>
+                  </>
+                )}
               </button>
             </form>
           )}

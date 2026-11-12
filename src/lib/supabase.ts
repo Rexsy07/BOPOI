@@ -37,7 +37,13 @@ import {
   computeRelatedSocialPosts,
   rankCommentsByWilsonScore,
   computeDynamicTrendingTopics,
+  DISCOVER_TOPIC_TAXONOMY,
+  resolveDiscoverTopicDefinition,
+  inferCanonicalPostCategory,
+  scorePostTopicRelevance,
+  scoreRoomTopicRelevance,
 } from './retentionEngine.ts';
+import type { DiscoverTopicDefinition } from './retentionEngine.ts';
 
 export {
   fetchPersonalizedSocialFeed,
@@ -58,8 +64,13 @@ export {
   computeRelatedSocialPosts,
   rankCommentsByWilsonScore,
   computeDynamicTrendingTopics,
+  DISCOVER_TOPIC_TAXONOMY,
+  resolveDiscoverTopicDefinition,
+  inferCanonicalPostCategory,
+  scorePostTopicRelevance,
+  scoreRoomTopicRelevance,
 };
-export type { TwoTowerPostSignal, DynamicTrendingTopic };
+export type { TwoTowerPostSignal, DynamicTrendingTopic, DiscoverTopicDefinition };
 
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || '';
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() || '';
@@ -600,7 +611,13 @@ export async function fetchSupabaseSocialPosts(
               ? uOverride.isVerified
               : Boolean(row.author_is_verified),
           isAnonymous: Boolean(row.is_anonymous),
-          category: pOverride.category ?? (row.category || 'Campus Life'),
+          category: inferCanonicalPostCategory({
+            category: pOverride.category ?? (row.category || 'Campus Life'),
+            title: pOverride.title !== undefined ? pOverride.title : row.title || undefined,
+            content: pOverride.content ?? row.content,
+            hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
+            pollOptions: sortedOptions,
+          }),
           title: pOverride.title !== undefined ? pOverride.title : row.title || undefined,
           content: pOverride.content ?? row.content,
           hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],

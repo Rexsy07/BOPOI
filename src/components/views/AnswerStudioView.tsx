@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Sparkles, Check, Share2, Download, Save, Wand2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Check, Share2, Download, Save, Wand2, Loader2 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { ShareCardCanvas } from '../share/ShareCardCanvas.tsx';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
@@ -68,15 +68,25 @@ export const AnswerStudioView: React.FC = () => {
     };
   }, []);
 
+  const [draftStage, setDraftStage] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [publishStage, setPublishStage] = useState<'idle' | 'publishing' | 'published'>('idle');
+
   const handleSaveDraft = () => {
+    if (draftStage !== 'idle') return;
     if (!targetMessageId) {
       showToast('Select an inbox message first to save a draft.', 'info');
       return;
     }
-    saveAnswer(targetMessageId, answerText, sharePublicly, true);
+    setDraftStage('saving');
+    setTimeout(() => {
+      saveAnswer(targetMessageId, answerText, sharePublicly, true);
+      setDraftStage('saved');
+      setTimeout(() => setDraftStage('idle'), 1400);
+    }, 320);
   };
 
   const handleSaveAndPublish = () => {
+    if (publishStage !== 'idle') return;
     if (!targetMessageId) {
       showToast('Select an inbox message first to publish your answer.', 'info');
       return;
@@ -85,8 +95,13 @@ export const AnswerStudioView: React.FC = () => {
       showToast('Please write a response before publishing.', 'error');
       return;
     }
-    saveAnswer(targetMessageId, answerText, sharePublicly, false);
-    showToast('Card saved and ready for sharing!', 'success');
+    setPublishStage('publishing');
+    setTimeout(() => {
+      saveAnswer(targetMessageId, answerText, sharePublicly, false);
+      setPublishStage('published');
+      showToast('Card saved and ready for sharing!', 'success');
+      setTimeout(() => setPublishStage('idle'), 1500);
+    }, 380);
   };
 
   return (
@@ -171,17 +186,59 @@ export const AnswerStudioView: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleSaveDraft}
-                className="flex-1 py-3 px-4 bg-white border border-[#EAE6F0] text-xs font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shadow-2xs flex items-center justify-center gap-2"
+                disabled={draftStage !== 'idle'}
+                className={`flex-1 py-3 px-4 border text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer shadow-2xs flex items-center justify-center gap-2 ${
+                  draftStage === 'saved'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-white border-[#EAE6F0] text-slate-700 hover:bg-slate-50 active:scale-[0.98]'
+                }`}
               >
-                <Save className="w-4 h-4 text-slate-500" />
-                <span>Save Draft</span>
+                {draftStage === 'saving' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#5420F5]" />
+                    <span>Saving...</span>
+                  </>
+                ) : draftStage === 'saved' ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                    <span>Draft Saved!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 text-slate-500" />
+                    <span>Save Draft</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={handleSaveAndPublish}
-                className="flex-1 py-3 px-4 bg-[#5420F5] text-white text-xs font-extrabold rounded-xl hover:bg-[#4314E2] transition-colors cursor-pointer shadow-md shadow-[#5420F5]/20 flex items-center justify-center gap-2"
+                disabled={publishStage !== 'idle'}
+                className={`flex-1 py-3 px-4 text-white text-xs font-extrabold rounded-xl transition-all duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2 ${
+                  publishStage === 'published'
+                    ? 'bg-emerald-600 shadow-emerald-600/20 scale-[0.99]'
+                    : publishStage === 'publishing'
+                    ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2] shadow-[#5420F5]/20 active:scale-[0.98]'
+                }`}
               >
-                <Check className="w-4 h-4" />
-                <span>Publish Card</span>
+                {publishStage === 'publishing' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Publishing Card...</span>
+                  </>
+                ) : publishStage === 'published' ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </span>
+                    <span>Card Published!</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Publish Card</span>
+                  </>
+                )}
               </button>
             </div>
 

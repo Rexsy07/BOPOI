@@ -4,6 +4,8 @@ import {
   X,
   Shield,
   Shuffle,
+  Loader2,
+  Check,
 } from 'lucide-react';
 import {
   BopoiIcon,
@@ -53,6 +55,8 @@ export const CreateRoomModal: React.FC = () => {
   const [starterMessage, setStarterMessage] = useState('');
   const [isAnonymousOnly] = useState(true);
 
+  const [roomStage, setRoomStage] = useState<'idle' | 'creating' | 'confirmed'>('idle');
+
   if (!isCreateRoomModalOpen) return null;
 
   const parsedIcon = parseRoomIcon(iconEmoji, iconBg, category, name);
@@ -60,6 +64,8 @@ export const CreateRoomModal: React.FC = () => {
     parsedIcon.mode === 'image' && Boolean(parsedIcon.value);
 
   const handleClose = () => {
+    if (roomStage === 'creating') return;
+    setRoomStage('idle');
     setIsCreateRoomModalOpen(false);
   };
 
@@ -75,6 +81,7 @@ export const CreateRoomModal: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (roomStage !== 'idle') return;
     if (!name.trim()) {
       showToast('Please enter a room name', 'error');
       return;
@@ -88,19 +95,25 @@ export const CreateRoomModal: React.FC = () => {
       return;
     }
 
-    createRoom({
-      name: name.trim(),
-      description: description.trim(),
-      category,
-      iconEmoji,
-      iconBg,
-      creatorAlias: creatorAlias.trim() || 'Anonymous Founder',
-      starterMessage: starterMessage.trim() || undefined,
-      isAnonymousOnly,
-      tags: [category, 'AnonymousRoom'],
-    });
-
-    handleClose();
+    setRoomStage('creating');
+    setTimeout(() => {
+      setRoomStage('confirmed');
+      setTimeout(() => {
+        createRoom({
+          name: name.trim(),
+          description: description.trim(),
+          category,
+          iconEmoji,
+          iconBg,
+          creatorAlias: creatorAlias.trim() || 'Anonymous Founder',
+          starterMessage: starterMessage.trim() || undefined,
+          isAnonymousOnly,
+          tags: [category, 'AnonymousRoom'],
+        });
+        setRoomStage('idle');
+        setIsCreateRoomModalOpen(false);
+      }, 480);
+    }, 420);
   };
 
   return (
@@ -306,18 +319,42 @@ export const CreateRoomModal: React.FC = () => {
         <div className="p-4 sm:p-5 border-t border-[#EAE6F0] bg-[#FAF9FC] flex items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
+            disabled={roomStage !== 'idle'}
             onClick={handleClose}
-            className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
+            disabled={roomStage !== 'idle'}
             onClick={handleSubmit}
-            className="px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 flex items-center gap-1.5 active:scale-95"
+            className={`px-5 py-2.5 rounded-xl text-white text-xs font-black transition-all duration-200 cursor-pointer shadow-md flex items-center gap-1.5 disabled:cursor-not-allowed ${
+              roomStage === 'confirmed'
+                ? 'bg-emerald-600 shadow-emerald-600/25 scale-[0.99]'
+                : roomStage === 'creating'
+                ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
+                : 'bg-[#5420F5] hover:bg-[#4314E2] shadow-[#5420F5]/25 active:scale-95'
+            }`}
           >
-            <LaunchTrendingIcon size={16} />
-            <span>Create Anonymous Room</span>
+            {roomStage === 'creating' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                <span>Launching room...</span>
+              </>
+            ) : roomStage === 'confirmed' ? (
+              <>
+                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center animate-in zoom-in-75 duration-200 shrink-0">
+                  <Check className="w-3 h-3 stroke-[3]" />
+                </span>
+                <span>Room Live! Entering...</span>
+              </>
+            ) : (
+              <>
+                <LaunchTrendingIcon size={16} />
+                <span>Create Anonymous Room</span>
+              </>
+            )}
           </button>
         </div>
       </div>

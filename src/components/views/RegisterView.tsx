@@ -152,14 +152,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
   const [confirmedLoginUser, setConfirmedLoginUser] = useState<UserProfile | null>(null);
   const [signupStage, setSignupStage] = useState<'idle' | 'verifying' | 'confirmed'>('idle');
 
+  const [confirmedSignupUser, setConfirmedSignupUser] = useState<UserProfile | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
+
   const handleRandomizeCharacter = () => {
     const next = serializeCharacterConfig(randomizeCharacterConfig());
     setCharacterUri(next);
   };
 
-  const handleSignUpSubmit = (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || signupStage !== 'idle') return;
+    setSignupError(null);
     const cleanName = displayName.trim();
     const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cleanName || !cleanUser) {
@@ -194,10 +198,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
     setLoading(true);
     setSignupStage('verifying');
-    setTimeout(() => {
-      setSignupStage('confirmed');
-      setTimeout(() => {
-        const res = registerAccount({
+
+    const [res] = await Promise.all([
+      registerAccount(
+        {
           displayName: cleanName,
           username: cleanUser,
           email: email.trim() || `${cleanUser}@bopoi.edu.ng`,
@@ -205,23 +209,34 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
           campus: campus.trim(),
           avatarUrl: characterUri,
           selectedTags,
-        });
-        setLoading(false);
-        if (res.success) {
-          try {
-            localStorage.removeItem('bopoi_onboarding_completed');
-          } catch {
-            // ignore
-          }
-          setActiveView('onboarding');
-        } else {
-          setSignupStage('idle');
-          if (res.error) {
-            showToast(res.error, 'error');
-          }
-        }
-      }, 480);
-    }, 450);
+        },
+        { deferCommit: true }
+      ),
+      new Promise((resolve) => setTimeout(resolve, 520)),
+    ]);
+
+    if (!res.success) {
+      setLoading(false);
+      setSignupStage('idle');
+      const errText = res.error || 'Unable to create account. Please check your details.';
+      setSignupError(errText);
+      showToast(errText, 'error');
+      return;
+    }
+
+    if (res.user) {
+      setConfirmedSignupUser(res.user);
+    }
+    setSignupStage('confirmed');
+
+    setTimeout(() => {
+      setLoading(false);
+      if (res.commit) {
+        res.commit();
+      } else {
+        setActiveView('onboarding');
+      }
+    }, 620);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -772,6 +787,38 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 </label>
               </div>
 
+              {signupError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <span className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
+                    <X className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                  <span>{signupError}</span>
+                </div>
+              )}
+
+              {signupStage === 'confirmed' && confirmedSignupUser && (
+                <div className="p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <CampusCharacterAvatar
+                    value={confirmedSignupUser.avatarUrl}
+                    seed={confirmedSignupUser.username}
+                    size={40}
+                    rounded="xl"
+                    className="ring-2 ring-emerald-500/40 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-emerald-950 truncate">
+                      Account created for {confirmedSignupUser.displayName}
+                    </p>
+                    <p className="text-[11px] font-semibold text-emerald-700 truncate">
+                      @{confirmedSignupUser.username} · {confirmedSignupUser.campus || 'Campus'}
+                    </p>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 animate-in zoom-in-75 duration-200">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                </div>
+              )}
+
               {/* Primary Submit */}
               <button
                 type="submit"
@@ -779,6 +826,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 className={`w-full py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden ${
                   signupStage === 'confirmed'
                     ? 'bg-emerald-600 text-white shadow-emerald-600/25 scale-[0.99]'
+                    : signupStage === 'verifying'
+                    ? 'bg-[#4314E2] text-white shadow-[#5420F5]/20 scale-[0.99]'
                     : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-[#5420F5]/25 active:scale-[0.98]'
                 } disabled:cursor-not-allowed`}
               >
@@ -795,7 +844,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     <span>Account ready! Launching campus guide...</span>
                   </>
                 ) : (
-                  <span>Sign Up &amp; Get My Link</span>
+                  <>
+                    <UserPlus className="w-4 h-4 shrink-0" />
+                    <span>Sign Up &amp; Get My Link</span>
+                  </>
                 )}
               </button>
             </form>
