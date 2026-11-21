@@ -472,23 +472,46 @@ returns trigger
 language plpgsql
 security definer
 as $$
+declare
+  v_post_id uuid;
+  v_old_option_id uuid;
+  v_new_option_id uuid;
 begin
   if (tg_op = 'INSERT') then
-    update public.poll_options set votes = votes + 1 where id = new.option_id;
-    update public.social_posts set poll_total_votes = poll_total_votes + 1 where id = new.post_id;
-  elsif (tg_op = 'UPDATE') then
-    if (old.option_id <> new.option_id) then
-      update public.poll_options set votes = greatest(0, votes - 1) where id = old.option_id;
-      update public.poll_options set votes = votes + 1 where id = new.option_id;
-    end if;
+    v_post_id := new.post_id;
+    v_new_option_id := new.option_id;
   elsif (tg_op = 'DELETE') then
-    update public.poll_options set votes = greatest(0, votes - 1) where id = old.option_id;
-    update public.social_posts set poll_total_votes = greatest(0, poll_total_votes - 1) where id = old.post_id;
+    v_post_id := old.post_id;
+    v_old_option_id := old.option_id;
+  else
+    v_post_id := coalesce(new.post_id, old.post_id);
+    v_old_option_id := old.option_id;
+    v_new_option_id := new.option_id;
   end if;
+
+  if v_old_option_id is not null then
+    update public.poll_options
+    set votes = (select count(*)::int from public.poll_votes where option_id = v_old_option_id)
+    where id = v_old_option_id;
+  end if;
+
+  if v_new_option_id is not null and v_new_option_id is distinct from v_old_option_id then
+    update public.poll_options
+    set votes = (select count(*)::int from public.poll_votes where option_id = v_new_option_id)
+    where id = v_new_option_id;
+  end if;
+
+  if v_post_id is not null then
+    update public.social_posts
+    set poll_total_votes = (select count(*)::int from public.poll_votes where post_id = v_post_id)
+    where id = v_post_id;
+  end if;
+
   return null;
 end;
 $$;
 
+drop trigger if exists trg_sync_poll_votes_count on public.poll_votes;
 drop trigger if exists trg_sync_poll_vote_counts on public.poll_votes;
 create trigger trg_sync_poll_vote_counts
   after insert or update or delete on public.poll_votes
@@ -620,6 +643,12 @@ as $$
 begin
   if auth.uid() is null then
     raise exception 'Authentication required to vote';
+  end if;
+
+  if not exists (
+    select 1 from public.poll_options where id = p_option_id and post_id = p_post_id
+  ) then
+    return;
   end if;
 
   insert into public.poll_votes (post_id, option_id, user_id)

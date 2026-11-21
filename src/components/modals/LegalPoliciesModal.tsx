@@ -22,29 +22,30 @@ export const LegalPoliciesModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={() => openLegalDoc(null)}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+        className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 sm:px-7 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="px-5 sm:px-7 py-4 bg-white text-[#191525] flex items-center justify-between border-b border-[#EAE6F0] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <BopoiLogo variant="icon" size="sm" />
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-black tracking-tight truncate">
-                Bopoi Trust, Legal & Safety Center
+                Bopoi Trust, Legal &amp; Safety Center
               </h2>
-              <p className="text-[11px] text-slate-400 font-medium truncate">
-                Protecting anonymous expression & student safety across Nigerian campuses
+              <p className="text-[11px] text-[#706B7D] font-medium truncate">
+                Protecting anonymous expression &amp; student safety across campuses
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => openLegalDoc(null)}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition-colors shrink-0"
+            className="w-9 h-9 rounded-full bg-[#FAF9FC] hover:bg-[#EAE6F0]/70 flex items-center justify-center text-[#706B7D] hover:text-[#191525] transition-colors shrink-0 cursor-pointer"
             aria-label="Close legal modal"
           >
             <X className="w-4 h-4" />
@@ -52,17 +53,18 @@ export const LegalPoliciesModal: React.FC = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-4 sm:px-7 pt-3 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-4 sm:px-7 pt-2 bg-[#FAF9FC] border-b border-[#EAE6F0] flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
           {tabs.map((tab) => {
             const isActive = activeLegalDoc === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => openLegalDoc(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-extrabold border-b-2 transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-extrabold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'border-violet-600 text-violet-700 bg-white rounded-t-xl shadow-xs'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-[#5420F5] text-[#5420F5]'
+                    : 'border-transparent text-[#706B7D] hover:text-[#191525]'
                 }`}
               >
                 {tab.icon}
@@ -229,13 +231,14 @@ export const LegalPoliciesModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="px-5 sm:px-7 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
-          <span className="text-[11px] font-bold text-slate-500">
-            Questions? Reach Campus Trust & Safety anytime via your Profile settings.
+        <div className="px-5 sm:px-7 py-3.5 bg-[#FAF9FC] border-t border-[#EAE6F0] flex items-center justify-between gap-3 shrink-0">
+          <span className="text-[11px] font-bold text-[#706B7D]">
+            Questions? Reach Campus Trust &amp; Safety anytime via your Profile settings.
           </span>
           <button
+            type="button"
             onClick={() => openLegalDoc(null)}
-            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition-colors shrink-0"
+            className="px-5 min-h-[40px] rounded-xl bg-[#191525] hover:bg-[#2A253B] text-white text-xs font-black transition-colors shrink-0 cursor-pointer"
           >
             Got it, Close
           </button>

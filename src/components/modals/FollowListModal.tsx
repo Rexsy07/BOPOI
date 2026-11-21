@@ -9,6 +9,7 @@ import {
   SparklePolishIcon,
   DiscoverCompassNavIcon,
 } from '../brand/icons/index.ts';
+import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 
 interface FollowListModalProps {
   isOpen: boolean;
@@ -107,7 +108,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#171322] hover:bg-slate-200 dark:hover:bg-[#201A32] text-slate-600 dark:text-[#9E97B3] flex items-center justify-center transition-colors cursor-pointer shrink-0"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -129,8 +130,8 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-black tabular-nums ${
                 activeTab === 'followers'
-                  ? 'bg-[#F0EBFF] text-[#5420F5]'
-                  : 'bg-slate-100 text-slate-600'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA]'
+                  : 'bg-slate-100 dark:bg-[#171322] text-slate-600 dark:text-[#9E97B3]'
               }`}
             >
               {followersList.length.toLocaleString()}
@@ -153,8 +154,8 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-black tabular-nums ${
                 activeTab === 'following'
-                  ? 'bg-[#F0EBFF] text-[#5420F5]'
-                  : 'bg-slate-100 text-slate-600'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA]'
+                  : 'bg-slate-100 dark:bg-[#171322] text-slate-600 dark:text-[#9E97B3]'
               }`}
             >
               {followingList.length.toLocaleString()}
@@ -176,7 +177,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={`Search ${activeTab === 'followers' ? 'followers' : 'following'} by name, @handle or campus...`}
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-white border border-[#EAE6F0] text-xs font-semibold text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-white border border-[#EAE6F0] text-base sm:text-xs font-semibold text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
             />
             {searchQuery && (
               <button
@@ -261,19 +262,19 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                         <span className="text-xs sm:text-sm font-black text-[#191525] truncate group-hover:text-[#5420F5] transition-colors">
                           {person.name}
                         </span>
-                        {person.isVerified && (
-                          <span className="shrink-0 inline-flex items-center">
-                            <SparklePolishIcon size={14} />
-                          </span>
-                        )}
+                        <VerifiedCreatorBadge
+                          isVerified={person.isVerified}
+                          username={person.username}
+                          size={15}
+                        />
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[11px] font-semibold text-[#706B7D] truncate">
                           @{person.username}
                         </span>
                         {followsMe && !isPersonMe && (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-[#F0EBFF] text-[#5420F5]">
-                            Follows you
+                          <span className="text-[10px] font-bold text-[#5420F5]">
+                            · Follows you
                           </span>
                         )}
                       </div>
@@ -292,7 +293,7 @@ export const FollowListModal: React.FC<FollowListModalProps> = ({
                       onClick={() => toggleFollowCreator(person.id || person.username)}
                       className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                         amFollowingPerson
-                          ? 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200'
+                          ? 'bg-slate-100 dark:bg-[#171322] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-[#D5D0E6] hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-[#262036]'
                           : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-xs active:scale-95'
                       }`}
                     >

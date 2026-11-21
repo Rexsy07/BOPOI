@@ -17,6 +17,10 @@ import {
   PlatformSettings,
 } from '../types/index.ts';
 import {
+  parseReportCaseEnvelope,
+  mergeModerationReports,
+} from './reportChat.ts';
+import {
   fetchPersonalizedSocialFeed,
   fetchTwoTowerVectorSignals,
   TwoTowerPostSignal,
@@ -536,20 +540,76 @@ export async function fetchSupabaseSocialPosts(
     let bookmarkedPostIds = new Set<string>();
     let likedCommentIds = new Set<string>();
     let userPollVotes = new Map<string, string>();
+    const authoritativePollCounts = new Map<
+      string,
+      { optionCounts: Map<string, number>; total: number }
+    >();
 
-    const validUuid = currentUserId && /^[0-9a-f-]{36}$/i.test(currentUserId);
-    if (validUuid) {
-      const [likesRes, bookmarksRes, commentLikesRes, pollVotesRes] = await Promise.all([
-        supabase.from('post_likes').select('post_id').eq('user_id', currentUserId),
-        supabase.from('post_bookmarks').select('post_id').eq('user_id', currentUserId),
-        supabase.from('post_comment_likes').select('comment_id').eq('user_id', currentUserId),
-        supabase.from('poll_votes').select('post_id, option_id').eq('user_id', currentUserId),
-      ]);
+    let effectiveUserId = currentUserId;
+    if (!effectiveUserId || !/^[0-9a-f-]{36}$/i.test(effectiveUserId)) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.user?.id) {
+        effectiveUserId = sessionData.session.user.id;
+      }
+    }
 
+    const validUuid = effectiveUserId && /^[0-9a-f-]{36}$/i.test(effectiveUserId);
+    const pollPostIds = postsRows
+      .filter((r: any) => r.type === 'poll' && r.id)
+      .map((r: any) => String(r.id));
+
+    const [userInteractions, allPollVotesRes] = await Promise.all([
+      validUuid
+        ? Promise.all([
+            supabase.from('post_likes').select('post_id').eq('user_id', effectiveUserId),
+            supabase.from('post_bookmarks').select('post_id').eq('user_id', effectiveUserId),
+            supabase.from('post_comment_likes').select('comment_id').eq('user_id', effectiveUserId),
+            supabase.from('poll_votes').select('post_id, option_id').eq('user_id', effectiveUserId),
+          ])
+        : Promise.resolve(null),
+      pollPostIds.length > 0
+        ? supabase
+            .from('poll_votes')
+            .select('post_id, option_id, user_id')
+            .in('post_id', pollPostIds)
+        : Promise.resolve({ data: null, error: null } as any),
+    ]);
+
+    if (userInteractions) {
+      const [likesRes, bookmarksRes, commentLikesRes, pollVotesRes] = userInteractions;
       likesRes.data?.forEach((r: any) => likedPostIds.add(r.post_id));
       bookmarksRes.data?.forEach((r: any) => bookmarkedPostIds.add(r.post_id));
       commentLikesRes.data?.forEach((r: any) => likedCommentIds.add(r.comment_id));
       pollVotesRes.data?.forEach((r: any) => userPollVotes.set(r.post_id, r.option_id));
+    }
+
+    if (allPollVotesRes && !allPollVotesRes.error && Array.isArray(allPollVotesRes.data)) {
+      const perPostVoterMap = new Map<string, Map<string, string>>();
+      for (const voteRow of allPollVotesRes.data as any[]) {
+        if (!voteRow?.post_id || !voteRow?.option_id || !voteRow?.user_id) continue;
+        const postKey = String(voteRow.post_id);
+        const userKey = String(voteRow.user_id);
+        const optionKey = String(voteRow.option_id);
+        let voterMap = perPostVoterMap.get(postKey);
+        if (!voterMap) {
+          voterMap = new Map<string, string>();
+          perPostVoterMap.set(postKey, voterMap);
+        }
+        voterMap.set(userKey, optionKey);
+        if (validUuid && userKey === effectiveUserId) {
+          userPollVotes.set(postKey, optionKey);
+        }
+      }
+      perPostVoterMap.forEach((voterMap, postKey) => {
+        const optionCounts = new Map<string, number>();
+        voterMap.forEach((optId) => {
+          optionCounts.set(optId, (optionCounts.get(optId) ?? 0) + 1);
+        });
+        authoritativePollCounts.set(postKey, {
+          optionCounts,
+          total: voterMap.size,
+        });
+      });
     }
 
     const deletedPosts = readStringSet(ADMIN_DELETED_POSTS_KEY);
@@ -562,41 +622,59 @@ export async function fetchSupabaseSocialPosts(
       .map((row: any): SocialPost => {
         const createdTs = new Date(row.created_at).getTime() || Date.now();
         const rawOptions = Array.isArray(row.poll_options) ? row.poll_options : [];
+        const authCounts = authoritativePollCounts.get(row.id);
         const sortedOptions = [...rawOptions]
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
           .map((o: any) => ({
             id: o.id,
             text: o.text,
-            votes: o.votes ?? 0,
+            votes: authCounts
+              ? authCounts.optionCounts.get(o.id) ?? 0
+              : Math.max(0, o.votes ?? 0),
           }));
+
+        const optionsSum = sortedOptions.reduce((sum, o) => sum + (o.votes || 0), 0);
+        const resolvedPollTotal = authCounts
+          ? authCounts.total
+          : sortedOptions.length > 0
+          ? optionsSum
+          : Math.max(0, row.poll_total_votes ?? 0);
 
         const rawComments = Array.isArray(row.post_comments) ? row.post_comments : [];
         const mappedComments: SocialComment[] = [...rawComments]
           .filter((c: any) => !deletedComments.has(c.id))
           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-          .map((c: any) => ({
-            id: c.id,
-            postId: c.post_id,
-            authorName: c.author_name,
-            authorUsername: c.author_username,
-            authorAvatar: c.author_avatar || undefined,
-            authorCampus: c.author_campus || undefined,
-            isAnonymous: Boolean(c.is_anonymous),
-            text: c.text,
-            createdAt: formatRelativeTime(c.created_at),
-            createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
-            likes: c.likes_count ?? 0,
-            hasLiked: likedCommentIds.has(c.id),
-            parentId: c.parent_id || undefined,
-            replyToAuthor: c.reply_to_author || undefined,
-            replyToUsername: c.reply_to_username || undefined,
-          }));
+          .map((c: any) => {
+            const parsedCommentMedia = parseRoomMessageMedia(c.text);
+            return {
+              id: c.id,
+              postId: c.post_id,
+              authorName: c.author_name,
+              authorUsername: c.author_username,
+              authorAvatar: c.author_avatar || undefined,
+              authorCampus: c.author_campus || undefined,
+              isAnonymous: Boolean(c.is_anonymous),
+              text: parsedCommentMedia.text,
+              mediaUrl: parsedCommentMedia.mediaUrl,
+              mediaType: parsedCommentMedia.mediaType,
+              createdAt: formatRelativeTime(c.created_at),
+              createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
+              likes: c.likes_count ?? 0,
+              hasLiked: likedCommentIds.has(c.id),
+              parentId: c.parent_id || undefined,
+              replyToAuthor: c.reply_to_author || undefined,
+              replyToUsername: c.reply_to_username || undefined,
+            };
+          });
 
         const pOverride = postOverrides[row.id] || {};
         const uOverride =
           (row.author_user_id && userOverrides[row.author_user_id]) ||
           (row.author_username && userOverrides[String(row.author_username).toLowerCase()]) ||
           {};
+
+        const rawContent = pOverride.content ?? row.content;
+        const decodedPostEnvelope = decodeSocialPostEnvelope(rawContent);
 
         return {
           id: row.id,
@@ -614,12 +692,16 @@ export async function fetchSupabaseSocialPosts(
           category: inferCanonicalPostCategory({
             category: pOverride.category ?? (row.category || 'Campus Life'),
             title: pOverride.title !== undefined ? pOverride.title : row.title || undefined,
-            content: pOverride.content ?? row.content,
+            content: decodedPostEnvelope.text,
             hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
             pollOptions: sortedOptions,
           }),
           title: pOverride.title !== undefined ? pOverride.title : row.title || undefined,
-          content: pOverride.content ?? row.content,
+          content: decodedPostEnvelope.text,
+          mediaUrl: decodedPostEnvelope.mediaUrl || row.media_url || undefined,
+          mediaType: decodedPostEnvelope.mediaType || row.media_type || undefined,
+          quotedPostId: decodedPostEnvelope.quotedPostId || undefined,
+          quotedPostSnapshot: decodedPostEnvelope.quotedPostSnapshot || undefined,
           hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
           createdAt: formatRelativeTime(row.created_at),
           createdTimestamp: createdTs,
@@ -632,7 +714,7 @@ export async function fetchSupabaseSocialPosts(
           isFeatured:
             pOverride.isFeatured !== undefined ? pOverride.isFeatured : Boolean(row.is_featured),
           pollOptions: sortedOptions.length > 0 ? sortedOptions : undefined,
-          pollTotalVotes: row.poll_total_votes ?? 0,
+          pollTotalVotes: resolvedPollTotal,
           userVotedOptionId: userPollVotes.get(row.id),
           pollExpiresIn: row.poll_expires_in || undefined,
           comments: mappedComments,
@@ -643,15 +725,100 @@ export async function fetchSupabaseSocialPosts(
   }
 }
 
-const ROOM_MEDIA_ENVELOPE_REGEX = /^\[BOPOI_MEDIA:(image|video)\|([^\]]+)\]\n?([\s\S]*)$/;
+const ROOM_MEDIA_ENVELOPE_REGEX = /^\[BOPOI_MEDIA:(image|video|gif)\|([^\]]+)\]\n?([\s\S]*)$/;
+const POST_QUOTE_ENVELOPE_REGEX = /^\[BOPOI_QUOTE:([^\]]+)\]\n?([\s\S]*)$/;
+
+export function encodeSocialPostEnvelope(
+  text: string,
+  options?: {
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video' | 'gif';
+    quotedPostSnapshot?: any;
+  }
+): string {
+  let out = text || '';
+  if (options?.mediaUrl) {
+    const resolvedType: 'image' | 'video' | 'gif' =
+      options.mediaType === 'video' ? 'video' : options.mediaType === 'gif' ? 'gif' : 'image';
+    out = `[BOPOI_MEDIA:${resolvedType}|${options.mediaUrl}]\n${out}`;
+  }
+  if (options?.quotedPostSnapshot && options.quotedPostSnapshot.id) {
+    const compact = {
+      id: options.quotedPostSnapshot.id,
+      type: options.quotedPostSnapshot.type,
+      authorName: options.quotedPostSnapshot.authorName,
+      authorUsername: options.quotedPostSnapshot.authorUsername,
+      authorAvatar: options.quotedPostSnapshot.authorAvatar,
+      authorCampus: options.quotedPostSnapshot.authorCampus,
+      isAnonymous: Boolean(options.quotedPostSnapshot.isAnonymous),
+      title: options.quotedPostSnapshot.title,
+      content: String(options.quotedPostSnapshot.content || '').slice(0, 240),
+      mediaUrl: options.quotedPostSnapshot.mediaUrl,
+      mediaType: options.quotedPostSnapshot.mediaType,
+      createdAt: options.quotedPostSnapshot.createdAt,
+    };
+    const encoded = encodeURIComponent(JSON.stringify(compact));
+    out = `[BOPOI_QUOTE:${encoded}]\n${out}`;
+  }
+  return out;
+}
+
+export function decodeSocialPostEnvelope(rawText?: string | null): {
+  text: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'gif';
+  quotedPostId?: string;
+  quotedPostSnapshot?: any;
+} {
+  let remaining = String(rawText || '');
+  let quotedPostSnapshot: any = undefined;
+  let quotedPostId: string | undefined = undefined;
+  let mediaUrl: string | undefined = undefined;
+  let mediaType: 'image' | 'video' | 'gif' | undefined = undefined;
+
+  for (let pass = 0; pass < 2; pass++) {
+    const quoteMatch = remaining.match(POST_QUOTE_ENVELOPE_REGEX);
+    if (quoteMatch) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(quoteMatch[1]));
+        if (parsed && parsed.id) {
+          quotedPostSnapshot = parsed;
+          quotedPostId = String(parsed.id);
+        }
+      } catch {
+        // ignore malformed quote token
+      }
+      remaining = quoteMatch[2] || '';
+      continue;
+    }
+
+    const mediaMatch = remaining.match(ROOM_MEDIA_ENVELOPE_REGEX);
+    if (mediaMatch) {
+      mediaType = mediaMatch[1] === 'video' ? 'video' : mediaMatch[1] === 'gif' ? 'gif' : 'image';
+      mediaUrl = mediaMatch[2];
+      remaining = mediaMatch[3] || '';
+      continue;
+    }
+    break;
+  }
+
+  return {
+    text: remaining,
+    mediaUrl,
+    mediaType,
+    quotedPostId,
+    quotedPostSnapshot,
+  };
+}
 
 export function encodeRoomMessageWithMedia(
   text: string,
   mediaUrl?: string,
-  mediaType?: 'image' | 'video'
+  mediaType?: 'image' | 'video' | 'gif'
 ): string {
   if (!mediaUrl) return text;
-  const resolvedType: 'image' | 'video' = mediaType === 'video' ? 'video' : 'image';
+  const resolvedType: 'image' | 'video' | 'gif' =
+    mediaType === 'video' ? 'video' : mediaType === 'gif' ? 'gif' : 'image';
   return `[BOPOI_MEDIA:${resolvedType}|${mediaUrl}]\n${text || ''}`;
 }
 
@@ -662,13 +829,13 @@ export function parseRoomMessageMedia(
 ): {
   text: string;
   mediaUrl?: string;
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'gif';
 } {
   const str = String(rawText || '');
   const match = str.match(ROOM_MEDIA_ENVELOPE_REGEX);
   if (match) {
     return {
-      mediaType: match[1] === 'video' ? 'video' : 'image',
+      mediaType: match[1] === 'video' ? 'video' : match[1] === 'gif' ? 'gif' : 'image',
       mediaUrl: match[2],
       text: match[3] || '',
     };
@@ -677,7 +844,7 @@ export function parseRoomMessageMedia(
     return {
       text: str,
       mediaUrl: rowMediaUrl,
-      mediaType: rowMediaType === 'video' ? 'video' : 'image',
+      mediaType: rowMediaType === 'video' ? 'video' : rowMediaType === 'gif' ? 'gif' : 'image',
     };
   }
   return { text: str };
@@ -1168,18 +1335,23 @@ export async function fetchSupabaseMessages(currentUserId?: string): Promise<Ano
             reactions: row.reactions && typeof row.reactions === 'object' ? row.reactions : {},
             comments: [...rawComments]
               .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-              .map((c: any) => ({
-                id: c.id,
-                messageId: c.message_id,
-                authorName: c.author_name,
-                authorRole: c.author_role,
-                authorAvatar: c.author_avatar || undefined,
-                isAnonymous: Boolean(c.is_anonymous),
-                text: c.text,
-                createdAt: formatRelativeTime(c.created_at),
-                createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
-                likes: c.likes_count ?? 0,
-              })),
+              .map((c: any) => {
+                const parsedMedia = parseRoomMessageMedia(c.text);
+                return {
+                  id: c.id,
+                  messageId: c.message_id,
+                  authorName: c.author_name,
+                  authorRole: c.author_role,
+                  authorAvatar: c.author_avatar || undefined,
+                  isAnonymous: Boolean(c.is_anonymous),
+                  text: parsedMedia.text,
+                  mediaUrl: parsedMedia.mediaUrl,
+                  mediaType: parsedMedia.mediaType,
+                  createdAt: formatRelativeTime(c.created_at),
+                  createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
+                  likes: c.likes_count ?? 0,
+                };
+              }),
           });
         });
       }
@@ -1205,18 +1377,23 @@ export async function fetchSupabaseMessages(currentUserId?: string): Promise<Ano
           likes: row.likes_count ?? 0,
           repliesCount: row.replies_count ?? rawComments.length,
           reactions: row.reactions && typeof row.reactions === 'object' ? row.reactions : {},
-          comments: rawComments.map((c: any) => ({
-            id: c.id,
-            messageId: c.message_id,
-            authorName: c.author_name,
-            authorRole: c.author_role,
-            authorAvatar: c.author_avatar || undefined,
-            isAnonymous: Boolean(c.is_anonymous),
-            text: c.text,
-            createdAt: formatRelativeTime(c.created_at),
-            createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
-            likes: c.likes_count ?? 0,
-          })),
+          comments: rawComments.map((c: any) => {
+            const parsedMedia = parseRoomMessageMedia(c.text);
+            return {
+              id: c.id,
+              messageId: c.message_id,
+              authorName: c.author_name,
+              authorRole: c.author_role,
+              authorAvatar: c.author_avatar || undefined,
+              isAnonymous: Boolean(c.is_anonymous),
+              text: parsedMedia.text,
+              mediaUrl: parsedMedia.mediaUrl,
+              mediaType: parsedMedia.mediaType,
+              createdAt: formatRelativeTime(c.created_at),
+              createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
+              likes: c.likes_count ?? 0,
+            };
+          }),
         });
       });
     }
@@ -1654,19 +1831,41 @@ export async function fetchSupabaseAdminData(isAdmin: boolean = false): Promise<
         : emptyRes,
     ]);
 
-    const reports: ModerationReport[] = (reportsRes.data || []).map((r: any) => ({
-      id: r.id,
-      reporterUserId: r.reporter_user_id || undefined,
-      reporterUsername: r.reporter_username || undefined,
-      targetType: r.target_type || 'social_post',
-      targetId: r.target_id || '',
-      reason: r.reason || '',
-      status: (r.status || 'pending') as 'pending' | 'resolved' | 'dismissed',
-      adminNotes: r.admin_notes || undefined,
-      createdAt: formatRelativeTime(r.created_at),
-      createdTimestamp: new Date(r.created_at).getTime() || Date.now(),
-      resolvedAt: r.resolved_at ? formatRelativeTime(r.resolved_at) : undefined,
-    }));
+    const supabaseReports: ModerationReport[] = (reportsRes.data || []).map((r: any) => {
+      const parsed = parseReportCaseEnvelope(r.admin_notes);
+      return {
+        id: r.id,
+        reporterUserId: r.reporter_user_id || undefined,
+        reporterUsername: r.reporter_username || undefined,
+        targetType: r.target_type || 'social_post',
+        targetId: r.target_id || '',
+        targetPreview: parsed.targetPreview,
+        reason: r.reason || '',
+        status: (r.status || 'pending') as 'pending' | 'resolved' | 'dismissed',
+        adminNotes: parsed.adminNotes,
+        ticketMessages: parsed.ticketMessages,
+        reporterLastReadAt: parsed.reporterLastReadAt,
+        moderatorLastReadAt: parsed.moderatorLastReadAt,
+        createdAt: formatRelativeTime(r.created_at),
+        createdTimestamp: new Date(r.created_at).getTime() || Date.now(),
+        resolvedAt: r.resolved_at ? formatRelativeTime(r.resolved_at) : undefined,
+      };
+    });
+
+    let serverReports: ModerationReport[] = [];
+    if (isAdmin && typeof fetch !== 'undefined') {
+      try {
+        const resp = await fetch('/api/reports?isAdmin=true');
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json?.reports)) serverReports = json.reports;
+        }
+      } catch {
+        // Ignore if server API unavailable
+      }
+    }
+
+    const reports = mergeModerationReports(supabaseReports, serverReports);
 
     const announcements: CampusAnnouncement[] = (annRes.data || []).map((a: any) => ({
       id: a.id,
@@ -1723,18 +1922,23 @@ export async function fetchSupabaseAdminData(isAdmin: boolean = false): Promise<
         reactions: row.reactions && typeof row.reactions === 'object' ? row.reactions : {},
         comments: [...rawComments]
           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-          .map((c: any) => ({
-            id: c.id,
-            messageId: c.message_id,
-            authorName: c.author_name,
-            authorRole: c.author_role,
-            authorAvatar: c.author_avatar || undefined,
-            isAnonymous: Boolean(c.is_anonymous),
-            text: c.text,
-            createdAt: formatRelativeTime(c.created_at),
-            createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
-            likes: c.likes_count ?? 0,
-          })),
+          .map((c: any) => {
+            const parsedMedia = parseRoomMessageMedia(c.text);
+            return {
+              id: c.id,
+              messageId: c.message_id,
+              authorName: c.author_name,
+              authorRole: c.author_role,
+              authorAvatar: c.author_avatar || undefined,
+              isAnonymous: Boolean(c.is_anonymous),
+              text: parsedMedia.text,
+              mediaUrl: parsedMedia.mediaUrl,
+              mediaType: parsedMedia.mediaType,
+              createdAt: formatRelativeTime(c.created_at),
+              createdTimestamp: new Date(c.created_at).getTime() || Date.now(),
+              likes: c.likes_count ?? 0,
+            };
+          }),
       };
     });
 
@@ -1748,6 +1952,77 @@ export async function fetchSupabaseAdminData(isAdmin: boolean = false): Promise<
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch the signed-in user's own Moderation Reports & Support Tickets from Supabase + Server Store
+ */
+export async function fetchUserModerationReports(
+  userId?: string,
+  username?: string
+): Promise<ModerationReport[]> {
+  let supabaseReports: ModerationReport[] = [];
+  if (supabase && (userId || username)) {
+    try {
+      let query = supabase
+        .from('moderation_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(80);
+
+      if (userId && /^[0-9a-f-]{36}$/i.test(userId)) {
+        query = query.eq('reporter_user_id', userId);
+      } else if (username) {
+        query = query.ilike('reporter_username', username);
+      }
+
+      const { data } = await query;
+      if (Array.isArray(data)) {
+        supabaseReports = data.map((r: any) => {
+          const parsed = parseReportCaseEnvelope(r.admin_notes);
+          return {
+            id: r.id,
+            reporterUserId: r.reporter_user_id || undefined,
+            reporterUsername: r.reporter_username || undefined,
+            targetType: r.target_type || 'social_post',
+            targetId: r.target_id || '',
+            targetPreview: parsed.targetPreview,
+            reason: r.reason || '',
+            status: (r.status || 'pending') as 'pending' | 'resolved' | 'dismissed',
+            adminNotes: parsed.adminNotes,
+            ticketMessages: parsed.ticketMessages,
+            reporterLastReadAt: parsed.reporterLastReadAt,
+            moderatorLastReadAt: parsed.moderatorLastReadAt,
+            createdAt: formatRelativeTime(r.created_at),
+            createdTimestamp: new Date(r.created_at).getTime() || Date.now(),
+            resolvedAt: r.resolved_at ? formatRelativeTime(r.resolved_at) : undefined,
+          };
+        });
+      }
+    } catch {
+      // Fall back cleanly
+    }
+  }
+
+  let serverReports: ModerationReport[] = [];
+  if (typeof fetch !== 'undefined' && (userId || username)) {
+    try {
+      const qs = new URLSearchParams();
+      if (userId) qs.set('userId', userId);
+      if (username) qs.set('username', username);
+      const resp = await fetch(`/api/reports?${qs.toString()}`);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (Array.isArray(json?.reports)) {
+          serverReports = json.reports;
+        }
+      }
+    } catch {
+      // Ignore network errors
+    }
+  }
+
+  return mergeModerationReports(supabaseReports, serverReports);
 }
 
 let activeRealtimeChannel: RealtimeChannel | null = null;

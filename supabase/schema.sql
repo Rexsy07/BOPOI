@@ -124,6 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_social_posts_title_trgm ON public.social_posts US
 CREATE INDEX IF NOT EXISTS idx_poll_options_post_id_sort ON public.poll_options (post_id, sort_order ASC);
 
 -- 4.6 public.poll_votes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_poll_votes_post_user_unique ON public.poll_votes (post_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_poll_votes_post_id ON public.poll_votes (post_id);
 CREATE INDEX IF NOT EXISTS idx_poll_votes_option_id ON public.poll_votes (option_id);
 CREATE INDEX IF NOT EXISTS idx_poll_votes_user_id ON public.poll_votes (user_id, created_at DESC);
@@ -373,27 +374,52 @@ CREATE TRIGGER trg_sync_post_comment_likes_count
   AFTER INSERT OR DELETE ON public.post_comment_likes
   FOR EACH ROW EXECUTE FUNCTION public.sync_post_comment_likes_count();
 
--- 5.6 Poll Votes Counter Trigger
+-- 5.6 Poll Votes Counter Trigger (authoritative COUNT(*) recalculation, immune to drift)
 CREATE OR REPLACE FUNCTION public.sync_poll_votes_count()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  v_post_id uuid;
+  v_old_option_id uuid;
+  v_new_option_id uuid;
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    UPDATE public.poll_options SET votes = votes + 1 WHERE id = NEW.option_id;
-    UPDATE public.social_posts SET poll_total_votes = poll_total_votes + 1 WHERE id = NEW.post_id;
+    v_post_id := NEW.post_id;
+    v_new_option_id := NEW.option_id;
   ELSIF TG_OP = 'DELETE' THEN
-    UPDATE public.poll_options SET votes = GREATEST(0, votes - 1) WHERE id = OLD.option_id;
-    UPDATE public.social_posts SET poll_total_votes = GREATEST(0, poll_total_votes - 1) WHERE id = OLD.post_id;
-  ELSIF TG_OP = 'UPDATE' AND OLD.option_id IS DISTINCT FROM NEW.option_id THEN
-    UPDATE public.poll_options SET votes = GREATEST(0, votes - 1) WHERE id = OLD.option_id;
-    UPDATE public.poll_options SET votes = votes + 1 WHERE id = NEW.option_id;
+    v_post_id := OLD.post_id;
+    v_old_option_id := OLD.option_id;
+  ELSE
+    v_post_id := COALESCE(NEW.post_id, OLD.post_id);
+    v_old_option_id := OLD.option_id;
+    v_new_option_id := NEW.option_id;
   END IF;
+
+  IF v_old_option_id IS NOT NULL THEN
+    UPDATE public.poll_options
+    SET votes = (SELECT COUNT(*)::int FROM public.poll_votes WHERE option_id = v_old_option_id)
+    WHERE id = v_old_option_id;
+  END IF;
+
+  IF v_new_option_id IS NOT NULL AND v_new_option_id IS DISTINCT FROM v_old_option_id THEN
+    UPDATE public.poll_options
+    SET votes = (SELECT COUNT(*)::int FROM public.poll_votes WHERE option_id = v_new_option_id)
+    WHERE id = v_new_option_id;
+  END IF;
+
+  IF v_post_id IS NOT NULL THEN
+    UPDATE public.social_posts
+    SET poll_total_votes = (SELECT COUNT(*)::int FROM public.poll_votes WHERE post_id = v_post_id)
+    WHERE id = v_post_id;
+  END IF;
+
   RETURN NULL;
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_sync_poll_vote_counts ON public.poll_votes;
 DROP TRIGGER IF EXISTS trg_sync_poll_votes_count ON public.poll_votes;
 CREATE TRIGGER trg_sync_poll_votes_count
   AFTER INSERT OR UPDATE OR DELETE ON public.poll_votes
@@ -1961,11 +1987,16 @@ SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
   IF auth.uid() IS NULL OR public.is_user_suspended() THEN RETURN; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.poll_options WHERE id = p_option_id AND post_id = p_post_id
+  ) THEN
+    RETURN;
+  END IF;
 
   INSERT INTO public.poll_votes (post_id, option_id, user_id)
   VALUES (p_post_id, p_option_id, auth.uid())
   ON CONFLICT (post_id, user_id)
-  DO UPDATE SET option_id = EXCLUDED.option_id;
+  DO UPDATE SET option_id = EXCLUDED.option_id, created_at = now();
 END;
 $$;
 

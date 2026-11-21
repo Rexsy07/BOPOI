@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface IconProps {
   className?: string;
@@ -10,6 +10,10 @@ interface IconProps {
  * 3D perspective royal purple inbox desk tray with a bold white arrow pointing downward into the tray
  */
 export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 32 }) => {
+  const uid = useId().replace(/:/g, '');
+  const trayId = `shortcut-tray-grad-${uid}`;
+  const basinId = `shortcut-basin-grad-${uid}`;
+
   return (
     <svg
       width={size}
@@ -17,11 +21,11 @@ export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 
       viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`shrink-0 select-none ${className}`}
+      className={`block shrink-0 select-none ${className}`}
     >
       <defs>
         {/* Tray Outer Purple Gradient */}
-        <linearGradient id="shortcut-tray-grad" x1="20" y1="30" x2="80" y2="85" gradientUnits="userSpaceOnUse">
+        <linearGradient id={trayId} x1="20" y1="30" x2="80" y2="85" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#818CF8" />
           <stop offset="30%" stopColor="#6C35FF" />
           <stop offset="70%" stopColor="#4F1BDD" />
@@ -29,7 +33,7 @@ export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 
         </linearGradient>
 
         {/* Tray Basin Deep Gradient */}
-        <linearGradient id="shortcut-basin-grad" x1="30" y1="35" x2="70" y2="65" gradientUnits="userSpaceOnUse">
+        <linearGradient id={basinId} x1="30" y1="35" x2="70" y2="65" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#C4B5FD" />
           <stop offset="100%" stopColor="#541FE2" />
         </linearGradient>
@@ -46,7 +50,7 @@ export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 
            C 18 78 14 72 16 66
            L 26 38
            C 28 32 32 28 36 28 Z"
-        fill="url(#shortcut-tray-grad)"
+        fill={`url(#${trayId})`}
         stroke="#2E0884"
         strokeWidth="1.5"
       />
@@ -58,7 +62,7 @@ export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 
            L 72 56
            L 28 56
            Z"
-        fill="url(#shortcut-basin-grad)"
+        fill={`url(#${basinId})`}
       />
 
       {/* 3. Front Scoop Lip */}
@@ -88,13 +92,8 @@ export const InboxShortcutIcon: React.FC<IconProps> = ({ className = '', size = 
       />
 
       {/* 4. Bold White Downward Incoming Arrow */}
-      {/* Arrow Shaft */}
       <rect x="46" y="34" width="8" height="15" rx="1.5" fill="white" />
-      {/* Arrow Head Triangle */}
-      <polygon
-        points="37,47 63,47 50,60"
-        fill="white"
-      />
+      <polygon points="37,47 63,47 50,60" fill="white" />
     </svg>
   );
 };

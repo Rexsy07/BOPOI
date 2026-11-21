@@ -15,6 +15,7 @@ import {
   InboxFilter,
   SocialPost,
   SocialPostType,
+  QuotedPostPreview,
   CommunityRoom,
   RoomMessage,
   CreatorProfile,
@@ -22,6 +23,7 @@ import {
   RoomAssignedPersona,
   AppNotification,
   ModerationReport,
+  ReportChatMessage,
   CampusAnnouncement,
   AdminAuditLog,
   PlatformSettings,
@@ -31,6 +33,10 @@ import {
   getSavedRoomPersona,
   removeRoomPersona,
 } from '../utils/roomPersonas.ts';
+import {
+  mergePostHashtags,
+  normalizeHashtag,
+} from '../utils/hashtags.ts';
 import {
   generateDeterministicCharacter,
   serializeCharacterConfig,
@@ -82,13 +88,35 @@ import {
   invalidateGraphCacheForUser,
   recordPostBanditInteraction,
   encodeRoomMessageWithMedia,
+  encodeSocialPostEnvelope,
   saveLocalRoomMessageBackup,
   removeLocalRoomMessageBackup,
   inferCanonicalPostCategory,
+  fetchUserModerationReports,
 } from '../lib/supabase.ts';
+import {
+  serializeReportCaseEnvelope,
+  getUnreadReportCountForReporter,
+  mergeModerationReports,
+} from '../lib/reportChat.ts';
 import { initRealtimeSubscriptions } from '../services/realtime.ts';
 
 export type LegalDocumentType = 'terms' | 'privacy' | 'guidelines' | null;
+
+export interface ReportModalTarget {
+  targetType:
+    | 'social_post'
+    | 'post_comment'
+    | 'room_message'
+    | 'anonymous_message'
+    | 'user_profile'
+    | 'support_ticket'
+    | string;
+  targetId: string;
+  targetLabel?: string;
+  targetPreview?: string;
+  defaultSubject?: string;
+}
 
 const bopoiQueryClient = new QueryClient({
   defaultOptions: {
@@ -125,9 +153,21 @@ function arePostsEqualFast(a: SocialPost[], b: SocialPost[]): boolean {
       pa.category !== pb.category ||
       pa.content !== pb.content ||
       pa.title !== pb.title ||
-      (pa.comments?.length || 0) !== (pb.comments?.length || 0)
+      pa.mediaUrl !== pb.mediaUrl ||
+      pa.quotedPostId !== pb.quotedPostId ||
+      (pa.comments?.length || 0) !== (pb.comments?.length || 0) ||
+      (pa.pollOptions?.length || 0) !== (pb.pollOptions?.length || 0)
     ) {
       return false;
+    }
+    if (pa.pollOptions && pb.pollOptions) {
+      for (let j = 0; j < pa.pollOptions.length; j++) {
+        const oa = pa.pollOptions[j];
+        const ob = pb.pollOptions[j];
+        if (oa.id !== ob.id || oa.votes !== ob.votes || oa.text !== ob.text) {
+          return false;
+        }
+      }
     }
   }
   return true;
@@ -261,11 +301,17 @@ interface BopoiContextType {
   deviceMode: 'frame' | 'fullscreen';
   toasts: ToastInfo[];
   unreadCount: number;
+  unreadReportsCount: number;
 
   // Real-time Notifications
   notifications: AppNotification[];
   unreadNotificationsCount: number;
   markNotificationsRead: (notificationId?: string) => void;
+
+  // Theme (Crisp White vs Night Campus Dark Mode)
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+  toggleTheme: () => void;
 
   // Navigation & View Actions
   setActiveTab: (tab: StudentAppTab) => void;
@@ -325,11 +371,24 @@ interface BopoiContextType {
   toggleLinkActive: () => void;
   saveAnswer: (messageId: string, answerText: string, isPublic: boolean, isDraft?: boolean) => void;
   deleteMessage: (messageId: string) => void;
-  reportMessage: (messageId: string, reason: string) => void;
+  reportMessage: (messageId: string, reason: string, details?: string) => ModerationReport;
   blockSender: (messageId: string) => void;
   unblockSender: (senderId: string) => void;
   clearBlockedSenders: () => void;
-  submitSupportTicket: (subject: string, message: string) => void;
+  submitSupportTicket: (subject: string, message: string) => ModerationReport | null;
+  reportModalTarget: ReportModalTarget | null;
+  openReportModal: (target: ReportModalTarget) => void;
+  closeReportModal: () => void;
+  activeReportTicketId: string | null;
+  setActiveReportTicketId: (id: string | null) => void;
+  openTicketInSettings: (reportId?: string) => void;
+  sendReportChatMessage: (
+    reportId: string,
+    text: string,
+    senderRole: 'reporter' | 'moderator'
+  ) => boolean;
+  markReportChatRead: (reportId: string, viewerRole: 'reporter' | 'moderator') => void;
+  userModerationReports: ModerationReport[];
   updateProfile: (updates: Partial<UserProfile>) => void;
   addHiddenWord: (word: string) => void;
   removeHiddenWord: (word: string) => void;
@@ -337,7 +396,12 @@ interface BopoiContextType {
   resetToDemo: () => void;
   addReaction: (messageId: string, emoji: string) => void;
   toggleLike: (messageId: string) => void;
-  addComment: (messageId: string, text: string, role?: 'recipient' | 'sender' | boolean) => void;
+  addComment: (
+    messageId: string,
+    text: string,
+    role?: 'recipient' | 'sender' | boolean,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
+  ) => void;
   getUnreadConvoCount: (msg: AnonymousMessage, viewerRole?: 'recipient' | 'sender') => number;
   markConvoAsRead: (messageId: string, viewerRole?: 'recipient' | 'sender') => void;
   lastSentMessageId: string | null;
@@ -349,8 +413,8 @@ interface BopoiContextType {
   socialPosts: SocialPost[];
   rooms: CommunityRoom[];
   creators: CreatorProfile[];
-  feedTab: 'for-you' | 'latest' | 'trending';
-  setFeedTab: (tab: 'for-you' | 'latest' | 'trending') => void;
+  feedTab: 'for-you' | 'following' | 'latest' | 'trending';
+  setFeedTab: (tab: 'for-you' | 'following' | 'latest' | 'trending') => void;
   selectedPost: SocialPost | null;
   setSelectedPost: (post: SocialPost | null) => void;
   sharingPost: SocialPost | null;
@@ -368,7 +432,8 @@ interface BopoiContextType {
     parentId?: string,
     replyToAuthor?: string,
     isAnonymous?: boolean,
-    characterMood?: string
+    characterMood?: string,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
   ) => void;
   toggleCommentLike: (postId: string, commentId: string) => void;
   toggleJoinRoom: (roomId: string) => void;
@@ -402,7 +467,7 @@ interface BopoiContextType {
     authorAlias?: string,
     replyTo?: RoomMessage['replyTo'],
     authorMaskEmoji?: string,
-    media?: { mediaUrl: string; mediaType: 'image' | 'video' }
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
   ) => void;
   toggleRoomMessageLike: (roomId: string, messageId: string) => void;
   addRoomMessageReaction: (roomId: string, messageId: string, emoji: string) => void;
@@ -424,9 +489,13 @@ interface BopoiContextType {
     isAnonymous?: boolean;
     pollOptions?: { text: string }[];
     characterMood?: string;
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' };
+    quotedPost?: QuotedPostPreview;
   }) => SocialPost;
+  repostSocialPost: (post: SocialPost) => void;
+  openQuoteComposer: (post: SocialPost) => void;
   deleteSocialPost: (postId: string) => void;
-  reportPost: (postId: string, reason?: string) => void;
+  reportPost: (postId: string, reason?: string, details?: string) => ModerationReport;
 
   // Real-time Connection & Sync
   connectionStatus: ConnectionStatus;
@@ -438,11 +507,21 @@ interface BopoiContextType {
   availableMoods: CharacterMoodOption[];
   syncCharacterConfig: (avatarUrl: string, moodId?: string) => void;
 
-  // Global Search & Legal Docs & Comment Deep-Link Sharing
+  // Global Search, Hashtags & Legal Docs & Comment Deep-Link Sharing
   isSearchModalOpen: boolean;
   setIsSearchModalOpen: (open: boolean) => void;
   globalSearchQuery: string;
   setGlobalSearchQuery: (q: string) => void;
+  activeHashtag: string | null;
+  setActiveHashtag: (tag: string | null) => void;
+  openHashtag: (tag: string) => void;
+  draftHashtag: string | null;
+  setDraftHashtag: (tag: string | null) => void;
+  draftPostType: SocialPostType | null;
+  setDraftPostType: (postType: SocialPostType | null) => void;
+  draftQuotedPost: SocialPost | null;
+  setDraftQuotedPost: (post: SocialPost | null) => void;
+  openCreateWithHashtag: (tag?: string, defaultType?: SocialPostType) => void;
   activeLegalDoc: LegalDocumentType;
   openLegalDoc: (doc: LegalDocumentType) => void;
   highlightedCommentId: string | null;
@@ -521,6 +600,8 @@ const BopoiContext = createContext<BopoiContextType | undefined>(undefined);
 const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
   const isInternalNavRef = useRef(false);
+  const pendingPollVotesRef = useRef<Record<string, { optionId: string; ts: number }>>({});
+  const pollVoteQueueRef = useRef<Record<string, Promise<void>>>({});
 
   // Real-time WebSocket Manager Connection Status
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(() =>
@@ -537,9 +618,45 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     realtimeManager.reconnect();
   };
 
-  // Global Search & Legal Docs & Highlighted Comment state
+  // Theme State (Crisp White light default vs Night Campus dark toggle)
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('bopoi_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {
+      // ignore
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bopoi_theme', theme);
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch {
+      // ignore
+    }
+  }, [theme]);
+
+  const setTheme = (next: 'light' | 'dark') => {
+    setThemeState(next);
+  };
+
+  const toggleTheme = () => {
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Global Search, Hashtag Filter & Legal Docs & Highlighted Comment state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [activeHashtag, setActiveHashtag] = useState<string | null>(null);
+  const [draftHashtag, setDraftHashtag] = useState<string | null>(null);
+  const [draftPostType, setDraftPostType] = useState<SocialPostType | null>(null);
+  const [draftQuotedPost, setDraftQuotedPost] = useState<SocialPost | null>(null);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocumentType>(null);
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(() => {
     try {
@@ -792,10 +909,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
+  const [reportModalTarget, setReportModalTarget] = useState<ReportModalTarget | null>(null);
+  const [activeReportTicketId, setActiveReportTicketId] = useState<string | null>(null);
   const [deviceMode, setDeviceMode] = useState<'frame' | 'fullscreen'>('frame');
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
   const [lastSentMessageId, setLastSentMessageId] = useState<string | null>(null);
-  const [feedTab, setFeedTab] = useState<'for-you' | 'latest' | 'trending'>('for-you');
+  const [feedTab, setFeedTab] = useState<'for-you' | 'following' | 'latest' | 'trending'>('for-you');
 
   const [socialPosts, setSocialPosts] = useState<SocialPost[]>(() => {
     try {
@@ -1044,20 +1163,87 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [platformSettings]);
 
+  const broadcastReportSync = () => {
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const ch = new BroadcastChannel('bopoi_reports_sync');
+        ch.postMessage({ type: 'reports_updated', ts: Date.now() });
+        ch.close();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const syncAdminTablesFromSupabase = async () => {
-    if (!isSupabaseConfigured) return;
-    const data = await fetchSupabaseAdminData(isAdminUnlockedRef.current);
-    if (!data) return;
-    if (isAdminUnlockedRef.current && data.reports.length > 0) setModerationReports(data.reports);
-    if (data.announcements.length > 0) setCampusAnnouncements(data.announcements);
-    if (isAdminUnlockedRef.current && data.auditLogs.length > 0) setAdminAuditLogs(data.auditLogs);
-    if (data.platformSettings) setPlatformSettings(data.platformSettings);
-    if (isAdminUnlockedRef.current && data.allAnonMessages.length > 0) setAdminExtraMessages(data.allAnonMessages);
+    const [data, myReports] = await Promise.all([
+      isSupabaseConfigured
+        ? fetchSupabaseAdminData(isAdminUnlockedRef.current)
+        : Promise.resolve(null),
+      !isAdminUnlockedRef.current && (user.id || (user.username && user.username !== 'student'))
+        ? fetchUserModerationReports(user.id || undefined, user.username || undefined)
+        : Promise.resolve([]),
+    ]);
+
+    if (data) {
+      if (isAdminUnlockedRef.current && data.reports.length > 0) {
+        setModerationReports((prev) => mergeModerationReports(data.reports, prev));
+      }
+      if (data.announcements.length > 0) setCampusAnnouncements(data.announcements);
+      if (isAdminUnlockedRef.current && data.auditLogs.length > 0) setAdminAuditLogs(data.auditLogs);
+      if (data.platformSettings) setPlatformSettings(data.platformSettings);
+      if (isAdminUnlockedRef.current && data.allAnonMessages.length > 0) {
+        setAdminExtraMessages(data.allAnonMessages);
+      }
+    } else if (isAdminUnlockedRef.current && typeof fetch !== 'undefined') {
+      try {
+        const resp = await fetch('/api/reports?isAdmin=true');
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json?.reports) && json.reports.length > 0) {
+            setModerationReports((prev) => mergeModerationReports(json.reports, prev));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (myReports.length > 0) {
+      setModerationReports((prev) => mergeModerationReports(myReports, prev));
+    }
   };
 
   useEffect(() => {
     syncAdminTablesFromSupabase();
-  }, [user.id, isAdminUnlocked]);
+  }, [user.id, user.username, isAdminUnlocked]);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel('bopoi_reports_sync');
+      ch.onmessage = () => {
+        try {
+          const saved = localStorage.getItem('bopoi_moderation_reports');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+              setModerationReports((prev) => mergeModerationReports(parsed, prev));
+            }
+          }
+        } catch {
+          // ignore
+        }
+        syncAdminTablesFromSupabase();
+      };
+    } catch {
+      // ignore
+    }
+    return () => {
+      if (ch) ch.close();
+    };
+  }, [user.id, user.username]);
 
   const pendingAuthTransitionRef = useRef(false);
 
@@ -1304,6 +1490,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             (c) =>
               c.id.startsWith('comm_') &&
               c.text === incomingComment.text &&
+              (c.mediaUrl || '') === (incomingComment.mediaUrl || '') &&
               c.authorUsername === incomingComment.authorUsername &&
               Math.abs(c.createdTimestamp - incomingComment.createdTimestamp) < 15000
           );
@@ -1976,11 +2163,33 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           )
       );
 
-      // Preserve any in-flight optimistic comments on existing posts
+      // Preserve any in-flight optimistic comments and poll votes on existing posts
       const mergedPosts = queriedPosts.map((qp) => {
         const localPost = prev.find((lp) => lp.id === qp.id);
-        if (!localPost?.comments?.length) return qp;
-        const serverComments = qp.comments || [];
+        let nextPost = qp;
+
+        const pendingVote = pendingPollVotesRef.current[qp.id];
+        if (pendingVote) {
+          if (qp.userVotedOptionId === pendingVote.optionId) {
+            delete pendingPollVotesRef.current[qp.id];
+          } else if (
+            now - pendingVote.ts < 8000 &&
+            localPost?.pollOptions &&
+            localPost.userVotedOptionId === pendingVote.optionId
+          ) {
+            nextPost = {
+              ...nextPost,
+              pollOptions: localPost.pollOptions,
+              pollTotalVotes: localPost.pollTotalVotes,
+              userVotedOptionId: localPost.userVotedOptionId,
+            };
+          } else if (now - pendingVote.ts >= 8000) {
+            delete pendingPollVotesRef.current[qp.id];
+          }
+        }
+
+        if (!localPost?.comments?.length) return nextPost;
+        const serverComments = nextPost.comments || [];
         const inFlightComments = localPost.comments.filter(
           (c) =>
             c.id.startsWith('comm_') &&
@@ -1993,12 +2202,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   Math.abs(sc.createdTimestamp - c.createdTimestamp) < 15000)
             )
         );
-        if (inFlightComments.length === 0) return qp;
+        if (inFlightComments.length === 0) return nextPost;
         const combined = [...serverComments, ...inFlightComments];
         return {
-          ...qp,
+          ...nextPost,
           comments: combined,
-          commentsCount: Math.max(qp.commentsCount, combined.length),
+          commentsCount: Math.max(nextPost.commentsCount, combined.length),
         };
       });
 
@@ -2012,8 +2221,26 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const matched = queriedPosts.find((p) => p.id === prevSelected.id);
       if (!matched) return prevSelected;
       const now = Date.now();
+      let nextSelected = matched;
+
+      const pendingVote = pendingPollVotesRef.current[matched.id];
+      if (
+        pendingVote &&
+        matched.userVotedOptionId !== pendingVote.optionId &&
+        now - pendingVote.ts < 8000 &&
+        prevSelected.pollOptions &&
+        prevSelected.userVotedOptionId === pendingVote.optionId
+      ) {
+        nextSelected = {
+          ...nextSelected,
+          pollOptions: prevSelected.pollOptions,
+          pollTotalVotes: prevSelected.pollTotalVotes,
+          userVotedOptionId: prevSelected.userVotedOptionId,
+        };
+      }
+
       const localComments = prevSelected.comments || [];
-      const serverComments = matched.comments || [];
+      const serverComments = nextSelected.comments || [];
       const inFlight = localComments.filter(
         (c) =>
           c.id.startsWith('comm_') &&
@@ -2026,12 +2253,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 Math.abs(sc.createdTimestamp - c.createdTimestamp) < 15000)
           )
       );
-      if (inFlight.length === 0) return matched;
+      if (inFlight.length === 0) return nextSelected;
       const combined = [...serverComments, ...inFlight];
       return {
-        ...matched,
+        ...nextSelected,
         comments: combined,
-        commentsCount: Math.max(matched.commentsCount, combined.length),
+        commentsCount: Math.max(nextSelected.commentsCount, combined.length),
       };
     });
   }, [queriedPosts]);
@@ -2320,6 +2547,23 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const visibleNotifications = isUserLoggedIn ? notifications : [];
   const unreadCount = messages.filter((m) => !m.isRead && !m.isReported).length;
+  const userModerationReports = React.useMemo(() => {
+    if (!isUserLoggedIn) return [];
+    const uname = (user.username || '').toLowerCase();
+    return moderationReports.filter((r) => {
+      if (user.id && r.reporterUserId && r.reporterUserId === user.id) return true;
+      if (uname && r.reporterUsername && r.reporterUsername.toLowerCase() === uname) return true;
+      return false;
+    });
+  }, [moderationReports, isUserLoggedIn, user.id, user.username]);
+  const unreadReportsCount = React.useMemo(
+    () =>
+      userModerationReports.reduce(
+        (acc, rep) => acc + getUnreadReportCountForReporter(rep),
+        0
+      ),
+    [userModerationReports]
+  );
   const unreadNotificationsCount = visibleNotifications.filter((n) => !n.isRead).length;
 
   const markNotificationsRead = (notificationId?: string) => {
@@ -2715,47 +2959,297 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const reportMessage = (messageId: string, reason: string) => {
-    requestConfirm({
-      badge: 'Campus Safety Report',
-      title: 'Report this anonymous message?',
-      description: `Are you sure you want to flag this message for "${reason}" and submit it to Campus Moderators?`,
-      confirmLabel: 'Yes, Report Message',
-      variant: 'warning',
-      icon: 'shield',
-      onConfirm: () => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, isReported: true, reportReason: reason } : m))
+  const openReportModal = (target: ReportModalTarget) => {
+    if (!requireAuth('submit a campus safety report')) return;
+    setReportModalTarget(target);
+  };
+
+  const closeReportModal = () => {
+    setReportModalTarget(null);
+  };
+
+  const openTicketInSettings = (reportId?: string) => {
+    setReportModalTarget(null);
+    setActiveReportTicketId(reportId || '__LIST__');
+    setActiveView('profile');
+  };
+
+  const persistNewReportToBackends = (newReport: ModerationReport, skipSupabaseInsert = false) => {
+    const envelope = serializeReportCaseEnvelope(newReport);
+
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/reports/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report: newReport }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.id && data.id !== newReport.id) {
+            setModerationReports((prev) =>
+              prev.map((r) =>
+                r.id === newReport.id
+                  ? {
+                      ...r,
+                      id: data.id,
+                      ticketMessages: (r.ticketMessages || []).map((m) => ({
+                        ...m,
+                        reportId: data.id,
+                      })),
+                    }
+                  : r
+              )
+            );
+            setActiveReportTicketId((curr) => (curr === newReport.id ? data.id : curr));
+          }
+          broadcastReportSync();
+        })
+        .catch(() => {
+          broadcastReportSync();
+        });
+    } else {
+      broadcastReportSync();
+    }
+
+    if (supabase && !skipSupabaseInsert) {
+      supabase
+        .from('moderation_reports')
+        .insert({
+          reporter_user_id: user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null,
+          reporter_username: user.username || 'student',
+          target_type: newReport.targetType,
+          target_id: newReport.targetId,
+          reason: newReport.reason,
+          admin_notes: envelope,
+        })
+        .select('id')
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.id && data.id !== newReport.id) {
+            setModerationReports((prev) =>
+              prev.map((r) =>
+                r.id === newReport.id
+                  ? {
+                      ...r,
+                      id: data.id,
+                      ticketMessages: (r.ticketMessages || []).map((m) => ({
+                        ...m,
+                        reportId: data.id,
+                      })),
+                    }
+                  : r
+              )
+            );
+            setActiveReportTicketId((curr) => (curr === newReport.id ? data.id : curr));
+          }
+          syncAdminTablesFromSupabase();
+        });
+    }
+  };
+
+  const sendReportChatMessage = (
+    reportId: string,
+    text: string,
+    senderRole: 'reporter' | 'moderator'
+  ): boolean => {
+    const cleanText = text.trim();
+    if (!cleanText) return false;
+    const targetReport = moderationReports.find((r) => r.id === reportId);
+    if (!targetReport) return false;
+
+    if (senderRole === 'reporter' && targetReport.status !== 'pending') {
+      showToast('This ticket has already been closed. Open a new ticket if needed.', 'info');
+      return false;
+    }
+
+    const now = Date.now();
+    const newMsg: ReportChatMessage = {
+      id: `rcm_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      reportId,
+      senderRole,
+      senderName:
+        senderRole === 'moderator'
+          ? user.displayName
+            ? `${user.displayName} (Mod)`
+            : 'Campus Moderator'
+          : user.displayName || (user.username ? `@${user.username}` : 'Student'),
+      senderUsername: user.username || undefined,
+      text: cleanText,
+      createdAt: 'Just now',
+      createdTimestamp: now,
+    };
+
+    const existingMsgs = targetReport.ticketMessages && targetReport.ticketMessages.length > 0
+      ? targetReport.ticketMessages
+      : [
+          {
+            id: `init_${targetReport.id}`,
+            reportId: targetReport.id,
+            senderRole: 'reporter' as const,
+            senderName: targetReport.reporterUsername
+              ? `@${targetReport.reporterUsername}`
+              : 'Student',
+            senderUsername: targetReport.reporterUsername,
+            text: targetReport.reason,
+            createdAt: targetReport.createdAt || 'Just now',
+            createdTimestamp: targetReport.createdTimestamp || now - 1000,
+          },
+        ];
+
+    const updatedReport: ModerationReport = {
+      ...targetReport,
+      ticketMessages: [...existingMsgs, newMsg],
+      ...(senderRole === 'reporter'
+        ? { reporterLastReadAt: now }
+        : { moderatorLastReadAt: now }),
+    };
+
+    setModerationReports((prev) =>
+      prev.map((r) => (r.id === reportId ? updatedReport : r))
+    );
+
+    const envelope = serializeReportCaseEnvelope(updatedReport);
+
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/reports/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportId,
+          message: newMsg,
+          fullReport: updatedReport,
+        }),
+      })
+        .then(() => broadcastReportSync())
+        .catch(() => broadcastReportSync());
+    } else {
+      broadcastReportSync();
+    }
+
+    if (supabase && /^[0-9a-f-]{36}$/i.test(reportId)) {
+      supabase
+        .from('moderation_reports')
+        .update({ admin_notes: envelope })
+        .eq('id', reportId)
+        .then(() => {
+          syncAdminTablesFromSupabase();
+        });
+
+      if (
+        senderRole === 'moderator' &&
+        updatedReport.reporterUserId &&
+        /^[0-9a-f-]{36}$/i.test(updatedReport.reporterUserId)
+      ) {
+        supabase
+          .from('notifications')
+          .insert({
+            recipient_user_id: updatedReport.reporterUserId,
+            type: 'report_reply',
+            title: 'Moderator replied to your ticket',
+            body: cleanText.slice(0, 120),
+            target_view: 'inbox',
+            target_id: reportId,
+            actor_name: 'Campus Moderation',
+            actor_username: user.username || 'moderator',
+            is_anonymous: false,
+          })
+          .then(() => {});
+      }
+    }
+
+    if (senderRole === 'moderator') {
+      recordAdminAudit(
+        'reply_report_chat',
+        targetReport.targetType || 'report',
+        reportId,
+        `Sent moderator reply on ticket ${reportId.slice(0, 10)}`
+      );
+      showToast('Reply sent to reporter inbox', 'success');
+    }
+
+    return true;
+  };
+
+  const markReportChatRead = (reportId: string, viewerRole: 'reporter' | 'moderator') => {
+    const now = Date.now();
+    setModerationReports((prev) =>
+      prev.map((r) => {
+        if (r.id !== reportId) return r;
+        const currentRead =
+          viewerRole === 'reporter' ? r.reporterLastReadAt || 0 : r.moderatorLastReadAt || 0;
+        const latestMsgTs = Math.max(
+          0,
+          ...(r.ticketMessages || []).map((m) => m.createdTimestamp || 0)
         );
-        const newReport: ModerationReport = {
-          id: `rep_${Date.now()}`,
-          reporterUserId: user.id || undefined,
-          reporterUsername: user.username || 'student',
-          targetType: 'anonymous_message',
-          targetId: messageId,
-          reason,
-          status: 'pending',
+        if (currentRead >= latestMsgTs && currentRead > 0) return r;
+        return viewerRole === 'reporter'
+          ? { ...r, reporterLastReadAt: now }
+          : { ...r, moderatorLastReadAt: now };
+      })
+    );
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/reports/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, viewerRole, timestamp: now }),
+      }).catch(() => {});
+    }
+  };
+
+  const reportMessage = (messageId: string, reason: string, details?: string): ModerationReport => {
+    const targetMsg = allMessages.find((m) => m.id === messageId);
+    const fullReason = details?.trim() ? `${reason} — ${details.trim()}` : reason;
+    const now = Date.now();
+    const reportId = `rep_${now}`;
+
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, isReported: true, reportReason: fullReason } : m))
+    );
+
+    const newReport: ModerationReport = {
+      id: reportId,
+      reporterUserId: user.id || undefined,
+      reporterUsername: user.username || 'student',
+      targetType: 'anonymous_message',
+      targetId: messageId,
+      targetPreview: targetMsg?.text ? targetMsg.text.slice(0, 140) : undefined,
+      reason: fullReason,
+      status: 'pending',
+      reporterLastReadAt: now,
+      ticketMessages: [
+        {
+          id: `rcm_init_${now}`,
+          reportId,
+          senderRole: 'reporter',
+          senderName: user.displayName || (user.username ? `@${user.username}` : 'Student'),
+          senderUsername: user.username || undefined,
+          text: fullReason,
           createdAt: 'Just now',
-          createdTimestamp: Date.now(),
-        };
-        setModerationReports((prev) => [newReport, ...prev]);
-        if (supabase && /^[0-9a-f-]{36}$/i.test(messageId)) {
-          supabase
-            .rpc('report_or_block_message', {
-              p_message_id: messageId,
-              p_reason: reason,
-              p_block_sender: false,
-            })
-            .then(() => {
-              syncAdminTablesFromSupabase();
-            });
-        }
-        if (activeView === 'message-detail') {
-          setActiveView('inbox');
-        }
-        showToast(`Report received: "${reason}". Message flagged.`, 'info');
-      },
-    });
+          createdTimestamp: now,
+        },
+      ],
+      createdAt: 'Just now',
+      createdTimestamp: now,
+    };
+
+    setModerationReports((prev) => [newReport, ...prev]);
+
+    const useRpc = Boolean(supabase && /^[0-9a-f-]{36}$/i.test(messageId));
+    if (useRpc && supabase) {
+      supabase
+        .rpc('report_or_block_message', {
+          p_message_id: messageId,
+          p_reason: fullReason,
+          p_block_sender: false,
+        })
+        .then(() => {
+          syncAdminTablesFromSupabase();
+        });
+    }
+    persistNewReportToBackends(newReport, useRpc);
+
+    showToast('Report opened! You can chat with moderators in Settings.', 'success');
+    return newReport;
   };
 
   const blockSender = (messageId: string) => {
@@ -2837,21 +3331,37 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const submitSupportTicket = (subject: string, message: string) => {
+  const submitSupportTicket = (subject: string, message: string): ModerationReport | null => {
     const cleanSubject = subject.trim() || 'General Question';
     const cleanMessage = message.trim();
-    if (!cleanMessage) return;
-    const ticketId = `support_${Date.now()}`;
+    if (!cleanMessage) return null;
+    const now = Date.now();
+    const ticketId = `support_${now}`;
+    const fullReason = `[${cleanSubject}] ${cleanMessage}`;
     const newTicketReport: ModerationReport = {
       id: ticketId,
       reporterUserId: user.id || undefined,
       reporterUsername: user.username || 'student',
       targetType: 'support_ticket',
       targetId: ticketId,
-      reason: `[${cleanSubject}] ${cleanMessage}`,
+      targetPreview: cleanSubject,
+      reason: fullReason,
       status: 'pending',
+      reporterLastReadAt: now,
+      ticketMessages: [
+        {
+          id: `rcm_init_${now}`,
+          reportId: ticketId,
+          senderRole: 'reporter',
+          senderName: user.displayName || (user.username ? `@${user.username}` : 'Student'),
+          senderUsername: user.username || undefined,
+          text: fullReason,
+          createdAt: 'Just now',
+          createdTimestamp: now,
+        },
+      ],
       createdAt: 'Just now',
-      createdTimestamp: Date.now(),
+      createdTimestamp: now,
     };
     setModerationReports((prev) => [newTicketReport, ...prev]);
     try {
@@ -2868,21 +3378,9 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // ignore storage errors
     }
-    if (supabase) {
-      supabase
-        .from('moderation_reports')
-        .insert({
-          reporter_user_id: user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null,
-          reporter_username: user.username || 'student',
-          target_type: 'support_ticket',
-          target_id: ticketId,
-          reason: `[${cleanSubject}] ${cleanMessage}`,
-        })
-        .then(() => {
-          syncAdminTablesFromSupabase();
-        });
-    }
-    showToast(`Support ticket sent (${cleanSubject}). We'll reply soon!`, 'success');
+    persistNewReportToBackends(newTicketReport, false);
+    showToast(`Ticket opened (${cleanSubject}). Chat with moderators in Settings!`, 'success');
+    return newTicketReport;
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
@@ -3596,16 +4094,23 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addComment = (
     messageId: string,
     text: string,
-    roleOrIsAnon?: 'recipient' | 'sender' | boolean
+    roleOrIsAnon?: 'recipient' | 'sender' | boolean,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
   ) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    const hasMedia = Boolean(media?.mediaUrl);
+    if (!trimmed && !hasMedia) return;
 
     const isSender = roleOrIsAnon === 'sender' || roleOrIsAnon === true;
     const authorRole: 'recipient' | 'sender' = isSender ? 'sender' : 'recipient';
     const isAnonymous = isSender;
     const authorName = isSender ? 'Original Sender' : user.displayName;
     const authorAvatar = isSender ? undefined : user.avatarUrl;
+    const serializedText = encodeRoomMessageWithMedia(
+      trimmed,
+      media?.mediaUrl,
+      media?.mediaType
+    );
 
     const newComment = {
       id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -3615,6 +4120,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authorAvatar,
       isAnonymous,
       text: trimmed,
+      mediaUrl: media?.mediaUrl,
+      mediaType: media?.mediaType,
       createdAt: 'Just now',
       createdTimestamp: Date.now(),
       likes: 0,
@@ -3637,7 +4144,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase
         .rpc('post_private_convo_reply', {
           p_message_id: messageId,
-          p_text: trimmed,
+          p_text: serializedText,
           p_sender_token: getOrCreateAnonymousSenderToken(),
         })
         .then(() => {
@@ -3684,37 +4191,88 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const votePoll = (postId: string, optionId: string) => {
     if (!requireAuth('vote on polls')) return;
+
+    const applyVoteUpdate = (post: SocialPost): SocialPost => {
+      if (post.id !== postId || !post.pollOptions) return post;
+      if (post.userVotedOptionId === optionId) return post;
+      const targetExists = post.pollOptions.some((opt) => opt.id === optionId);
+      if (!targetExists) return post;
+
+      const prevVoted = post.userVotedOptionId;
+      const updatedOptions = post.pollOptions.map((opt) => {
+        if (opt.id === optionId) return { ...opt, votes: Math.max(0, opt.votes || 0) + 1 };
+        if (prevVoted && opt.id === prevVoted) {
+          return { ...opt, votes: Math.max(0, (opt.votes || 0) - 1) };
+        }
+        return opt;
+      });
+
+      const newTotal = updatedOptions.reduce(
+        (sum, opt) => sum + Math.max(0, opt.votes || 0),
+        0
+      );
+
+      return {
+        ...post,
+        pollOptions: updatedOptions,
+        pollTotalVotes: newTotal,
+        userVotedOptionId: optionId,
+      };
+    };
+
+    let didVoteChange = false;
     setSocialPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId || !post.pollOptions) return post;
         if (post.userVotedOptionId === optionId) return post;
-
-        const prevVoted = post.userVotedOptionId;
-        const updatedOptions = post.pollOptions.map((opt) => {
-          if (opt.id === optionId) return { ...opt, votes: opt.votes + 1 };
-          if (opt.id === prevVoted) return { ...opt, votes: Math.max(0, opt.votes - 1) };
-          return opt;
-        });
-
-        const newTotal = prevVoted ? post.pollTotalVotes : (post.pollTotalVotes || 0) + 1;
-        showToast('Vote recorded!', 'success');
-        return {
-          ...post,
-          pollOptions: updatedOptions,
-          pollTotalVotes: newTotal,
-          userVotedOptionId: optionId,
-        };
+        const next = applyVoteUpdate(post);
+        if (next !== post) didVoteChange = true;
+        return next;
       })
     );
+
+    setSelectedPost((prev) => {
+      if (!prev || prev.id !== postId) return prev;
+      return applyVoteUpdate(prev);
+    });
+
+    if (didVoteChange) {
+      showToast('Vote recorded!', 'success');
+    }
 
     if (
       supabase &&
       /^[0-9a-f-]{36}$/i.test(postId) &&
       /^[0-9a-f-]{36}$/i.test(optionId)
     ) {
-      supabase
-        .rpc('cast_poll_vote', { p_post_id: postId, p_option_id: optionId })
-        .then(() => {});
+      const client = supabase;
+      pendingPollVotesRef.current[postId] = { optionId, ts: Date.now() };
+      const previousJob = pollVoteQueueRef.current[postId] || Promise.resolve();
+      const nextJob = previousJob
+        .catch(() => {})
+        .then(async () => {
+          const latestPending = pendingPollVotesRef.current[postId];
+          // If the user already tapped another option while queued, skip the superseded RPC
+          if (latestPending && latestPending.optionId !== optionId) {
+            return;
+          }
+          const { error } = await client.rpc('cast_poll_vote', {
+            p_post_id: postId,
+            p_option_id: optionId,
+          });
+          if (error) {
+            if (pendingPollVotesRef.current[postId]?.optionId === optionId) {
+              delete pendingPollVotesRef.current[postId];
+            }
+            queryClient.invalidateQueries({ queryKey: ['bopoi', 'socialPosts'] });
+            return;
+          }
+          if (pendingPollVotesRef.current[postId]?.optionId === optionId) {
+            delete pendingPollVotesRef.current[postId];
+          }
+          queryClient.invalidateQueries({ queryKey: ['bopoi', 'socialPosts'] });
+        });
+      pollVoteQueueRef.current[postId] = nextJob;
     }
   };
 
@@ -3724,20 +4282,30 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     parentId?: string,
     replyToAuthor?: string,
     isAnonymous: boolean = false,
-    moodOverride?: string
+    moodOverride?: string,
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
   ) => {
     if (!requireAuth('comment or reply')) return;
     if (!canUserWrite('post comments')) return;
-    if (!text.trim()) return;
-    const blocked = findBlockedWord(text);
-    if (blocked) {
-      showToast(`Comment blocked: contains prohibited word ("${blocked}").`, 'error');
-      return;
+    const trimmed = text.trim();
+    if (!trimmed && !media?.mediaUrl) return;
+    if (trimmed) {
+      const blocked = findBlockedWord(trimmed);
+      if (blocked) {
+        showToast(`Comment blocked: contains prohibited word ("${blocked}").`, 'error');
+        return;
+      }
     }
     const effectiveMood = moodOverride || characterMood;
     const commentAvatar = isAnonymous
       ? undefined
       : applyMoodToAvatarUrl(user.avatarUrl, effectiveMood, user.username);
+
+    const serializedText = encodeRoomMessageWithMedia(
+      trimmed,
+      media?.mediaUrl,
+      media?.mediaType
+    );
 
     const newComment: SocialComment = {
       id: `comm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -3747,7 +4315,9 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authorAvatar: commentAvatar,
       authorCampus: user.campus || 'Chrisland University',
       isAnonymous,
-      text: text.trim(),
+      text: trimmed,
+      mediaUrl: media?.mediaUrl,
+      mediaType: media?.mediaType,
       createdAt: 'Just now',
       createdTimestamp: Date.now(),
       likes: 0,
@@ -3783,7 +4353,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           author_campus: user.campus || 'Chrisland University',
           is_anonymous: isAnonymous,
           reply_to_author: replyToAuthor || null,
-          text: text.trim(),
+          text: serializedText,
         })
         .select('id')
         .single()
@@ -3813,7 +4383,14 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
     }
 
-    showToast(parentId ? 'Reply added to thread!' : 'Comment published!', 'success');
+    showToast(
+      media?.mediaType === 'gif'
+        ? 'GIF comment published!'
+        : parentId
+        ? 'Reply added to thread!'
+        : 'Comment published!',
+      'success'
+    );
   };
 
   const shareCommentLink = (postId: string, commentId: string, authorName?: string) => {
@@ -4755,7 +5332,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     authorAlias?: string,
     replyTo?: RoomMessage['replyTo'],
     authorMaskEmoji?: string,
-    media?: { mediaUrl: string; mediaType: 'image' | 'video' }
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' }
   ) => {
     if (!requireAuth('chat in rooms')) return;
     if (!canUserWrite('send room messages')) return;
@@ -4946,6 +5523,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(
       media?.mediaType === 'video'
         ? 'Video sent to room!'
+        : media?.mediaType === 'gif'
+        ? 'GIF sent to room!'
         : media?.mediaUrl
         ? 'Photo sent to room!'
         : 'Message sent to room!',
@@ -5202,6 +5781,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         followersCount: 0,
         followingCount: 0,
         isFollowing: false,
+        isVerified: Boolean(foundPost.authorIsVerified),
       });
       setActiveView('public-profile');
       return;
@@ -5222,6 +5802,50 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveView('public-profile');
   };
 
+  const openHashtag = (rawTag: string) => {
+    const normalized = normalizeHashtag(rawTag);
+    if (!normalized) return;
+    setGlobalSearchQuery('');
+    setActiveHashtag(normalized);
+    if (activeView !== 'discover') {
+      setActiveView('discover');
+    } else if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const openCreateWithHashtag = (rawTag?: string, defaultType?: SocialPostType) => {
+    if (!requireAuth('create posts, polls, or confessions')) return;
+    const normalized = rawTag ? normalizeHashtag(rawTag) : '';
+    setDraftHashtag(normalized || null);
+    setDraftPostType(defaultType || null);
+    setDraftQuotedPost(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const toQuotedPreview = (source: SocialPost): QuotedPostPreview => ({
+    id: source.id,
+    type: source.type,
+    authorName: source.isAnonymous ? 'Anonymous Student' : source.authorName,
+    authorUsername: source.isAnonymous ? 'anon_student' : source.authorUsername,
+    authorAvatar: source.isAnonymous ? undefined : source.authorAvatar,
+    authorCampus: source.authorCampus,
+    isAnonymous: Boolean(source.isAnonymous),
+    title: source.title,
+    content: source.content,
+    mediaUrl: source.mediaUrl,
+    mediaType: source.mediaType,
+    createdAt: source.createdAt,
+  });
+
+  const openQuoteComposer = (sourcePost: SocialPost) => {
+    if (!requireAuth('quote or repost campus posts')) return;
+    setDraftHashtag(null);
+    setDraftPostType('post');
+    setDraftQuotedPost(sourcePost);
+    setIsCreateModalOpen(true);
+  };
+
   const createSocialPost = (params: {
     type: SocialPostType;
     content: string;
@@ -5231,6 +5855,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isAnonymous?: boolean;
     pollOptions?: { text: string }[];
     characterMood?: string;
+    media?: { mediaUrl: string; mediaType: 'image' | 'video' | 'gif' };
+    quotedPost?: QuotedPostPreview;
   }): SocialPost => {
     if (!requireAuth('create posts, polls, or confessions')) return socialPosts[0];
     if (!canUserWrite('create posts')) return socialPosts[0];
@@ -5259,7 +5885,20 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       pollOptions: params.pollOptions,
     });
     const defaultHashtag =
-      resolvedCategory.replace(/[^a-zA-Z0-9]/g, '') || 'CampusLife';
+      normalizeHashtag(resolvedCategory.replace(/[^a-zA-Z0-9]/g, '')) || '#CampusLife';
+    const mergedHashtags = mergePostHashtags(
+      params.hashtags || [],
+      params.title,
+      params.content
+    );
+    const finalHashtags = mergedHashtags.length > 0 ? mergedHashtags : [defaultHashtag];
+
+    const cleanBodyText = params.content.trim();
+    const encodedBodyForDb = encodeSocialPostEnvelope(cleanBodyText, {
+      mediaUrl: params.media?.mediaUrl,
+      mediaType: params.media?.mediaType,
+      quotedPostSnapshot: params.quotedPost,
+    });
 
     const tempPostId = `post_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newPost: SocialPost = {
@@ -5274,8 +5913,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isAnonymous: isAnon,
       category: resolvedCategory,
       title: params.title,
-      content: params.content.trim(),
-      hashtags: params.hashtags && params.hashtags.length > 0 ? params.hashtags : [defaultHashtag],
+      content: cleanBodyText,
+      mediaUrl: params.media?.mediaUrl,
+      mediaType: params.media?.mediaType,
+      quotedPostId: params.quotedPost?.id,
+      quotedPostSnapshot: params.quotedPost,
+      hashtags: finalHashtags,
       createdAt: 'Just now',
       createdTimestamp: Date.now(),
       likes: 0,
@@ -5321,7 +5964,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           is_anonymous: isAnon,
           category: newPost.category || 'Campus Life',
           title: newPost.title || null,
-          content: newPost.content,
+          content: encodedBodyForDb,
           hashtags: newPost.hashtags || [],
           poll_expires_in: newPost.pollExpiresIn || null,
         })
@@ -5347,13 +5990,62 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               authorCampus: newPost.authorCampus,
             });
             if (params.pollOptions && params.pollOptions.length > 0) {
-              await supabase.from('poll_options').insert(
-                params.pollOptions.map((opt, idx) => ({
-                  post_id: realPostId,
-                  text: opt.text.trim(),
-                  sort_order: idx,
-                }))
-              );
+              const { data: insertedOptions } = await supabase
+                .from('poll_options')
+                .insert(
+                  params.pollOptions.map((opt, idx) => ({
+                    post_id: realPostId,
+                    text: opt.text.trim(),
+                    sort_order: idx,
+                  }))
+                )
+                .select('id, text, votes, sort_order');
+
+              if (insertedOptions && insertedOptions.length > 0) {
+                const sortedDbOptions = [...insertedOptions]
+                  .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+                let pendingVotedRealOptionId: string | undefined;
+                const syncRealOptions = (p: SocialPost): SocialPost => {
+                  const localOpts = p.pollOptions || [];
+                  const mappedOptions = sortedDbOptions.map((dbOpt: any, idx: number) => {
+                    const localOpt = localOpts[idx];
+                    const wasLocalVoted = Boolean(localOpt && p.userVotedOptionId === localOpt.id);
+                    if (wasLocalVoted) {
+                      pendingVotedRealOptionId = dbOpt.id;
+                    }
+                    return {
+                      id: dbOpt.id,
+                      text: dbOpt.text,
+                      votes: wasLocalVoted ? Math.max(1, dbOpt.votes ?? 0) : dbOpt.votes ?? 0,
+                    };
+                  });
+                  return {
+                    ...p,
+                    pollOptions: mappedOptions,
+                    userVotedOptionId: pendingVotedRealOptionId || p.userVotedOptionId,
+                    pollTotalVotes: mappedOptions.reduce((sum, o) => sum + (o.votes || 0), 0),
+                  };
+                };
+
+                setSocialPosts((prev) =>
+                  prev.map((p) => (p.id === realPostId ? syncRealOptions(p) : p))
+                );
+                setSelectedPost((prev) =>
+                  prev && prev.id === realPostId ? syncRealOptions(prev) : prev
+                );
+
+                if (pendingVotedRealOptionId && supabase) {
+                  pendingPollVotesRef.current[realPostId] = {
+                    optionId: pendingVotedRealOptionId,
+                    ts: Date.now(),
+                  };
+                  await supabase.rpc('cast_poll_vote', {
+                    p_post_id: realPostId,
+                    p_option_id: pendingVotedRealOptionId,
+                  });
+                }
+              }
             }
             queryClient.invalidateQueries({ queryKey: ['bopoi', 'socialPosts'] });
           }
@@ -5361,18 +6053,38 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     showToast(
-      `${
-        params.type === 'confession'
-          ? 'Confession'
-          : params.type === 'poll'
-          ? 'Poll'
-          : params.type === 'discussion'
-          ? 'Discussion'
-          : 'Post'
-      } published!`,
+      params.quotedPost
+        ? params.content.trim()
+          ? 'Quote posted to campus feed!'
+          : 'Reposted to your campus feed!'
+        : `${
+            params.type === 'confession'
+              ? 'Confession'
+              : params.type === 'poll'
+              ? 'Poll'
+              : params.type === 'discussion'
+              ? 'Discussion'
+              : 'Post'
+          } published!`,
       'success'
     );
     return newPost;
+  };
+
+  const repostSocialPost = (sourcePost: SocialPost) => {
+    if (!requireAuth('repost campus posts')) return;
+    if (!canUserWrite('repost posts')) return;
+    const quotedPreview = toQuotedPreview(sourcePost);
+    incrementPostShare(sourcePost.id);
+    createSocialPost({
+      type: 'post',
+      content: '',
+      category: sourcePost.category || 'Campus Life',
+      hashtags: sourcePost.hashtags,
+      isAnonymous: false,
+      characterMood,
+      quotedPost: quotedPreview,
+    });
   };
 
   const executeDeleteSocialPost = (postId: string) => {
@@ -5423,55 +6135,59 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const reportPost = (postId: string, reason: string = 'Community guidelines violation') => {
+  const reportPost = (
+    postId: string,
+    reason: string = 'Community guidelines violation',
+    details?: string
+  ): ModerationReport => {
     const targetPost = socialPosts.find((p) => p.id === postId);
-    const label = targetPost?.type || 'post';
-    requestConfirm({
-      badge: 'Campus Safety Report',
-      title: `Report this ${label} to moderators?`,
-      description: `Are you sure you want to report this ${label} for "${reason}"? Our Campus Moderation team will review it promptly.`,
-      confirmLabel: 'Yes, Submit Report',
-      variant: 'warning',
-      icon: 'shield',
-      onConfirm: () => {
-        const newReport: ModerationReport = {
-          id: `rep_${Date.now()}`,
-          reporterUserId: user.id || undefined,
-          reporterUsername: user.username || 'student',
-          targetType: 'social_post',
-          targetId: postId,
-          reason,
-          status: 'pending',
+    const fullReason = details?.trim() ? `${reason} — ${details.trim()}` : reason;
+    const now = Date.now();
+    const reportId = `rep_${now}`;
+    const preview = targetPost
+      ? [targetPost.title, targetPost.content].filter(Boolean).join(': ').slice(0, 140)
+      : undefined;
+
+    const newReport: ModerationReport = {
+      id: reportId,
+      reporterUserId: user.id || undefined,
+      reporterUsername: user.username || 'student',
+      targetType: 'social_post',
+      targetId: postId,
+      targetPreview: preview,
+      reason: fullReason,
+      status: 'pending',
+      reporterLastReadAt: now,
+      ticketMessages: [
+        {
+          id: `rcm_init_${now}`,
+          reportId,
+          senderRole: 'reporter',
+          senderName: user.displayName || (user.username ? `@${user.username}` : 'Student'),
+          senderUsername: user.username || undefined,
+          text: fullReason,
           createdAt: 'Just now',
-          createdTimestamp: Date.now(),
-        };
-        setModerationReports((prev) => [newReport, ...prev]);
-        try {
-          const existingRaw = localStorage.getItem('bopoi_reported_posts');
-          const existing: string[] = existingRaw ? JSON.parse(existingRaw) : [];
-          if (!existing.includes(postId)) {
-            localStorage.setItem('bopoi_reported_posts', JSON.stringify([...existing, postId]));
-          }
-        } catch {
-          // ignore
-        }
-        if (supabase) {
-          supabase
-            .from('moderation_reports')
-            .insert({
-              reporter_user_id: user.id && /^[0-9a-f-]{36}$/i.test(user.id) ? user.id : null,
-              reporter_username: user.username || 'student',
-              target_type: 'social_post',
-              target_id: postId,
-              reason,
-            })
-            .then(() => {
-              syncAdminTablesFromSupabase();
-            });
-        }
-        showToast('Post reported to campus moderators for review.', 'info');
-      },
-    });
+          createdTimestamp: now,
+        },
+      ],
+      createdAt: 'Just now',
+      createdTimestamp: now,
+    };
+
+    setModerationReports((prev) => [newReport, ...prev]);
+    try {
+      const existingRaw = localStorage.getItem('bopoi_reported_posts');
+      const existing: string[] = existingRaw ? JSON.parse(existingRaw) : [];
+      if (!existing.includes(postId)) {
+        localStorage.setItem('bopoi_reported_posts', JSON.stringify([...existing, postId]));
+      }
+    } catch {
+      // ignore
+    }
+
+    persistNewReportToBackends(newReport, false);
+    showToast('Report opened! Chat with campus moderators in Settings.', 'success');
+    return newReport;
   };
 
   // ============================================================================
@@ -5654,6 +6370,21 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser((prev) => ({ ...prev, ...normalizedUpdates }));
     }
 
+    setSelectedPublicUser((prevPub) => {
+      if (!prevPub) return prevPub;
+      if (
+        prevPub.id !== targetUserId &&
+        prevPub.username.toLowerCase() !== targetUsername.toLowerCase()
+      ) {
+        return prevPub;
+      }
+      return {
+        ...prevPub,
+        ...normalizedUpdates,
+        ...(normalizedUpdates.displayName ? { name: normalizedUpdates.displayName } : {}),
+      } as any;
+    });
+
     if (supabase) {
       const fullPatch: Record<string, any> = {};
       const corePatch: Record<string, any> = {};
@@ -5762,8 +6493,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             : `Revoking Admin privileges from @${targetUsername} will return their account to a standard student role.`
           : updates.isVerified !== undefined
           ? updates.isVerified
-            ? `Awarding the Verified badge to @${targetUsername} will display the official verified checkmark next to their name across all feeds.`
-            : `Removing verification from @${targetUsername} will hide their verified badge across Bopoi.`
+            ? `Awarding the Bopoi Verified Creator badge to @${targetUsername} will display their official seal across profiles, feeds, comments, and search.`
+            : `Removing verification from @${targetUsername} will hide their Verified Creator badge across Bopoi.`
           : `Are you sure you want to ${updates.linkActive ? 'reopen' : 'pause'} @${targetUsername}'s anonymous Q&A link?`;
 
       requestConfirm({
@@ -6341,17 +7072,54 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       variant: isDestructive ? 'danger' : status === 'dismissed' ? 'warning' : 'primary',
       icon: isDestructive ? 'shield' : 'verify',
       onConfirm: () => {
+        const now = Date.now();
+        const modLabel = user.username ? `@${user.username}` : 'Campus Moderator';
+        const statusText = options?.deleteTarget
+          ? `${modLabel} resolved this ticket and removed the reported content.`
+          : status === 'resolved'
+          ? `${modLabel} marked this ticket as resolved.`
+          : `${modLabel} reviewed and dismissed this ticket.`;
+        const noteSuffix = options?.adminNotes?.trim() ? ` Note: ${options.adminNotes.trim()}` : '';
+        const sysMsg: ReportChatMessage = {
+          id: `rcm_sys_${now}`,
+          reportId,
+          senderRole: 'system',
+          senderName: 'Campus Moderation',
+          text: `${statusText}${noteSuffix}`,
+          createdAt: 'Just now',
+          createdTimestamp: now,
+        };
+
+        let resolvedReportSnapshot: ModerationReport | null = null;
         setModerationReports((prev) =>
-          prev.map((r) =>
-            r.id === reportId
-              ? {
-                  ...r,
-                  status,
-                  adminNotes: options?.adminNotes ?? r.adminNotes,
-                  resolvedAt: 'Just now',
-                }
-              : r
-          )
+          prev.map((r) => {
+            if (r.id !== reportId) return r;
+            const existingMsgs =
+              r.ticketMessages && r.ticketMessages.length > 0
+                ? r.ticketMessages
+                : [
+                    {
+                      id: `init_${r.id}`,
+                      reportId: r.id,
+                      senderRole: 'reporter' as const,
+                      senderName: r.reporterUsername ? `@${r.reporterUsername}` : 'Student',
+                      senderUsername: r.reporterUsername,
+                      text: r.reason,
+                      createdAt: r.createdAt || 'Just now',
+                      createdTimestamp: r.createdTimestamp || now - 1000,
+                    },
+                  ];
+            const nextRep: ModerationReport = {
+              ...r,
+              status,
+              adminNotes: options?.adminNotes ?? r.adminNotes,
+              resolvedAt: 'Just now',
+              moderatorLastReadAt: now,
+              ticketMessages: [...existingMsgs, sysMsg],
+            };
+            resolvedReportSnapshot = nextRep;
+            return nextRep;
+          })
         );
 
         if (options?.deleteTarget && targetReport) {
@@ -6397,13 +7165,35 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
+        const serializedNotes = resolvedReportSnapshot
+          ? serializeReportCaseEnvelope(resolvedReportSnapshot)
+          : options?.adminNotes || null;
+
+        if (typeof fetch !== 'undefined') {
+          fetch('/api/reports/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reportId,
+              status,
+              systemMessage: sysMsg,
+              adminNotes: options?.adminNotes,
+              fullReport: resolvedReportSnapshot || targetReport,
+            }),
+          })
+            .then(() => broadcastReportSync())
+            .catch(() => broadcastReportSync());
+        } else {
+          broadcastReportSync();
+        }
+
         if (supabase && /^[0-9a-f-]{36}$/i.test(reportId)) {
           supabase
             .rpc('admin_resolve_report', {
               p_report_id: reportId,
               p_status: status,
               p_delete_target: Boolean(options?.deleteTarget),
-              p_admin_notes: options?.adminNotes || null,
+              p_admin_notes: serializedNotes,
             })
             .then(() => {
               syncAdminTablesFromSupabase();
@@ -6642,9 +7432,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deviceMode,
         toasts,
         unreadCount,
+        unreadReportsCount,
         notifications: visibleNotifications,
         unreadNotificationsCount,
         markNotificationsRead,
+        theme,
+        setTheme,
+        toggleTheme,
         setActiveTab,
         setActiveView,
         goBack,
@@ -6674,6 +7468,15 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unblockSender,
         clearBlockedSenders,
         submitSupportTicket,
+        reportModalTarget,
+        openReportModal,
+        closeReportModal,
+        activeReportTicketId,
+        setActiveReportTicketId,
+        openTicketInSettings,
+        sendReportChatMessage,
+        markReportChatRead,
+        userModerationReports,
         updateProfile,
         addHiddenWord,
         removeHiddenWord,
@@ -6735,6 +7538,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedPublicUser,
         viewUserProfile,
         createSocialPost,
+        repostSocialPost,
+        openQuoteComposer,
         deleteSocialPost,
         reportPost,
         connectionStatus,
@@ -6747,6 +7552,16 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsSearchModalOpen,
         globalSearchQuery,
         setGlobalSearchQuery,
+        activeHashtag,
+        setActiveHashtag,
+        openHashtag,
+        draftHashtag,
+        setDraftHashtag,
+        draftPostType,
+        setDraftPostType,
+        draftQuotedPost,
+        setDraftQuotedPost,
+        openCreateWithHashtag,
         activeLegalDoc,
         openLegalDoc,
         highlightedCommentId,

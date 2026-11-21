@@ -1,7 +1,9 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
+    color-scheme: light;
     --primary: #5420F5;
     --primary-dark: #3510B9;
     --primary-light: #F0EBFF;
@@ -10,37 +12,116 @@
     --accent-pink: #F52D85;
     --bg-main: #FAF9FC;
     --surface: #FFFFFF;
+    --surface-muted: #F7F5FA;
     --text-primary: #191525;
     --text-secondary: #706B7D;
     --border-subtle: #EAE6F0;
   }
 
+  .dark {
+    color-scheme: dark;
+    --primary: #7C5CFF;
+    --primary-dark: #5420F5;
+    --primary-light: #231A45;
+    --accent-yellow: #FFD24A;
+    --accent-orange: #FF9F45;
+    --accent-pink: #FF4D9A;
+    --bg-main: #09070D;
+    --surface: #0E0C14;
+    --surface-muted: #171322;
+    --text-primary: #F4F2FA;
+    --text-secondary: #9E97B3;
+    --border-subtle: #262036;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
     touch-action: manipulation;
     -webkit-text-size-adjust: 100%;
     scroll-behavior: auto;
   }
 
-  /* Prevent automatic iOS / mobile zooming when tapping any input or textarea */
   input,
   textarea,
   select {
-    font-size: 16px !important;
     touch-action: manipulation;
   }
 
-  input:focus,
-  textarea:focus,
-  select:focus {
-    font-size: 16px !important;
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid rgba(124, 92, 255, 0.45);
+    outline-offset: 2px;
   }
 }
 
+/* Night Campus dark surface coherence across shared views & dialogs (excluding Story Card preview canvases) */
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-white {
+  background-color: #0E0C14;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-white\/95 {
+  background-color: rgba(14, 12, 20, 0.92);
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#FAF9FC\] {
+  background-color: #171322;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#FAF9FC\]\/60,
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#FAF9FC\]\/70,
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#FAF9FC\]\/40 {
+  background-color: rgba(23, 19, 34, 0.72);
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#FAF8FF\] {
+  background-color: #18132B;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#F7F4FF\],
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#F7F4FF\]\/70 {
+  background-color: rgba(35, 26, 69, 0.55);
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).bg-\[\#F0EBFF\] {
+  background-color: #231A45;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).border-\[\#EAE6F0\],
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).divide-\[\#EAE6F0\] > :not(:last-child) {
+  border-color: #262036;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).text-\[\#191525\] {
+  color: #F4F2FA;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).text-\[\#706B7D\] {
+  color: #9E97B3;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).hover\:bg-\[\#FAF9FC\]:hover,
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).hover\:bg-\[\#FAF9FC\]\/70:hover {
+  background-color: #1C1729;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).hover\:bg-\[\#F0EBFF\]:hover {
+  background-color: #2A1F54;
+}
+
+.dark :not([data-story-card-canvas]):not([data-story-card-canvas] *).hover\:text-\[\#191525\]:hover {
+  color: #FFFFFF;
+}
+
+/* Prevent automatic iOS / mobile zooming when tapping any input or textarea */
 @media screen and (max-width: 768px) {
   input,
   textarea,
-  select {
+  select,
+  input:focus,
+  textarea:focus,
+  select:focus {
     font-size: 16px !important;
   }
 }
@@ -57,4 +138,54 @@
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+@keyframes bopoi-heart-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.26);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bopoi-double-tap-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.16);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  75% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+
+.animate-heart-pop {
+  animation: bopoi-heart-pop 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-double-tap-heart {
+  animation: bopoi-double-tap-burst 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-heart-pop,
+  .animate-double-tap-heart {
+    animation: none;
+  }
 }

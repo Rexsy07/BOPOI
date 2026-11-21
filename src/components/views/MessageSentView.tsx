@@ -7,6 +7,7 @@ import { CommentsThreadModal } from '../comments/CommentsThreadModal.tsx';
 import { BopoiInteractiveMascot } from '../brand/BopoiInteractiveMascot.tsx';
 import { ReadStatusBadge } from '../ui/ReadStatusBadge.tsx';
 import { ReceiveMessagesIcon, SafetyShieldBadgeIcon } from '../brand/icons/index.ts';
+import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 
 export const MessageSentView: React.FC = () => {
   const {
@@ -56,7 +57,7 @@ export const MessageSentView: React.FC = () => {
           <BopoiInteractiveMascot
             size="lg"
             mood="happy"
-            speechBubbleText="Delivered secretly! 💜"
+            speechBubbleText="Delivered secretly!"
           />
         </div>
 
@@ -66,7 +67,15 @@ export const MessageSentView: React.FC = () => {
             <ReceiveMessagesIcon size={28} />
           </h1>
           <p className="text-sm text-[#706B7D] mt-1.5 leading-relaxed">
-            <span className="font-bold text-[#191525]">{recipientDisplayName}</span> (@{recipientUsername}) will see your anonymous message in their inbox.
+            <span className="font-bold text-[#191525] inline-flex items-center gap-1 align-middle">
+              <span>{recipientDisplayName}</span>
+              <VerifiedCreatorBadge
+                isVerified={'isVerified' in recipient ? Boolean(recipient.isVerified) : false}
+                username={recipientUsername}
+                size={14}
+              />
+            </span>{' '}
+            (@{recipientUsername}) will see your anonymous message in their inbox.
           </p>
         </div>
 

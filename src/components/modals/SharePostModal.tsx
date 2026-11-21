@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Copy,
@@ -6,12 +6,12 @@ import {
   Share2,
   ExternalLink,
   MessageCircle,
-  Sparkles,
   Link2,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
+import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 import {
   WhatsAppChannelIcon,
   XTwitterIcon,
@@ -32,6 +32,18 @@ export const SharePostModal: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (!sharingPost) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSharingPost(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sharingPost, setSharingPost]);
+
   if (!sharingPost) return null;
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bopoi.com';
@@ -50,7 +62,7 @@ export const SharePostModal: React.FC = () => {
     ? `${sharingPost.title} — ${sharingPost.content.slice(0, 90)}${sharingPost.content.length > 90 ? '...' : ''}`
     : `${sharingPost.content.slice(0, 110)}${sharingPost.content.length > 110 ? '...' : ''}`;
 
-  const shareText = `🔥 Check out this ${postTypeLabel} on Bopoi:\n"${shareHeadline}"\n\nRead & reply here:`;
+  const shareText = `Check out this ${postTypeLabel} on Bopoi:\n"${shareHeadline}"\n\nRead & reply here:`;
 
   const handleCopyLink = async () => {
     try {
@@ -103,21 +115,21 @@ export const SharePostModal: React.FC = () => {
     {
       id: 'whatsapp',
       name: 'WhatsApp',
-      bg: 'bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] border-[#25D366]/30',
+      bg: 'bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] dark:text-[#4ADE80] border-[#25D366]/30',
       icon: <WhatsAppChannelIcon size={28} />,
       href: `https://wa.me/?text=${encodedTextAndUrl}`,
     },
     {
       id: 'x',
       name: 'X (Twitter)',
-      bg: 'bg-slate-900/5 hover:bg-slate-900/15 text-slate-900 border-slate-300',
+      bg: 'bg-slate-900/5 dark:bg-white/10 hover:bg-slate-900/15 dark:hover:bg-white/15 text-slate-900 dark:text-[#F4F2FA] border-slate-300 dark:border-[#262036]',
       icon: <XTwitterIcon size={28} />,
       href: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`,
     },
     {
       id: 'telegram',
       name: 'Telegram',
-      bg: 'bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] border-[#0088cc]/30',
+      bg: 'bg-[#0088cc]/10 hover:bg-[#0088cc]/20 text-[#0088cc] dark:text-[#38BDF8] border-[#0088cc]/30',
       icon: <TelegramChannelIcon size={28} />,
       href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
     },
@@ -148,15 +160,15 @@ export const SharePostModal: React.FC = () => {
 
           <button
             onClick={() => setSharingPost(null)}
-            className="p-1.5 rounded-full hover:bg-slate-200/70 text-slate-500 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-slate-200/70 dark:hover:bg-[#171322] text-slate-500 dark:text-[#9E97B3] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Post Preview Card with 3D Campus Character or Anonymous Avatar */}
-          <div className="bg-gradient-to-br from-[#FAF9FC] to-[#F0EBFF]/40 rounded-2xl p-4 border border-[#EAE6F0] space-y-2.5">
+          {/* Post Preview Card */}
+          <div className="bg-[#FAF9FC] rounded-2xl p-4 border border-[#EAE6F0] space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 {sharingPost.isAnonymous ? (
@@ -170,16 +182,24 @@ export const SharePostModal: React.FC = () => {
                   />
                 )}
                 <div className="min-w-0">
-                  <span className="text-xs font-extrabold text-[#191525] block truncate">
-                    {sharingPost.isAnonymous ? 'Anonymous Student' : sharingPost.authorName}
+                  <span className="text-xs font-extrabold text-[#191525] inline-flex items-center gap-1 truncate max-w-full">
+                    <span className="truncate">
+                      {sharingPost.isAnonymous ? 'Anonymous Student' : sharingPost.authorName}
+                    </span>
+                    <VerifiedCreatorBadge
+                      isVerified={sharingPost.authorIsVerified}
+                      username={sharingPost.authorUsername}
+                      isAnonymous={sharingPost.isAnonymous}
+                      size={13}
+                    />
                   </span>
                   <span className="text-[10px] text-[#706B7D] block truncate">
-                    {sharingPost.authorCampus || 'Campus Feed'} • {sharingPost.createdAt}
+                    {sharingPost.authorCampus || 'Campus Feed'} · {sharingPost.createdAt}
                   </span>
                 </div>
               </div>
 
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#F0EBFF] text-[#5420F5] shrink-0">
+              <span className="text-[11px] font-bold capitalize text-[#5420F5] shrink-0">
                 {sharingPost.category || sharingPost.type}
               </span>
             </div>
@@ -190,16 +210,17 @@ export const SharePostModal: React.FC = () => {
               </h4>
             )}
 
-            <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-[#706B7D] line-clamp-2 leading-relaxed">
               {sharingPost.content}
             </p>
 
-            <div className="pt-1 flex items-center justify-between text-[11px] text-[#706B7D]">
+            <div className="pt-1 flex items-center justify-between text-[11px] text-[#706B7D] tabular-nums">
               <span className="flex items-center gap-1 font-semibold">
                 <MessageCircle className="w-3 h-3 text-[#5420F5]" />
-                {sharingPost.commentsCount} comments • {sharingPost.likes} likes
+                {sharingPost.commentsCount} comments · {sharingPost.likes} likes
               </span>
               <button
+                type="button"
                 onClick={handleOpenPostDirectly}
                 className="text-[#5420F5] font-bold hover:underline flex items-center gap-1 cursor-pointer"
               >
@@ -211,7 +232,7 @@ export const SharePostModal: React.FC = () => {
 
           {/* Direct Shareable Link Box */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#706B7D] flex items-center gap-1">
+            <label className="text-xs font-extrabold text-[#191525] flex items-center gap-1">
               <Link2 className="w-3.5 h-3.5 text-[#5420F5]" />
               <span>Direct Post Link</span>
             </label>
@@ -221,11 +242,12 @@ export const SharePostModal: React.FC = () => {
                 readOnly
                 value={shareUrl}
                 onClick={(e) => (e.target as HTMLInputElement).select()}
-                className="w-full bg-transparent text-xs font-mono text-slate-700 focus:outline-none truncate"
+                className="w-full bg-transparent text-xs font-mono text-slate-700 dark:text-[#D5D0E6] focus:outline-none truncate"
               />
               <button
+                type="button"
                 onClick={handleCopyLink}
-                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-2xs ${
+                className={`px-3.5 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   copied
                     ? 'bg-emerald-600 text-white'
                     : 'bg-[#5420F5] hover:bg-[#4314E2] text-white'
@@ -239,7 +261,7 @@ export const SharePostModal: React.FC = () => {
 
           {/* Quick Share Platforms (iframe-safe anchor links) */}
           <div className="space-y-2">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#706B7D] block">
+            <span className="text-xs font-extrabold text-[#191525] block">
               Share directly to
             </span>
             <div className="grid grid-cols-3 gap-2.5">
@@ -266,10 +288,11 @@ export const SharePostModal: React.FC = () => {
 
           {/* Native Share Sheet / Copy Caption Button */}
           <button
+            type="button"
             onClick={handleNativeShare}
-            className="w-full py-3 rounded-2xl bg-[#191525] hover:bg-slate-800 text-white text-xs font-black flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
+            className="w-full py-3 rounded-2xl bg-[#191525] dark:bg-[#5420F5] hover:bg-[#2A253B] dark:hover:bg-[#4314E2] text-white text-xs font-black flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-[#FFC928]" />
+            <Share2 className="w-4 h-4 text-[#FFC928]" />
             <span>More Share Options / Copy Caption</span>
           </button>
         </div>

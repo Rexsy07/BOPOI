@@ -28,6 +28,8 @@ export interface MessageComment {
   authorAvatar?: string;
   isAnonymous: boolean;
   text: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'gif';
   createdAt: string;
   createdTimestamp: number;
   likes?: number;
@@ -71,7 +73,7 @@ export interface SafetySettings {
   allowPublicSharing: boolean;
 }
 
-export type InboxFilter = 'all' | 'unread' | 'answered' | 'sent';
+export type InboxFilter = 'all' | 'unread' | 'answered' | 'sent' | 'reports';
 
 // Social Post Models
 export type SocialPostType = 'post' | 'confession' | 'poll' | 'discussion';
@@ -91,6 +93,8 @@ export interface SocialComment {
   authorCampus?: string;
   isAnonymous?: boolean;
   text: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'gif';
   createdAt: string;
   createdTimestamp: number;
   likes: number;
@@ -98,6 +102,21 @@ export interface SocialComment {
   parentId?: string;
   replyToAuthor?: string;
   replyToUsername?: string;
+}
+
+export interface QuotedPostPreview {
+  id: string;
+  type: SocialPostType;
+  authorName: string;
+  authorUsername: string;
+  authorAvatar?: string;
+  authorCampus?: string;
+  isAnonymous: boolean;
+  title?: string;
+  content: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'gif';
+  createdAt: string;
 }
 
 export interface SocialPost {
@@ -113,6 +132,11 @@ export interface SocialPost {
   category?: string; // 'Love' | 'School' | 'Life' | 'Fun' | 'Relationships' | 'Tech' | 'Campus Life'
   title?: string;
   content: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'gif';
+  quotedPostId?: string;
+  quotedPostSnapshot?: QuotedPostPreview;
+  repostsCount?: number;
   hashtags?: string[];
   createdAt: string;
   createdTimestamp: number;
@@ -178,7 +202,7 @@ export interface RoomMessage {
   isAnonymous?: boolean;
   text: string;
   mediaUrl?: string;
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'gif';
   createdAt: string;
   createdTimestamp: number;
   likes: number;
@@ -190,6 +214,16 @@ export interface RoomMessage {
     authorName: string;
     text: string;
   };
+}
+
+export interface KlipyGifItem {
+  id: string;
+  title: string;
+  previewUrl: string;
+  url: string;
+  mp4Url?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface CreatorProfile {
@@ -206,15 +240,30 @@ export interface CreatorProfile {
   isAdmin?: boolean;
 }
 
+export interface ReportChatMessage {
+  id: string;
+  reportId: string;
+  senderRole: 'reporter' | 'moderator' | 'system';
+  senderName: string;
+  senderUsername?: string;
+  text: string;
+  createdAt: string;
+  createdTimestamp: number;
+}
+
 export interface ModerationReport {
   id: string;
   reporterUserId?: string;
   reporterUsername?: string;
   targetType: 'social_post' | 'post_comment' | 'room_message' | 'anonymous_message' | 'user_profile' | 'support_ticket' | string;
   targetId: string;
+  targetPreview?: string;
   reason: string;
   status: 'pending' | 'resolved' | 'dismissed';
   adminNotes?: string;
+  ticketMessages?: ReportChatMessage[];
+  reporterLastReadAt?: number;
+  moderatorLastReadAt?: number;
   createdAt: string;
   createdTimestamp: number;
   resolvedAt?: string;
@@ -279,6 +328,9 @@ export interface AppNotification {
     | 'room_message_reply'
     | 'room_message_liked'
     | 'room_message_reaction'
+    | 'report_reply'
+    | 'report_status_updated'
+    | 'new_report_opened'
     | 'welcome_notification'
     | 'system_alert';
   title: string;

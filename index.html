@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('bopoi_theme');
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
       window.addEventListener(
         'unhandledrejection',
         function (event) {
@@ -35,7 +45,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#FAF9FC] text-[#191525] antialiased selection:bg-[#5420F5] selection:text-white">
+  <body class="bg-[#FAF9FC] dark:bg-[#09070D] text-[#191525] dark:text-[#F4F2FA] antialiased selection:bg-[#5420F5] selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

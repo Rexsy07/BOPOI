@@ -11,7 +11,6 @@ import {
   ShareCardsIcon,
   CreateRoomIcon,
   InboxShortcutIcon,
-  HomeFeedNavIcon,
   CreateConfessionIcon,
   CreatePollIcon,
   CreateDiscussionIcon,
@@ -23,8 +22,8 @@ import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 
 const PROMPT_SUGGESTIONS = [
   "There's something you've been wanting to ask...",
-  'Send me an anonymous confession or honest opinion 👀',
-  'Tell me something you would never say to my face 💬',
+  'Send me an anonymous confession or honest opinion',
+  'Tell me something you would never say to my face',
 ];
 
 export const OnboardingView: React.FC = () => {
@@ -149,15 +148,13 @@ export const OnboardingView: React.FC = () => {
           <div className="space-y-5">
             <div className="text-center space-y-3">
               <div className="flex flex-col items-center">
-                <div className="relative p-1 rounded-full bg-gradient-to-tr from-[#FFC928] via-[#F52D85] to-[#5420F5] shadow-lg">
-                  <CampusCharacterAvatar
-                    value={user.avatarUrl}
-                    seed={displayUsername}
-                    size={76}
-                    rounded="full"
-                    className="border-2 border-white"
-                  />
-                </div>
+                <CampusCharacterAvatar
+                  value={user.avatarUrl}
+                  seed={displayUsername}
+                  size={76}
+                  rounded="full"
+                  className="ring-2 ring-[#EAE6F0]"
+                />
                 <span className="text-sm font-bold text-[#5420F5] mt-2">
                   @{displayUsername}
                 </span>
@@ -293,8 +290,8 @@ export const OnboardingView: React.FC = () => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-black text-white">Midnight Owl</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-[#FFC928]">
-                      Room Mask
+                    <span className="text-[11px] font-semibold text-[#FFC928]">
+                      · Room Mask
                     </span>
                   </div>
                   <p className="text-[11px] text-white/75 mt-0.5 leading-snug">
@@ -379,7 +376,7 @@ export const OnboardingView: React.FC = () => {
                 Post Publicly or Anonymously
               </h1>
               <p className="text-xs sm:text-sm text-[#706B7D]">
-                Tap the purple <strong>+</strong> button on the bottom bar anytime to share confessions, polls, discussions, or campus updates.
+                Tap the <strong>+</strong> button on the bottom bar anytime to share confessions, polls, discussions, or campus updates.
               </p>
             </div>
 
@@ -460,11 +457,8 @@ export const OnboardingView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFinish('home')}
-                className="w-full py-4 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-[#5420F5]/20 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-2xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center shrink-0">
-                  <HomeFeedNavIcon size={16} />
-                </span>
                 <span>Enter Campus Feed</span>
               </button>
 

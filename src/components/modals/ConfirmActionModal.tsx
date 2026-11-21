@@ -21,6 +21,7 @@ import {
   SparklePolishIcon,
   RealPeopleIcon,
   LaunchTrendingIcon,
+  VerifiedCreatorBadgeIcon,
 } from '../brand/icons/index.ts';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 
@@ -47,7 +48,7 @@ const renderHeaderBrandIcon = (dialog: ConfirmDialogState) => {
     case 'sparkle':
       return <SparklePolishIcon size={28} />;
     case 'verify':
-      return <CheckCircle2 className="w-5 h-5 text-[#5420F5]" />;
+      return <VerifiedCreatorBadgeIcon size={28} />;
     default:
       if (dialog.variant === 'danger') {
         return <DeleteRemoveIcon size={28} />;
@@ -90,33 +91,33 @@ export const ConfirmActionModal: React.FC = () => {
   return createPortal(
     <div
       onClick={closeConfirmDialog}
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 select-none"
+      className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 select-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="bopoi-confirm-title"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200"
       >
         {/* Structured Platform Header (Matches CreateRoomModal & RequiredCustomPersonaModal) */}
         <div
           className={`p-4 sm:p-5 border-b border-[#EAE6F0] flex items-start justify-between gap-3 shrink-0 ${
             isDanger
-              ? 'bg-gradient-to-r from-rose-50/70 via-[#FAF9FC] to-white'
+              ? 'bg-gradient-to-r from-rose-50/70 via-[#FAF9FC] to-white dark:from-rose-950/35 dark:via-[#141020] dark:to-[#0E0C14]'
               : isWarning
-              ? 'bg-gradient-to-r from-amber-50/70 via-[#FAF9FC] to-white'
-              : 'bg-gradient-to-r from-[#FAF9FC] via-[#F0EBFF]/35 to-white'
+              ? 'bg-gradient-to-r from-amber-50/70 via-[#FAF9FC] to-white dark:from-amber-950/30 dark:via-[#141020] dark:to-[#0E0C14]'
+              : 'bg-gradient-to-r from-[#FAF9FC] via-[#F0EBFF]/35 to-white dark:from-[#171322] dark:via-[#231A45]/45 dark:to-[#0E0C14]'
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`w-11 h-11 rounded-2xl bg-white flex items-center justify-center p-1.5 shadow-2xs shrink-0 border ${
                 isDanger
-                  ? 'border-rose-200/90'
+                  ? 'border-rose-200/90 dark:border-rose-900/60'
                   : isWarning
-                  ? 'border-amber-200/90'
-                  : 'border-[#5420F5]/25'
+                  ? 'border-amber-200/90 dark:border-amber-900/60'
+                  : 'border-[#5420F5]/25 dark:border-[#7C5CFF]/35'
               }`}
             >
               {renderHeaderBrandIcon(confirmDialog)}
@@ -128,10 +129,10 @@ export const ConfirmActionModal: React.FC = () => {
                   <span
                     className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                       isDanger
-                        ? 'bg-rose-100 text-rose-700'
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
                         : isWarning
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-[#F0EBFF] text-[#5420F5]'
+                        ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
+                        : 'bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA]'
                     }`}
                   >
                     {confirmDialog.badge}
@@ -154,7 +155,7 @@ export const ConfirmActionModal: React.FC = () => {
           <button
             type="button"
             onClick={closeConfirmDialog}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-black transition-colors cursor-pointer shrink-0"
+            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer shrink-0"
             aria-label="Cancel"
             title="Close"
           >
@@ -188,11 +189,11 @@ export const ConfirmActionModal: React.FC = () => {
                     </span>
 
                     {roomPreview.isJoined ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60">
                         Joined
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F0EBFF] text-[#5420F5]">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA]">
                         Open to All
                       </span>
                     )}
@@ -204,7 +205,7 @@ export const ConfirmActionModal: React.FC = () => {
                     </p>
                   )}
 
-                  <div className="flex items-center gap-2 mt-2 text-[11px] font-bold text-slate-500">
+                  <div className="flex items-center gap-2 mt-2 text-[11px] font-bold text-slate-500 dark:text-[#9E97B3]">
                     <span className="flex items-center gap-1 text-[#191525]">
                       <Users2 className="w-3.5 h-3.5 text-[#5420F5]" />
                       <span>
@@ -212,10 +213,9 @@ export const ConfirmActionModal: React.FC = () => {
                         {roomPreview.membersCount === 1 ? 'member' : 'members'}
                       </span>
                     </span>
-                    <span className="text-slate-300">·</span>
-                    <span className="text-emerald-600 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>{roomPreview.onlineCount} online</span>
+                    <span className="text-slate-300 dark:text-[#3A3154]">·</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
+                      {roomPreview.onlineCount} online
                     </span>
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export const ConfirmActionModal: React.FC = () => {
 
               {/* Anonymous Persona Assurance Banner or Leave/Delete Notice */}
               {isRoomJoinAction ? (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] via-purple-50 to-white border border-[#5420F5]/20 flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] via-purple-50 to-white dark:from-[#231A45] dark:via-[#171322] dark:to-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-white border border-[#5420F5]/20 flex items-center justify-center p-1 shrink-0 shadow-2xs">
                     <PersonaMaskIcon mask="masked-student" />
                   </div>
@@ -241,8 +241,8 @@ export const ConfirmActionModal: React.FC = () => {
                 <div
                   className={`p-3.5 rounded-2xl border ${
                     isDanger
-                      ? 'bg-rose-50/60 border-rose-200/80'
-                      : 'bg-amber-50/60 border-amber-200/80'
+                      ? 'bg-rose-50/60 dark:bg-rose-950/35 border-rose-200/80 dark:border-rose-900/60'
+                      : 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-900/60'
                   }`}
                 >
                   <p className="text-xs text-[#191525] font-medium leading-relaxed">
@@ -256,10 +256,10 @@ export const ConfirmActionModal: React.FC = () => {
             <div
               className={`p-3.5 rounded-2xl border space-y-2 ${
                 isDanger
-                  ? 'bg-rose-50/50 border-rose-200/80'
+                  ? 'bg-rose-50/50 dark:bg-rose-950/35 border-rose-200/80 dark:border-rose-900/60'
                   : isWarning
-                  ? 'bg-amber-50/50 border-amber-200/80'
-                  : 'bg-gradient-to-r from-[#F0EBFF]/60 via-[#FAF9FC] to-white border-[#5420F5]/20'
+                  ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-900/60'
+                  : 'bg-gradient-to-r from-[#F0EBFF]/60 via-[#FAF9FC] to-white dark:from-[#231A45]/70 dark:via-[#171322] dark:to-[#0E0C14] border-[#5420F5]/20 dark:border-[#7C5CFF]/30'
               }`}
             >
               <p className="text-xs sm:text-sm text-[#191525] font-semibold leading-relaxed break-words">
@@ -290,7 +290,7 @@ export const ConfirmActionModal: React.FC = () => {
           <button
             type="button"
             onClick={closeConfirmDialog}
-            className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer active:scale-95"
+            className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 dark:hover:bg-[#171322] text-xs font-bold text-slate-700 dark:text-[#D5D0E6] transition-colors cursor-pointer active:scale-95"
           >
             {confirmDialog.cancelLabel || 'Cancel'}
           </button>

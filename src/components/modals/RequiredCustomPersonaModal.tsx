@@ -86,10 +86,10 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
   const isValid = aliasInput.trim().length >= 2 && aliasInput.trim().length <= 25;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[92dvh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#EAE6F0] bg-gradient-to-r from-[#FAF9FC] to-white flex items-center justify-between shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[#EAE6F0] bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-white border border-[#5420F5]/25 flex items-center justify-center p-1.5 shadow-xs shrink-0">
               <PersonaMaskIcon mask={selectedMask.id} size={32} />
@@ -99,7 +99,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
                 <h3 className="text-base sm:text-lg font-black text-[#191525]">
                   All 10 Aliases Taken!
                 </h3>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">
                   Required
                 </span>
               </div>
@@ -112,7 +112,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
           <button
             type="button"
             onClick={onCancel}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-black transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
             title="Leave room"
           >
             <X className="w-5 h-5" />
@@ -122,7 +122,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {/* Explanation Alert */}
-          <div className="p-3.5 rounded-2xl bg-purple-50 border border-[#5420F5]/25 text-[#191525] text-xs flex items-start gap-2.5">
+          <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-[#231A45] border border-[#5420F5]/25 text-[#191525] text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-[#5420F5] shrink-0 mt-0.5" />
             <p className="leading-relaxed font-medium">
               The 10 default anonymous aliases in this room have already been assigned to earlier members. Unlimited students can join—simply choose any mask below and enter your own custom alias to participate!
@@ -134,7 +134,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
             <label className="text-xs font-black text-[#191525] block">
               1. Choose Your Mask Icon
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-100 rounded-2xl bg-[#FAF9FC]">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-100 dark:border-[#262036] rounded-2xl bg-[#FAF9FC]">
               {ROOM_PRESET_ALIASES.map((persona) => {
                 const isSelected = selectedMask.id === persona.id;
                 return (
@@ -148,7 +148,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
                     className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
                       isSelected
                         ? 'border-[#5420F5] bg-white ring-2 ring-[#5420F5]/30 shadow-xs'
-                        : 'border-[#EAE6F0] bg-white hover:bg-slate-50'
+                        : 'border-[#EAE6F0] bg-white hover:bg-slate-50 dark:hover:bg-[#201A32]'
                     }`}
                   >
                     <div className="w-8 h-8 rounded-xl bg-[#FAF9FC] border border-[#5420F5]/20 flex items-center justify-center p-0.5 shrink-0">
@@ -195,13 +195,13 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
                 placeholder="e.g. MidnightSpecter, VelvetBrain..."
                 maxLength={25}
                 autoFocus
-                className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-xs font-bold text-[#191525] placeholder:text-slate-400 focus:outline-none ${
+                className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-base sm:text-xs font-bold text-[#191525] placeholder:text-slate-400 focus:outline-none ${
                   errorMsg
-                    ? 'border-rose-400 focus:border-rose-500 ring-2 ring-rose-100'
+                    ? 'border-rose-400 focus:border-rose-500 ring-2 ring-rose-100 dark:ring-rose-900/40'
                     : 'border-[#EAE6F0] focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/20'
                 }`}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-slate-400 dark:text-[#7D7594]">
                 {aliasInput.trim().length}/25
               </span>
             </div>
@@ -215,7 +215,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
           </div>
 
           {/* 3. Live Persona Card Preview */}
-          <div className="p-3 rounded-2xl bg-[#F0EBFF]/60 border border-[#5420F5]/25 flex items-center gap-3">
+          <div className="p-3 rounded-2xl bg-[#F0EBFF]/60 dark:bg-[#231A45]/75 border border-[#5420F5]/25 flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white border border-[#5420F5]/30 flex items-center justify-center p-1 shrink-0 shadow-2xs">
               <PersonaMaskIcon mask={selectedMask.id} size={28} />
             </div>
@@ -228,18 +228,18 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
                   Custom Persona
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">
+              <p className="text-[10px] text-slate-500 dark:text-[#9E97B3] mt-0.5">
                 Saved for this room across visits until room is deleted
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100">
+          <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-[#262036]">
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-[#262036] hover:bg-slate-50 dark:hover:bg-[#171322] text-slate-600 dark:text-[#D5D0E6] text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Leave Room</span>

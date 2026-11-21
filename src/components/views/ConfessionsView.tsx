@@ -1,239 +1,158 @@
 import React, { useState, useMemo } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
-import { SocialPost } from '../../types/index.ts';
-import {
-  ChevronLeft,
-  Heart,
-  MessageCircle,
-  Share2,
-  Bell,
-  Plus,
-} from 'lucide-react';
-import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
-import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
-import { CreateConfessionIcon, StoryStudioNavIcon } from '../brand/icons/index.ts';
+import { computePostTrendingVelocityScore } from '../../lib/supabase.ts';
+import { ChevronLeft, Plus } from 'lucide-react';
+import { CreateConfessionIcon } from '../brand/icons/index.ts';
+import { FeedPostRow } from '../feed/FeedPostRow.tsx';
 
 export const ConfessionsView: React.FC = () => {
-  const {
-    socialPosts,
-    togglePostLike,
-    setSelectedPost,
-    setActiveView,
-    goBack,
-    setIsCreateModalOpen,
-    viewUserProfile,
-    openPostShare,
-    reportPost,
-  } = useBopoi();
+  const { socialPosts, accounts, goBack, openCreateWithHashtag } = useBopoi();
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [sortOrder, setSortOrder] = useState<'latest' | 'top'>('latest');
+
+  const verifiedUsernameSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const u of accounts || []) {
+      if (u.isVerified || u.isCreator) set.add(u.username.toLowerCase());
+    }
+    return set;
+  }, [accounts]);
 
   const filteredConfessions = useMemo(() => {
     const confessions = socialPosts.filter((p) => p.type === 'confession');
     const list =
       activeCategory === 'All'
-        ? confessions
+        ? [...confessions]
         : confessions.filter((p) => p.category?.toLowerCase() === activeCategory.toLowerCase());
+    const now = Date.now();
+    if (sortOrder === 'top') {
+      list.sort(
+        (a, b) =>
+          computePostTrendingVelocityScore(b, now) - computePostTrendingVelocityScore(a, now)
+      );
+    } else {
+      list.sort((a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0));
+    }
     return list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [socialPosts, activeCategory]);
-
-  const handleCardClick = (post: SocialPost) => {
-    setSelectedPost(post);
-    setActiveView('post-detail');
-  };
-
-  const handleShare = (e: React.MouseEvent, post: SocialPost) => {
-    e.stopPropagation();
-    openPostShare(post);
-  };
+  }, [socialPosts, activeCategory, sortOrder]);
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-4 pb-24 space-y-4 text-[#191525]">
-      {/* 1. Header (Screen 2 in Mockup) */}
-      <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0]">
-        <button
-          onClick={() => goBack('home')}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer flex items-center"
-          title="Go back"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-
-        <div className="flex items-center gap-2">
-          <CreateConfessionIcon size={24} />
-          <h1 className="text-base sm:text-lg font-black text-[#191525] tracking-tight">
-            Confessions
-          </h1>
-        </div>
-
-        <button
-          onClick={() => setActiveView('answer-studio')}
-          className="p-1.5 -mr-1.5 rounded-xl hover:bg-purple-50 transition-colors cursor-pointer flex items-center justify-center"
-          title="Export to Instagram / WhatsApp Stories"
-        >
-          <StoryStudioNavIcon size={22} />
-        </button>
-      </div>
-
-      {/* 2. Top Banner (Crisp White Badge with Custom Confession Shield) */}
-      <div className="bg-gradient-to-r from-[#F0EBFF] via-purple-50 to-white border border-[#5420F5]/25 rounded-3xl p-4 flex items-center gap-3.5 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-white border border-[#5420F5]/20 flex items-center justify-center shrink-0 shadow-xs">
-          <CreateConfessionIcon size={36} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-xs font-black text-[#191525]">Real stories. Honest thoughts.</h4>
-          <p className="text-[11px] text-[#706B7D] leading-relaxed mt-0.5">
-            Confessions are public and anonymous. Be kind, be respectful. 💜
-          </p>
-        </div>
-      </div>
-
-      {/* 3. Filter Chips: All, Love, School, Life, Fun */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-        {['All', 'Love', 'School', 'Life', 'Fun'].map((cat) => {
-          const isActive = activeCategory === cat;
-          return (
+    <div className="w-full flex flex-col bg-white text-[#191525] pb-12">
+      {/* 1. Sticky Hairline Header */}
+      <div className="sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036]">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
+          <div className="flex items-center gap-2 min-w-0">
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                isActive
-                  ? 'bg-[#5420F5] text-white shadow-md shadow-[#5420F5]/25 ring-1 ring-[#5420F5]'
-                  : 'bg-white border border-[#EAE6F0] text-slate-600 hover:text-black hover:bg-slate-50'
-              }`}
+              type="button"
+              onClick={() => goBack('home')}
+              className="min-w-[44px] min-h-[44px] sm:min-w-[40px] sm:min-h-[40px] -ml-2 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              title="Go back"
+              aria-label="Go back"
             >
-              {cat}
+              <ChevronLeft className="w-5 h-5" />
             </button>
-          );
-        })}
+            <CreateConfessionIcon size={20} />
+            <h1 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight truncate">
+              Confessions
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openCreateWithHashtag(undefined, 'confession')}
+            className="min-h-[38px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
+            <span>Confess</span>
+          </button>
+        </div>
       </div>
 
-      {/* 4. Stream of Confession Cards */}
-      <div className="space-y-3 pt-1">
-        {filteredConfessions.map((post) => (
-          <div
-            key={post.id}
-            onClick={() => handleCardClick(post)}
-            className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EAE6F0] shadow-xs hover:border-[#5420F5]/30 hover:shadow-md transition-all cursor-pointer space-y-3"
-          >
-            {/* Author info */}
-            <div className="flex items-center justify-between">
-              <div
-                className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  viewUserProfile(post.authorUsername, true, post.authorCampus);
-                }}
-                title="View Anonymous Student Profile"
-              >
-                <BopoiAnonymousAvatar size="sm" idPrefix={`conf-${post.id}`} />
-                <div>
-                  <span className="text-xs font-black text-[#191525] inline-flex items-center gap-1 hover:underline">
-                    <span>Anonymous Student</span>
-                    <PersonaMaskIcon mask="masked-student" size={14} />
-                  </span>
-                  <span className="text-[10px] text-[#706B7D] block">
-                    {post.createdAt} {post.authorCampus && `• ${post.authorCampus}`}
-                  </span>
-                </div>
-              </div>
-
-              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-[#F0EBFF] text-[#5420F5]">
-                Confession
-              </span>
-            </div>
-
-            {/* Confession body text */}
-            <p className="text-xs sm:text-sm text-[#191525] font-medium leading-relaxed">
-              {post.content}
-            </p>
-
-            {/* Actions Toolbar */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-slate-500 text-xs">
-              {/* Like */}
+      {/* 2. Category Filter & Sort Strip */}
+      <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-2.5 border-b border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {['All', 'Love', 'School', 'Life', 'Fun'].map((cat) => {
+            const isActive = activeCategory === cat;
+            return (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePostLike(post.id);
-                }}
-                className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-pink-50 ${
-                  post.hasLiked ? 'text-[#F52D85] font-bold' : 'hover:text-[#F52D85]'
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                    : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${post.hasLiked ? 'fill-[#F52D85]' : ''}`} />
-                <span>{post.likes}</span>
+                {cat}
               </button>
+            );
+          })}
+        </div>
 
-              {/* Comments */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCardClick(post);
-                }}
-                className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>{post.commentsCount}</span>
-              </button>
-
-              {/* Share */}
-              <button
-                onClick={(e) => handleShare(e, post)}
-                className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-                title="Share confession off-campus"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>{post.sharesCount || 0}</span>
-              </button>
-
-              {/* Report / Bell */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  reportPost(post.id, 'Reported confession');
-                }}
-                className="flex items-center gap-1.5 hover:text-red-500 transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-red-50"
-                title="Report confession"
-              >
-                <Bell className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {filteredConfessions.length === 0 && (
-          <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center space-y-3 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[#F0EBFF] flex items-center justify-center mx-auto">
-              <CreateConfessionIcon size={32} />
-            </div>
-            <div>
-              <p className="text-sm font-black text-[#191525]">
-                {activeCategory === 'All'
-                  ? 'No campus confessions yet'
-                  : `No ${activeCategory} confessions yet`}
-              </p>
-              <p className="text-xs text-[#706B7D] mt-1">
-                Be the first to share an anonymous confession with the campus community.
-              </p>
-            </div>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="mt-2 px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl shadow-md shadow-[#5420F5]/20 cursor-pointer transition-all"
-            >
-              + Spill a Confession
-            </button>
-          </div>
-        )}
+        <div className="inline-flex items-center rounded-xl bg-[#FAF9FC] dark:bg-[#171322] p-0.5 border border-[#EAE6F0] dark:border-[#262036] shrink-0">
+          <button
+            type="button"
+            onClick={() => setSortOrder('latest')}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+              sortOrder === 'latest'
+                ? 'bg-white dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] shadow-2xs'
+                : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+            }`}
+          >
+            Latest
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortOrder('top')}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+              sortOrder === 'top'
+                ? 'bg-white dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] shadow-2xs'
+                : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+            }`}
+          >
+            Top
+          </button>
+        </div>
       </div>
 
-      {/* Floating Create Confession Button */}
-      <button
-        onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-20 right-6 z-30 px-5 py-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-full shadow-xl shadow-[#5420F5]/30 flex items-center gap-2 cursor-pointer transition-all active:scale-[0.96]"
-      >
-        <Plus className="w-4 h-4" />
-        <span>Spill a Confession</span>
-      </button>
+      {/* 3. Hairline-Divided Stream */}
+      {filteredConfessions.length === 0 ? (
+        <div className="px-6 py-16 text-center space-y-3 border-b border-[#EAE6F0]">
+          <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center mx-auto">
+            <CreateConfessionIcon size={26} />
+          </div>
+          <div>
+            <p className="text-sm font-black text-[#191525]">
+              {activeCategory === 'All'
+                ? 'No campus confessions yet'
+                : `No ${activeCategory} confessions yet`}
+            </p>
+            <p className="text-xs text-[#706B7D] mt-1">
+              Be the first to share an anonymous confession with the campus community.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCreateWithHashtag(undefined, 'confession')}
+            className="mt-2 px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer transition-colors"
+          >
+            Spill a Confession
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col">
+          {filteredConfessions.map((post) => (
+            <FeedPostRow
+              key={post.id}
+              post={post}
+              verifiedUsernameSet={verifiedUsernameSet}
+              showReportButton={true}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -471,7 +471,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                       className="ring-3 ring-[#FFC928]/80 shadow-lg shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#FFC928] bg-white/10 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#FFC928]">
                         <Sparkles className="w-3 h-3" /> 3D Campus Identity
                       </span>
                       <span className="text-sm font-black text-white block truncate mt-0.5">
@@ -510,9 +510,9 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
                 {/* 1-Tap Starter Archetypes */}
                 <div className="space-y-1.5 pt-1 border-t border-white/10">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-extrabold uppercase tracking-wider text-purple-200">
-                      Quick Campus Archetypes
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-extrabold text-purple-200">
+                      Quick campus archetypes
                     </span>
                     <span className="text-white/60">1-tap starter looks</span>
                   </div>

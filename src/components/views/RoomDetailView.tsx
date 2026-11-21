@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { RoomMessage, RoomAssignedPersona } from '../../types/index.ts';
 import { uploadRoomMediaFile, detectRoomMediaFileType } from '../../lib/supabase.ts';
@@ -21,6 +21,8 @@ import {
   ImagePlus,
   Film,
   Loader2,
+  ArrowDown,
+  AtSign,
 } from 'lucide-react';
 import { PersonaMaskIcon } from '../brand/masks/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
@@ -32,6 +34,14 @@ import {
 } from '../../utils/roomPersonas.ts';
 import { RequiredCustomPersonaModal } from '../modals/RequiredCustomPersonaModal.tsx';
 import { EditRoomIconModal } from '../modals/RoomIconStudioPicker.tsx';
+import { KlipyGifPicker } from '../modals/KlipyGifPicker.tsx';
+import { GifPreviewMedia } from '../ui/GifPreviewMedia.tsx';
+import { MentionText } from '../ui/MentionText.tsx';
+import { MentionAutocompleteDropdown } from '../comments/MentionAutocompleteDropdown.tsx';
+import {
+  buildMentionCandidates,
+  useMentionAutocomplete,
+} from '../../hooks/useMentionAutocomplete.ts';
 import { useMobileKeyboard } from '../../hooks/useMobileKeyboard.ts';
 
 const EMOJI_REACTIONS = ['❤️', '🔥', '😂', '💀', '👏', '🤫'];
@@ -39,6 +49,7 @@ const EMOJI_REACTIONS = ['❤️', '🔥', '😂', '💀', '👏', '🤫'];
 export const RoomDetailView: React.FC = () => {
   const {
     rooms,
+    creators,
     selectedRoomId,
     enterRoom,
     sendRoomMessage,
@@ -72,22 +83,52 @@ export const RoomDetailView: React.FC = () => {
   const [replyingTo, setReplyingTo] = useState<RoomMessage | null>(null);
   const [pendingMedia, setPendingMedia] = useState<{
     mediaUrl: string;
-    mediaType: 'image' | 'video';
+    mediaType: 'image' | 'video' | 'gif';
     fileName: string;
   } | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [unreadWhileScrolledUp, setUnreadWhileScrolledUp] = useState(0);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isInitialMount = useRef(true);
   const prevMessagesCount = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
+  const roomMention = useMentionAutocomplete({
+    text: messageText,
+    setText: setMessageText,
+    inputRef,
+  });
+
   // Find active room
   const activeRoom =
     rooms.find((r) => r.id === selectedRoomId) || rooms[0];
+
+  const roomMentionCandidates = useMemo(
+    () =>
+      buildMentionCandidates({
+        creators,
+        participants: (activeRoom?.messages || []).map((m) => ({
+          id: `room-speaker-${m.authorUsername}`,
+          name: m.authorName,
+          username: m.authorUsername,
+          avatarUrl: m.authorAvatar,
+          campus: m.authorCampus,
+          isAnon: m.isAnonymous,
+          badge: 'In Room',
+          detail: 'Active in this room',
+        })),
+        excludeUsername: user.username,
+      }),
+    [activeRoom?.messages, creators, user.username]
+  );
 
   // Assigned persona for this user in this room
   const [assignedPersona, setAssignedPersona] = useState<RoomAssignedPersona | null>(() => {
@@ -148,11 +189,13 @@ export const RoomDetailView: React.FC = () => {
     setActiveView('rooms');
   };
 
-  // Scroll handling
+  // Scroll handling & reset per room
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    setIsScrolledUp(false);
+    setUnreadWhileScrolledUp(0);
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = 0;
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [activeRoom?.id]);
 
@@ -163,6 +206,8 @@ export const RoomDetailView: React.FC = () => {
     const container = messagesContainerRef.current;
     if (container) {
       container.scrollTop = container.scrollHeight;
+      setIsScrolledUp(false);
+      setUnreadWhileScrolledUp(0);
     }
   }, [isKeyboardOpen, visualViewportHeight]);
 
@@ -174,22 +219,87 @@ export const RoomDetailView: React.FC = () => {
     }
 
     const currentLength = activeRoom?.messages?.length || 0;
-    if (currentLength > prevMessagesCount.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const delta = currentLength - prevMessagesCount.current;
+    if (delta > 0) {
+      const el = messagesContainerRef.current;
+      const nearBottom =
+        !el || el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+      if (nearBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setIsScrolledUp(false);
+        setUnreadWhileScrolledUp(0);
+      } else {
+        setIsScrolledUp(true);
+        setUnreadWhileScrolledUp((prev) => prev + delta);
+      }
     }
     prevMessagesCount.current = currentLength;
   }, [activeRoom?.messages?.length]);
 
+  // Escape key dismissal for lightbox, modals, mentions, and reply bar
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (lightboxImageUrl) {
+        e.preventDefault();
+        setLightboxImageUrl(null);
+      } else if (showRosterModal) {
+        e.preventDefault();
+        setShowRosterModal(false);
+      } else if (showEditIconModal) {
+        e.preventDefault();
+        setShowEditIconModal(false);
+      } else if (showRoomInfo) {
+        e.preventDefault();
+        setShowRoomInfo(false);
+      } else if (roomMention.isOpen) {
+        e.preventDefault();
+        roomMention.dismiss();
+      } else if (replyingTo) {
+        e.preventDefault();
+        setReplyingTo(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    lightboxImageUrl,
+    showRosterModal,
+    showEditIconModal,
+    showRoomInfo,
+    roomMention.isOpen,
+    roomMention.dismiss,
+    replyingTo,
+  ]);
+
   if (!activeRoom) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-12 text-center space-y-4">
-        <p className="text-sm font-bold text-slate-600">No active room found.</p>
-        <button
-          onClick={() => setActiveView('rooms')}
-          className="px-4 py-2 bg-[#5420F5] text-white text-xs font-black rounded-xl cursor-pointer"
-        >
-          Return to Rooms
-        </button>
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#F0EBFF] text-[#5420F5] flex items-center justify-center mx-auto">
+          <Users2 className="w-5 h-5" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-sm font-black text-[#191525]">Room not available</h2>
+          <p className="text-xs text-[#706B7D]">
+            This room may still be loading or may have been removed.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveView('rooms')}
+            className="px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl cursor-pointer transition-colors"
+          >
+            Browse All Rooms
+          </button>
+          <button
+            type="button"
+            onClick={() => goBack('home')}
+            className="px-4 py-2 bg-[#FAF9FC] border border-[#EAE6F0] text-[#191525] text-xs font-bold rounded-xl cursor-pointer hover:bg-[#F0EBFF] transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -275,6 +385,8 @@ export const RoomDetailView: React.FC = () => {
       ? replyingTo.text ||
         (replyingTo.mediaType === 'video'
           ? '🎬 Video'
+          : replyingTo.mediaType === 'gif'
+          ? '🎞️ GIF'
           : replyingTo.mediaUrl
           ? '📷 Photo'
           : '')
@@ -304,10 +416,30 @@ export const RoomDetailView: React.FC = () => {
     setMessageText('');
     setPendingMedia(null);
     setReplyingTo(null);
+    roomMention.reset();
 
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setIsScrolledUp(false);
+      setUnreadWhileScrolledUp(0);
     }, 50);
+  };
+
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distFromBottom < 110;
+    setIsScrolledUp(!nearBottom);
+    if (nearBottom) {
+      setUnreadWhileScrolledUp(0);
+    }
+  };
+
+  const scrollToLatestMessages = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setIsScrolledUp(false);
+    setUnreadWhileScrolledUp(0);
   };
 
   const handleShareRoom = () => {
@@ -348,7 +480,7 @@ export const RoomDetailView: React.FC = () => {
 
   const dynamicChatHeight =
     isKeyboardOpen && visualViewportHeight
-      ? `${Math.max(200, visualViewportHeight - 64)}px`
+      ? `${Math.max(220, visualViewportHeight)}px`
       : undefined;
 
   return (
@@ -360,19 +492,20 @@ export const RoomDetailView: React.FC = () => {
           ? { height: dynamicChatHeight, maxHeight: dynamicChatHeight }
           : undefined
       }
-      className={`w-full max-w-2xl mx-auto px-3 sm:px-6 pt-1.5 ${
-        isKeyboardOpen ? 'pb-1.5' : 'pb-[68px]'
-      } flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden text-[#191525]`}
+      className={`w-full px-3 sm:px-4 pt-1 ${
+        isKeyboardOpen ? 'pb-1.5' : 'pb-2'
+      } flex flex-col h-[calc(100dvh-58px-env(safe-area-inset-bottom))] max-h-[calc(100dvh-58px-env(safe-area-inset-bottom))] lg:h-dvh lg:max-h-dvh overflow-hidden bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]`}
     >
       {/* 1. Sticky Room Header (Responsive, never overflows) */}
-      <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0] shrink-0 bg-[#FAF9FC]/95 backdrop-blur-md z-20 gap-2 min-w-0">
+      <div className="flex items-center justify-between py-2.5 border-b border-[#EAE6F0] dark:border-[#262036] shrink-0 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md z-20 gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             onClick={() => goBack('rooms')}
-            className="p-1.5 -ml-1 rounded-full hover:bg-slate-200/70 text-slate-700 transition-colors cursor-pointer flex items-center shrink-0"
+            className="min-w-[44px] min-h-[44px] sm:min-w-[38px] sm:min-h-[38px] -ml-1.5 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title="Go back"
+            aria-label="Go back"
           >
-            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
 
           {canEditRoomIcon ? (
@@ -390,7 +523,7 @@ export const RoomDetailView: React.FC = () => {
                 size="sm"
                 className="group-hover:scale-105 transition-transform"
               />
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#5420F5] text-white flex items-center justify-center shadow-xs border border-white">
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#5420F5] text-white flex items-center justify-center shadow-xs border border-white dark:border-[#0E0C14]">
                 <ImagePlus className="w-2.5 h-2.5" />
               </span>
             </button>
@@ -406,41 +539,36 @@ export const RoomDetailView: React.FC = () => {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-xs sm:text-base font-black text-[#191525] truncate">
+              <h1 className="text-xs sm:text-sm font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                 #{activeRoom.name}
               </h1>
-              <span className="hidden md:inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-[#5420F5] shrink-0">
-                {activeRoom.category}
-              </span>
               {activeRoom.isLocked && (
-                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 shrink-0">
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400 shrink-0">
                   <Lock className="w-2.5 h-2.5" />
                   <span>Locked</span>
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 truncate flex-wrap">
-              <span className="flex items-center gap-1 text-emerald-600 font-bold shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{activeRoom.onlineCount || 1} online</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate flex-wrap tabular-nums">
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold shrink-0">
+                {activeRoom.onlineCount || 1} online
               </span>
-              <span>•</span>
+              <span>·</span>
               <span className="truncate">
                 {activeRoom.membersCount}{' '}
                 {activeRoom.membersCount === 1 ? 'member' : 'members'}
               </span>
-              <span>•</span>
-              {/* Subtle WebSocket Connection Status Badge */}
+              <span>·</span>
               <button
                 type="button"
                 onClick={reconnectRealtime}
-                title="Real-time WebSocket connection status (click to resync)"
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold border transition-all cursor-pointer shrink-0 ${
+                title="Real-time sync status (tap to resync)"
+                className={`inline-flex items-center gap-1 text-[10px] font-bold transition-colors cursor-pointer shrink-0 ${
                   connectionStatus === 'connected'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                    ? 'text-emerald-700 dark:text-emerald-400'
                     : connectionStatus === 'reconnecting'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
-                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-rose-700 dark:text-rose-400'
                 }`}
               >
                 {connectionStatus === 'reconnecting' ? (
@@ -450,10 +578,10 @@ export const RoomDetailView: React.FC = () => {
                 )}
                 <span>
                   {connectionStatus === 'connected'
-                    ? 'Live Sync'
+                    ? 'Live'
                     : connectionStatus === 'reconnecting'
-                    ? 'Reconnecting...'
-                    : 'Offline (Tap)'}
+                    ? 'Syncing'
+                    : 'Offline'}
                 </span>
               </button>
             </div>
@@ -466,7 +594,7 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={handleShareRoom}
-            className="p-2 rounded-xl border border-[#EAE6F0] bg-white hover:bg-purple-50 text-slate-600 hover:text-[#5420F5] transition-colors cursor-pointer"
+            className="p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:bg-purple-50 dark:hover:bg-[#231A45] text-slate-600 dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] transition-colors cursor-pointer"
             title="Share Room link"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -476,8 +604,10 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowRoomInfo(!showRoomInfo)}
-            className={`p-2 rounded-xl border border-[#EAE6F0] transition-colors cursor-pointer ${
-              showRoomInfo ? 'bg-[#5420F5] text-white' : 'bg-white text-slate-600 hover:bg-slate-100'
+            className={`p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] transition-colors cursor-pointer ${
+              showRoomInfo
+                ? 'bg-[#5420F5] text-white'
+                : 'bg-white dark:bg-[#171322] text-slate-600 dark:text-[#9E97B3] hover:bg-slate-100 dark:hover:bg-[#231A45]'
             }`}
             title="Room Details"
           >
@@ -489,13 +619,13 @@ export const RoomDetailView: React.FC = () => {
             onClick={() => toggleJoinRoom(activeRoom.id)}
             className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer shrink-0 ${
               activeRoom.isJoined
-                ? 'bg-white border border-[#EAE6F0] text-slate-700 hover:bg-slate-100'
+                ? 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-slate-700 dark:text-[#F4F2FA] hover:bg-slate-100 dark:hover:bg-[#231A45]'
                 : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-xs'
             }`}
           >
             {activeRoom.isJoined ? (
               <span className="flex items-center gap-1">
-                <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
                 <span>Joined</span>
               </span>
             ) : (
@@ -507,23 +637,23 @@ export const RoomDetailView: React.FC = () => {
 
       {/* 2. Room Details Drawer / Info Banner */}
       {showRoomInfo ? (
-        <div className="mt-1.5 p-3 rounded-2xl bg-white border border-[#5420F5]/30 shadow-md space-y-2 shrink-0 animate-in fade-in">
+        <div className="mt-1.5 p-3 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/30 shadow-md space-y-2 shrink-0 animate-in fade-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-[#5420F5]">
+            <div className="flex items-center gap-1.5 text-xs font-black text-[#5420F5] dark:text-[#B9A7FF]">
               <Shield className="w-4 h-4" />
               <span>Room Info &amp; Privacy</span>
             </div>
             <button
               onClick={() => setShowRoomInfo(false)}
-              className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <p className="text-xs text-slate-700 leading-relaxed font-medium break-words">
+          <p className="text-xs text-slate-700 dark:text-[#D5D0E6] leading-relaxed font-medium break-words">
             <strong>Topic:</strong> {activeRoom.description}
           </p>
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-100 flex-wrap">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-[#9E97B3] pt-1 border-t border-slate-100 dark:border-[#262036] flex-wrap">
             <span className="inline-flex items-center gap-1">
               <PersonaMaskIcon mask="masked-student" size={14} />
               <span>100% Anonymous</span>
@@ -541,7 +671,7 @@ export const RoomDetailView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowEditIconModal(true)}
-                  className="text-[#5420F5] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  className="text-[#5420F5] dark:text-[#B9A7FF] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                 >
                   <ImagePlus className="w-3 h-3" />
                   <span>Upload Room Icon</span>
@@ -563,19 +693,19 @@ export const RoomDetailView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="mt-1.5 px-3 py-2 rounded-xl bg-white border border-[#EAE6F0] flex items-center justify-between text-xs shrink-0 shadow-2xs gap-2 min-w-0">
+        <div className="mt-1.5 px-3 py-2 rounded-xl bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between text-xs shrink-0 shadow-2xs gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-5 h-5 rounded-md bg-purple-50 flex items-center justify-center shrink-0">
+            <div className="w-5 h-5 rounded-md bg-purple-50 dark:bg-[#231A45] flex items-center justify-center shrink-0">
               <PersonaMaskIcon mask="masked-student" size={14} />
             </div>
-            <span className="text-slate-600 font-medium truncate text-[11px]">
-              <strong className="text-[#191525]">Topic: </strong>
+            <span className="text-slate-600 dark:text-[#9E97B3] font-medium truncate text-[11px]">
+              <strong className="text-[#191525] dark:text-[#F4F2FA]">Topic: </strong>
               {activeRoom.description}
             </span>
           </div>
           <button
             onClick={() => setShowRoomInfo(true)}
-            className="text-[10px] font-bold text-[#5420F5] hover:underline shrink-0 cursor-pointer"
+            className="text-[10px] font-bold text-[#5420F5] dark:text-[#B9A7FF] hover:underline shrink-0 cursor-pointer"
           >
             Details
           </button>
@@ -585,17 +715,18 @@ export const RoomDetailView: React.FC = () => {
       {/* 4. Messages Stream (Scrollable) */}
       <div
         ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         className="flex-1 min-h-0 overflow-y-auto py-3 space-y-3 pr-1 relative"
       >
         {!activeRoom.messages || activeRoom.messages.length === 0 ? (
-          <div className="text-center py-10 px-4 space-y-3 bg-white rounded-3xl border border-dashed border-slate-200 my-2">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-[#5420F5] mx-auto flex items-center justify-center p-1.5">
+          <div className="text-center py-10 px-4 space-y-3 bg-white dark:bg-[#171322] rounded-3xl border border-dashed border-slate-200 dark:border-[#262036] my-2">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-[#231A45] text-[#5420F5] mx-auto flex items-center justify-center p-1.5">
               <PersonaMaskIcon mask="masked-student" size={32} />
             </div>
-            <h3 className="text-sm font-black text-[#191525]">
+            <h3 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
               Welcome to #{activeRoom.name}!
             </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <p className="text-xs text-slate-500 dark:text-[#9E97B3] max-w-sm mx-auto">
               This is a private, anonymous chat room. Everyone speaks behind a mask. Say hello or share your thoughts!
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-2">
@@ -610,7 +741,7 @@ export const RoomDetailView: React.FC = () => {
                     setMessageText(starter);
                     inputRef.current?.focus();
                   }}
-                  className="px-3 py-1.5 rounded-xl border border-[#EAE6F0] bg-[#FAF9FC] hover:bg-[#F0EBFF] hover:border-[#5420F5]/30 text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#0E0C14] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] hover:border-[#5420F5]/30 text-xs font-bold text-slate-700 dark:text-[#D5D0E6] transition-all cursor-pointer"
                 >
                   {starter}
                 </button>
@@ -618,79 +749,148 @@ export const RoomDetailView: React.FC = () => {
             </div>
           </div>
         ) : (
-          activeRoom.messages.map((msg) => {
+          activeRoom.messages.map((msg, msgIdx) => {
             const isMe =
               msg.authorUsername === user.username && !msg.isAnonymous;
+            const prevMsg = msgIdx > 0 ? activeRoom.messages?.[msgIdx - 1] : null;
+            const msgDate = msg.createdTimestamp ? new Date(msg.createdTimestamp) : null;
+            const prevDate = prevMsg?.createdTimestamp ? new Date(prevMsg.createdTimestamp) : null;
+            const msgDayKey =
+              msgDate && !Number.isNaN(msgDate.getTime())
+                ? `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`
+                : null;
+            const prevDayKey =
+              prevDate && !Number.isNaN(prevDate.getTime())
+                ? `${prevDate.getFullYear()}-${prevDate.getMonth()}-${prevDate.getDate()}`
+                : null;
+            const showDayDivider = Boolean(
+              msgDayKey && (!prevDayKey || msgDayKey !== prevDayKey)
+            );
+            const formatDayLabel = (d: Date) => {
+              const now = new Date();
+              const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+              const yest = new Date(now);
+              yest.setDate(now.getDate() - 1);
+              const yestKey = `${yest.getFullYear()}-${yest.getMonth()}-${yest.getDate()}`;
+              const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+              if (key === todayKey) return 'Today';
+              if (key === yestKey) return 'Yesterday';
+              return d.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+              });
+            };
+
+            const jumpToQuotedOriginal = () => {
+              if (!msg.replyTo) return;
+              const target = (activeRoom.messages || []).find(
+                (candidate) =>
+                  candidate.id !== msg.id &&
+                  candidate.authorName === msg.replyTo?.authorName &&
+                  (candidate.text === msg.replyTo?.text ||
+                    (candidate.text &&
+                      msg.replyTo?.text &&
+                      candidate.text.includes(msg.replyTo.text.slice(0, 24))))
+              );
+              if (!target) return;
+              const el = messageRefs.current[target.id];
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setHighlightedMessageId(target.id);
+                window.setTimeout(() => {
+                  setHighlightedMessageId((curr) => (curr === target.id ? null : curr));
+                }, 1400);
+              }
+            };
 
             return (
-              <div
-                key={msg.id}
-                className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''} group min-w-0`}
-              >
-                {/* Author Avatar */}
-                <div
-                  onClick={() => {
-                    if (!msg.isAnonymous) {
-                      viewUserProfile(
-                        msg.authorUsername,
-                        false,
-                        msg.authorCampus
-                      );
-                    }
-                  }}
-                  className={`shrink-0 ${!msg.isAnonymous ? 'cursor-pointer hover:opacity-85' : ''}`}
-                  title={
-                    msg.isAnonymous
-                      ? 'Anonymous Campus Member'
-                      : `View ${msg.authorName}'s public profile`
-                  }
-                >
-                  {msg.isAnonymous ? (
-                    <div className="w-8 h-8 rounded-xl bg-white border border-[#5420F5]/25 flex items-center justify-center shadow-2xs select-none p-0.5 hover:scale-105 transition-transform">
-                      <PersonaMaskIcon mask={msg.authorMaskEmoji || msg.authorName || 'masked-student'} size={24} />
-                    </div>
-                  ) : (
-                    <CampusCharacterAvatar
-                      value={msg.authorAvatar}
-                      seed={msg.authorUsername}
-                      size={32}
-                      rounded="full"
-                      className="ring-1 ring-slate-200"
-                    />
-                  )}
-                </div>
+              <React.Fragment key={msg.id}>
+                {showDayDivider && msgDate && (
+                  <div className="flex items-center gap-3 py-1.5 select-none">
+                    <div className="flex-1 h-px bg-[#EAE6F0]" />
+                    <span className="text-[10px] font-bold text-[#706B7D] tabular-nums">
+                      {formatDayLabel(msgDate)}
+                    </span>
+                    <div className="flex-1 h-px bg-[#EAE6F0]" />
+                  </div>
+                )}
 
-                {/* Message Bubble */}
                 <div
-                  className={`max-w-[84%] sm:max-w-[76%] min-w-0 rounded-2xl p-3 shadow-2xs space-y-1.5 relative overflow-hidden ${
-                    isMe
-                      ? 'bg-[#5420F5] text-white rounded-tr-xs'
-                      : 'bg-white border border-[#EAE6F0] text-[#191525] rounded-tl-xs'
+                  ref={(el) => {
+                    messageRefs.current[msg.id] = el;
+                  }}
+                  className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''} group min-w-0 rounded-2xl transition-colors duration-300 ${
+                    highlightedMessageId === msg.id ? 'bg-[#F0EBFF]/75 p-1 -m-1' : ''
                   }`}
                 >
-                  {/* Quoted Reply context if exists */}
-                  {msg.replyTo && (
-                    <div
-                      className={`p-1.5 px-2.5 rounded-xl text-[10px] mb-1 border ${
-                        isMe
-                          ? 'bg-white/15 border-white/30 text-white/95'
-                          : 'bg-[#FAF9FC] border-[#EAE6F0] text-slate-600'
-                      }`}
-                    >
-                      <strong className="block truncate font-bold">
-                        Replying to {msg.replyTo.authorName}:
-                      </strong>
-                      <span className="line-clamp-1 italic break-words">
-                        "{msg.replyTo.text}"
-                      </span>
-                    </div>
-                  )}
+                  {/* Author Avatar */}
+                  <div
+                    onClick={() => {
+                      if (!msg.isAnonymous) {
+                        viewUserProfile(
+                          msg.authorUsername,
+                          false,
+                          msg.authorCampus
+                        );
+                      }
+                    }}
+                    className={`shrink-0 ${!msg.isAnonymous ? 'cursor-pointer hover:opacity-85' : ''}`}
+                    title={
+                      msg.isAnonymous
+                        ? 'Anonymous Campus Member'
+                        : `View ${msg.authorName}'s public profile`
+                    }
+                  >
+                    {msg.isAnonymous ? (
+                      <div className="w-8 h-8 rounded-xl bg-white border border-[#5420F5]/25 flex items-center justify-center shadow-2xs select-none p-0.5 hover:scale-105 transition-transform">
+                        <PersonaMaskIcon mask={msg.authorMaskEmoji || msg.authorName || 'masked-student'} size={24} />
+                      </div>
+                    ) : (
+                      <CampusCharacterAvatar
+                        value={msg.authorAvatar}
+                        seed={msg.authorUsername}
+                        size={32}
+                        rounded="full"
+                        className="ring-1 ring-slate-200"
+                      />
+                    )}
+                  </div>
+
+                  {/* Message Bubble */}
+                  <div
+                    className={`max-w-[84%] sm:max-w-[76%] min-w-0 rounded-2xl p-3 shadow-2xs space-y-1.5 relative overflow-hidden ${
+                      isMe
+                        ? 'bg-[#5420F5] text-white rounded-tr-xs'
+                        : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] rounded-tl-xs'
+                    }`}
+                  >
+                    {/* Quoted Reply context if exists (tap to jump to original) */}
+                    {msg.replyTo && (
+                      <button
+                        type="button"
+                        onClick={jumpToQuotedOriginal}
+                        className={`w-full text-left p-1.5 px-2.5 rounded-xl text-[10px] mb-1 border transition-opacity hover:opacity-85 cursor-pointer ${
+                          isMe
+                            ? 'bg-white/15 border-white/30 text-white/95'
+                            : 'bg-white dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3]'
+                        }`}
+                        title="Tap to jump to original message"
+                      >
+                        <strong className="block truncate font-bold">
+                          Replying to {msg.replyTo.authorName}:
+                        </strong>
+                        <span className="line-clamp-1 italic break-words">
+                          "{msg.replyTo.text}"
+                        </span>
+                      </button>
+                    )}
 
                   {/* Author Header */}
                   <div className="flex items-center justify-between gap-2 text-[10px] min-w-0">
                     <span
                       className={`font-black flex items-center gap-1 min-w-0 truncate ${
-                        isMe ? 'text-white' : 'text-[#5420F5]'
+                        isMe ? 'text-white' : 'text-[#5420F5] dark:text-[#B9A7FF]'
                       }`}
                     >
                       <span className="truncate">{msg.authorName}</span>
@@ -700,12 +900,12 @@ export const RoomDetailView: React.FC = () => {
                         </span>
                       )}
                     </span>
-                    <span className={`shrink-0 ${isMe ? 'text-white/75' : 'text-slate-400'}`}>
+                    <span className={`shrink-0 ${isMe ? 'text-white/75' : 'text-slate-400 dark:text-[#9E97B3]'}`}>
                       {msg.createdAt}
                     </span>
                   </div>
 
-                  {/* Uploaded Image or Video Attachment */}
+                  {/* Uploaded Image, Video, or GIF Attachment */}
                   {msg.mediaUrl && (
                     <div className="pt-0.5">
                       {msg.mediaType === 'video' ||
@@ -720,6 +920,12 @@ export const RoomDetailView: React.FC = () => {
                             className="w-full max-h-72 object-contain rounded-xl"
                           />
                         </div>
+                      ) : msg.mediaType === 'gif' ? (
+                        <GifPreviewMedia
+                          url={msg.mediaUrl}
+                          alt={msg.text || 'Room GIF'}
+                          onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
+                        />
                       ) : (
                         <button
                           type="button"
@@ -741,7 +947,10 @@ export const RoomDetailView: React.FC = () => {
                   {/* Message Text */}
                   {msg.text && (
                     <p className="text-xs font-medium leading-relaxed select-text whitespace-pre-wrap break-words">
-                      {msg.text}
+                      <MentionText
+                        text={msg.text}
+                        tone={isMe ? 'inverted' : 'default'}
+                      />
                     </p>
                   )}
 
@@ -762,10 +971,10 @@ export const RoomDetailView: React.FC = () => {
                               hasReacted
                                 ? isMe
                                   ? 'bg-white/25 border-white text-white'
-                                  : 'bg-[#F0EBFF] border-[#5420F5] text-[#5420F5]'
+                                  : 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5] text-[#5420F5] dark:text-[#B9A7FF]'
                                 : isMe
                                 ? 'bg-white/10 border-white/20 text-white'
-                                : 'bg-slate-50 border-slate-200 text-slate-600'
+                                : 'bg-slate-50 dark:bg-[#0E0C14] border-slate-200 dark:border-[#262036] text-slate-600 dark:text-[#9E97B3]'
                             }`}
                           >
                             <span>{emoji}</span>
@@ -779,12 +988,12 @@ export const RoomDetailView: React.FC = () => {
                   {/* Message Action Toolbar (Reactions, Like, Reply) */}
                   <div
                     className={`flex items-center justify-between pt-1.5 gap-2 border-t flex-wrap ${
-                      isMe ? 'border-white/15 text-white/85' : 'border-slate-100 text-slate-400'
+                      isMe ? 'border-white/15 text-white/85' : 'border-slate-100 dark:border-[#262036] text-slate-400 dark:text-[#9E97B3]'
                     }`}
                   >
                     {/* Quick emoji reactions */}
                     <div className="flex items-center gap-0.5">
-                      {EMOJI_REACTIONS.slice(0, 4).map((emoji) => (
+                      {EMOJI_REACTIONS.map((emoji) => (
                         <button
                           key={emoji}
                           type="button"
@@ -842,11 +1051,32 @@ export const RoomDetailView: React.FC = () => {
                   </div>
                 </div>
               </div>
+              </React.Fragment>
             );
           })
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Floating Jump-to-Latest Pill when scrolled up */}
+      {isScrolledUp && (activeRoom.messages?.length || 0) > 4 && (
+        <div className="shrink-0 flex justify-center -mt-9 mb-2 z-20 pointer-events-none">
+          <button
+            type="button"
+            onClick={scrollToLatestMessages}
+            className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#191525]/92 hover:bg-[#5420F5] text-white text-[11px] font-black shadow-lg backdrop-blur-md transition-all cursor-pointer inline-flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-1"
+          >
+            <ArrowDown className="w-3.5 h-3.5 stroke-[2.75]" />
+            <span>
+              {unreadWhileScrolledUp > 0
+                ? `${unreadWhileScrolledUp} new ${
+                    unreadWhileScrolledUp === 1 ? 'message' : 'messages'
+                  }`
+                : 'Jump to latest'}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* 5. Active Reply Bar (When replying to a specific message) */}
       {replyingTo && (
@@ -860,6 +1090,8 @@ export const RoomDetailView: React.FC = () => {
                 {replyingTo.text ||
                   (replyingTo.mediaType === 'video'
                     ? '🎬 Video'
+                    : replyingTo.mediaType === 'gif'
+                    ? '🎞️ GIF'
                     : replyingTo.mediaUrl
                     ? '📷 Photo'
                     : '')}
@@ -891,25 +1123,25 @@ export const RoomDetailView: React.FC = () => {
         ) : (
           <>
             {/* 6. Anonymous Persona & Identity Status Bar (Clean responsive layout, never overflows) */}
-            <div className="shrink-0 mb-1.5 px-2.5 py-1.5 rounded-2xl bg-[#F0EBFF]/90 border border-[#5420F5]/25 flex items-center justify-between gap-2 text-xs min-w-0">
+            <div className="shrink-0 mb-1.5 px-2.5 py-1.5 rounded-2xl bg-[#F0EBFF]/90 dark:bg-[#231A45]/80 border border-[#5420F5]/25 dark:border-[#7C5CFF]/30 flex items-center justify-between gap-2 text-xs min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => setShowRosterModal(true)}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white border border-[#5420F5]/30 flex items-center justify-center p-0.5 shadow-2xs hover:scale-105 transition-transform cursor-pointer shrink-0"
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white dark:bg-[#0E0C14] border border-[#5420F5]/30 flex items-center justify-center p-0.5 shadow-2xs hover:scale-105 transition-transform cursor-pointer shrink-0"
                   title="Click to view room aliases"
                 >
                   <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={20} />
                 </button>
 
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 shrink-0 hidden xs:inline">
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-[#9E97B3] shrink-0 hidden xs:inline">
                   Speaking as:
                 </span>
 
                 <button
                   type="button"
                   onClick={() => setShowRosterModal(true)}
-                  className="font-black text-[#5420F5] bg-white px-2 py-0.5 rounded-lg border border-[#5420F5]/30 min-w-0 max-w-[130px] sm:max-w-[180px] shadow-2xs flex items-center gap-1 cursor-pointer hover:border-[#5420F5]"
+                  className="font-black text-[#5420F5] dark:text-[#B9A7FF] bg-white dark:bg-[#0E0C14] px-2 py-0.5 rounded-lg border border-[#5420F5]/30 min-w-0 max-w-[130px] sm:max-w-[180px] shadow-2xs flex items-center gap-1 cursor-pointer hover:border-[#5420F5]"
                   title="Your locked persona for this room"
                 >
                   <span className="truncate text-[11px]">{effectiveAlias}</span>
@@ -926,7 +1158,7 @@ export const RoomDetailView: React.FC = () => {
                     className={`px-2 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer shrink-0 inline-flex items-center gap-1 ${
                       activeRoom.isLocked
                         ? 'bg-rose-600 text-white'
-                        : 'bg-white border border-[#EAE6F0] text-slate-600 hover:bg-rose-50 hover:text-rose-700'
+                        : 'bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3] hover:bg-rose-50 hover:text-rose-700'
                     }`}
                     title={activeRoom.isLocked ? 'Unlock this room' : 'Lock this room'}
                   >
@@ -938,7 +1170,7 @@ export const RoomDetailView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowRosterModal(true)}
-                  className="px-2 sm:px-2.5 py-1 rounded-xl bg-white border border-[#5420F5]/30 text-[#5420F5] hover:bg-purple-50 text-[10px] font-black transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                  className="px-2 sm:px-2.5 py-1 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/30 text-[#5420F5] dark:text-[#B9A7FF] hover:bg-purple-50 dark:hover:bg-[#171322] text-[10px] font-black transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
                   title="View room aliases and members"
                 >
                   <Users2 className="w-3 h-3 shrink-0" />
@@ -952,7 +1184,7 @@ export const RoomDetailView: React.FC = () => {
                     className={`px-2 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer shrink-0 inline-flex items-center gap-1 ${
                       effectiveIsAnonymous
                         ? 'bg-[#5420F5] text-white shadow-2xs'
-                        : 'bg-white border border-[#EAE6F0] text-slate-600 hover:bg-slate-50'
+                        : 'bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3] hover:bg-slate-50 dark:hover:bg-[#171322]'
                     }`}
                   >
                     <span>{effectiveIsAnonymous ? 'Mask On' : 'Public'}</span>
@@ -993,7 +1225,11 @@ export const RoomDetailView: React.FC = () => {
                       )}
                       <div className="min-w-0 flex-1">
                         <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#5420F5] bg-[#F0EBFF] px-2 py-0.5 rounded-md">
-                          {pendingMedia.mediaType === 'video' ? '🎬 Video Ready' : '📷 Photo Ready'}
+                          {pendingMedia.mediaType === 'video'
+                            ? '🎬 Video Ready'
+                            : pendingMedia.mediaType === 'gif'
+                            ? '🎞️ GIF Ready'
+                            : '📷 Photo Ready'}
                         </span>
                         <p className="text-[11px] font-semibold text-[#706B7D] truncate mt-0.5">
                           Add a caption below or hit send
@@ -1013,73 +1249,124 @@ export const RoomDetailView: React.FC = () => {
               </div>
             )}
 
-            {/* 7. Bottom Chat Composer Form */}
-            <form
-              onSubmit={handleSend}
-              className="shrink-0 bg-white border border-[#EAE6F0] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
-            >
-              <button
-                type="button"
-                onClick={() => setShowRosterModal(true)}
-                className="shrink-0 w-8 h-8 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center hover:bg-purple-50 transition-colors cursor-pointer"
-                title="View your persona badge & room roster"
-              >
-                <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={22} />
-              </button>
-
-              {/* Hidden file input for Photo & Video upload */}
-              <input
-                ref={mediaInputRef}
-                type="file"
-                accept="image/*,video/*,.mp4,.webm,.mov,.m4v,.heic,.heif"
-                className="hidden"
-                onChange={(e) => handleMediaFileSelected(e.target.files?.[0])}
+            {/* Floating @Mention Autocomplete + Bottom Chat Composer Form */}
+            <div className="relative shrink-0">
+              <MentionAutocompleteDropdown
+                isOpen={roomMention.isOpen}
+                query={roomMention.query}
+                candidates={roomMentionCandidates}
+                onSelect={roomMention.insertMention}
+                onClose={roomMention.dismiss}
+                placement="top"
               />
 
-              {/* Photo / Video Upload Trigger Button */}
-              <button
-                type="button"
-                disabled={isUploadingMedia}
-                onClick={() => mediaInputRef.current?.click()}
-                className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
-                  pendingMedia
-                    ? 'bg-[#F0EBFF] border-[#5420F5]/40 text-[#5420F5]'
-                    : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
-                } disabled:opacity-50`}
-                title="Upload photo or video"
+              <form
+                onSubmit={handleSend}
+                className="bg-white border border-[#EAE6F0] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
               >
-                {isUploadingMedia ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="w-4 h-4" />
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRosterModal(true)}
+                  className="shrink-0 w-8 h-8 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center hover:bg-purple-50 transition-colors cursor-pointer"
+                  title="View your persona badge & room roster"
+                >
+                  <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={22} />
+                </button>
 
-              <input
-                ref={inputRef}
-                type="text"
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onPaste={handlePasteMedia}
-                placeholder={
-                  pendingMedia
-                    ? `Add a caption as ${effectiveAlias} (optional)...`
-                    : activeRoom.isLocked
-                    ? `Message locked room as Admin (${effectiveAlias})...`
-                    : `Message as ${effectiveAlias}...`
-                }
-                className="flex-1 min-w-0 px-1.5 py-1.5 bg-transparent text-xs sm:text-sm text-[#191525] placeholder:text-slate-400 focus:outline-none"
-              />
+                {/* Hidden file input for Photo & Video upload */}
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  accept="image/*,video/*,.mp4,.webm,.mov,.m4v,.heic,.heif"
+                  className="hidden"
+                  onChange={(e) => handleMediaFileSelected(e.target.files?.[0])}
+                />
 
-              <button
-                type="submit"
-                disabled={(!messageText.trim() && !pendingMedia) || isUploadingMedia}
-                className="p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0"
-                title="Send to anonymous room"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                {/* Photo / Video Upload Trigger Button */}
+                <button
+                  type="button"
+                  disabled={isUploadingMedia}
+                  onClick={() => mediaInputRef.current?.click()}
+                  className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                    pendingMedia && pendingMedia.mediaType !== 'gif'
+                      ? 'bg-[#F0EBFF] border-[#5420F5]/40 text-[#5420F5]'
+                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                  } disabled:opacity-50`}
+                  title="Upload photo or video"
+                >
+                  {isUploadingMedia ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Klipy GIF Picker Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    inputRef.current?.blur();
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
+                    }
+                    roomMention.dismiss();
+                    setShowGifPicker(true);
+                  }}
+                  className={`shrink-0 h-8 px-2 rounded-xl border text-[10px] font-black tracking-wide flex items-center justify-center transition-all cursor-pointer ${
+                    pendingMedia?.mediaType === 'gif'
+                      ? 'bg-[#5420F5] border-[#5420F5] text-white'
+                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                  }`}
+                  title="Attach a GIF from Klipy"
+                >
+                  GIF
+                </button>
+
+                {/* @Mention Picker Button */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={roomMention.togglePicker}
+                  className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                    roomMention.isOpen
+                      ? 'bg-[#5420F5] border-[#5420F5] text-white'
+                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                  }`}
+                  title="Mention a student (@)"
+                  aria-label="Mention a student"
+                >
+                  <AtSign className="w-4 h-4" />
+                </button>
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={messageText}
+                  onChange={roomMention.handleChange}
+                  onClick={(e) => roomMention.syncCursorFromEvent(e.currentTarget)}
+                  onKeyUp={(e) => roomMention.syncCursorFromEvent(e.currentTarget)}
+                  onSelect={(e) => roomMention.syncCursorFromEvent(e.currentTarget)}
+                  onPaste={handlePasteMedia}
+                  placeholder={
+                    pendingMedia
+                      ? `Add a caption as ${effectiveAlias} (optional)...`
+                      : activeRoom.isLocked
+                      ? `Message locked room as Admin (${effectiveAlias})...`
+                      : `Message as ${effectiveAlias}...`
+                  }
+                  className="flex-1 min-w-0 px-1.5 py-1.5 bg-transparent text-base sm:text-sm text-[#191525] placeholder:text-slate-400 focus:outline-none"
+                />
+
+                <button
+                  type="submit"
+                  disabled={(!messageText.trim() && !pendingMedia) || isUploadingMedia}
+                  className="p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0"
+                  title="Send to anonymous room"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           </>
         )
       ) : (
@@ -1116,21 +1403,36 @@ export const RoomDetailView: React.FC = () => {
         existingAliasesInRoom={Object.values(activeRoom.assignedPersonas || {}).map((p) => p.alias)}
       />
 
+      {/* Klipy GIF Picker Modal */}
+      <KlipyGifPicker
+        isOpen={showGifPicker}
+        customerId={user.id || user.username || 'bopoi_student'}
+        onSelect={(gif) => {
+          setPendingMedia({
+            mediaUrl: gif.url,
+            mediaType: 'gif',
+            fileName: gif.title || 'klipy.gif',
+          });
+          setTimeout(() => inputRef.current?.focus(), 40);
+        }}
+        onClose={() => setShowGifPicker(false)}
+      />
+
       {/* 9. Room Aliases & Personas Directory Modal */}
       {showRosterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-[#EAE6F0] flex items-center justify-between shrink-0 bg-gradient-to-r from-[#FAF9FC] to-white">
+            <div className="p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between shrink-0 bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14]">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-white border border-[#5420F5]/25 flex items-center justify-center p-1 shadow-xs shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/25 flex items-center justify-center p-1 shadow-xs shrink-0">
                   <PersonaMaskIcon mask={effectiveMaskId} size={28} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-black text-[#191525] truncate">
+                  <h3 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                     Room Aliases
                   </h3>
-                  <p className="text-xs text-[#706B7D] truncate">
+                  <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                     #{activeRoom.name} · Anonymous members directory
                   </p>
                 </div>
@@ -1138,7 +1440,7 @@ export const RoomDetailView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-black cursor-pointer shrink-0"
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 hover:text-black dark:hover:text-white cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1147,26 +1449,26 @@ export const RoomDetailView: React.FC = () => {
             {/* Body */}
             <div className="p-4 overflow-y-auto space-y-3.5">
               {/* Unlimited Room Banner */}
-              <div className="px-3 py-2 rounded-xl bg-purple-50/70 border border-[#5420F5]/20 flex items-center gap-2 text-[11px] text-[#5420F5] font-semibold">
+              <div className="px-3 py-2 rounded-xl bg-purple-50/70 dark:bg-[#231A45] border border-[#5420F5]/20 flex items-center gap-2 text-[11px] text-[#5420F5] dark:text-[#B9A7FF] font-semibold">
                 <Sparkles className="w-3.5 h-3.5 shrink-0" />
                 <span>Unlimited room capacity — unlimited students can join!</span>
               </div>
 
               {/* Your Permanent Persona Banner */}
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] to-white border border-[#5420F5]/30 flex items-center gap-3 shadow-xs">
-                <div className="w-10 h-10 rounded-2xl bg-white border border-[#5420F5]/20 flex items-center justify-center p-1 shrink-0">
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] to-white dark:from-[#231A45] dark:to-[#171322] border border-[#5420F5]/30 flex items-center gap-3 shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/20 flex items-center justify-center p-1 shrink-0">
                   <PersonaMaskIcon mask={effectiveMaskId} size={30} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs font-black text-[#191525] truncate">
+                    <span className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                       {effectiveAlias}
                     </span>
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-[#5420F5] text-white shrink-0">
                       You ({assignedPersona?.isCustom ? 'Custom' : 'Default'})
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                  <p className="text-[10px] text-slate-500 dark:text-[#9E97B3] mt-0.5 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5 shrink-0" />
                     <span>Preserved across visits until this room is deleted</span>
                   </p>
@@ -1176,10 +1478,10 @@ export const RoomDetailView: React.FC = () => {
               {/* 10 Default Aliases Grid */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-[#191525]">
+                  <h4 className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
                     The 10 Default Aliases
                   </h4>
-                  <span className="text-[10px] text-slate-500 font-bold">
+                  <span className="text-[10px] text-slate-500 dark:text-[#9E97B3] font-bold">
                     Auto-assigned to first 10 members
                   </span>
                 </div>
@@ -1196,21 +1498,21 @@ export const RoomDetailView: React.FC = () => {
                         key={preset.id}
                         className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all ${
                           isCurrentUser
-                            ? 'bg-[#F0EBFF] border-[#5420F5] shadow-xs'
+                            ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5] shadow-xs'
                             : assignedUser
-                            ? 'bg-slate-50 border-slate-200'
-                            : 'bg-white border-dashed border-slate-200'
+                            ? 'bg-slate-50 dark:bg-[#171322] border-slate-200 dark:border-[#262036]'
+                            : 'bg-white dark:bg-[#0E0C14] border-dashed border-slate-200 dark:border-[#262036]'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-0.5 shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#171322] border border-slate-200 dark:border-[#262036] flex items-center justify-center p-0.5 shrink-0">
                             <PersonaMaskIcon mask={preset.id} size={24} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-[#191525] truncate">
+                            <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                               {preset.name}
                             </p>
-                            <p className="text-[10px] text-slate-400 truncate">
+                            <p className="text-[10px] text-slate-400 dark:text-[#9E97B3] truncate">
                               {preset.tagline}
                             </p>
                           </div>
@@ -1222,11 +1524,11 @@ export const RoomDetailView: React.FC = () => {
                               Your Alias
                             </span>
                           ) : assignedUser ? (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-[#262036] text-slate-600 dark:text-[#9E97B3]">
                               In Use
                             </span>
                           ) : (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                               Available
                             </span>
                           )}
@@ -1239,12 +1541,12 @@ export const RoomDetailView: React.FC = () => {
 
               {/* Custom Personas in this room */}
               {Object.values(activeRoom.assignedPersonas || {}).some((a) => a.isCustom) && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-[#262036]">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-[#191525]">
+                    <h4 className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
                       Custom Chatters in this Room
                     </h4>
-                    <span className="text-[10px] text-slate-500 font-bold">
+                    <span className="text-[10px] text-slate-500 dark:text-[#9E97B3] font-bold">
                       {Object.values(activeRoom.assignedPersonas || {}).filter((a) => a.isCustom).length} custom
                     </span>
                   </div>
@@ -1254,13 +1556,13 @@ export const RoomDetailView: React.FC = () => {
                       .map((custom) => (
                         <div
                           key={custom.userId}
-                          className="p-2 rounded-xl bg-purple-50/50 border border-purple-200 flex items-center justify-between text-xs"
+                          className="p-2 rounded-xl bg-purple-50/50 dark:bg-[#231A45]/60 border border-purple-200 dark:border-[#5420F5]/30 flex items-center justify-between text-xs"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <PersonaMaskIcon mask={custom.maskId} size={20} />
-                            <span className="font-bold text-[#191525] truncate">{custom.alias}</span>
+                            <span className="font-bold text-[#191525] dark:text-[#F4F2FA] truncate">{custom.alias}</span>
                           </div>
-                          <span className="text-[9px] font-bold text-purple-700 shrink-0">Custom Alias</span>
+                          <span className="text-[9px] font-bold text-purple-700 dark:text-[#B9A7FF] shrink-0">Custom Alias</span>
                         </div>
                       ))}
                   </div>
@@ -1269,7 +1571,7 @@ export const RoomDetailView: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-slate-100 bg-[#FAF9FC] flex justify-end">
+            <div className="p-3 border-t border-slate-100 dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}

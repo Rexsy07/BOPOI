@@ -1,66 +1,52 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ArrowLeft,
   Settings,
   Copy,
-  Inbox,
   ChevronRight,
   ChevronLeft,
   School,
-  Shield,
-  HelpCircle,
-  Link as LinkIcon,
-  Edit3,
   X,
   Plus,
   Trash2,
   Check,
-  Bookmark,
   Heart,
-  MessageCircle,
   Share2,
-  Search,
-  CheckCircle2,
   ExternalLink,
   Sparkles,
-  PenSquare,
-  BarChart3,
-  Lock,
-  MessageSquare,
   Send,
   Dices,
   LogOut,
-  Users,
-  UserPlus,
+  MessageCircle,
   Loader2,
+  Sun,
+  Moon,
+  Bookmark,
 } from 'lucide-react';
-import { useBopoi, useCharacterMood } from '../../context/BopoiContext.tsx';
-import { SocialPost, MessageAnswer } from '../../types/index.ts';
-import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
+import { useBopoi } from '../../context/BopoiContext.tsx';
+import { MessageAnswer, ModerationReport } from '../../types/index.ts';
 import { RegisterView, CAMPUS_OPTIONS } from './RegisterView.tsx';
+import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
+import { MentionText } from '../ui/MentionText.tsx';
+import { FeedPostRow } from '../feed/FeedPostRow.tsx';
 import {
   BopoiSearchIcon,
   BookmarkedIcon,
-  DeleteRemoveIcon,
   SearchEmptyIcon,
   EditAliasIcon,
-  CopiedClipboardIcon,
   SparklePolishIcon,
-  ShareCardsIcon,
-  StudentPostsIcon,
-  LaunchTrendingIcon,
-  InboxShortcutIcon,
   CreateConfessionIcon,
   CreatePollIcon,
   CreateDiscussionIcon,
   CreatePostIcon,
+  LaunchTrendingIcon,
+  InboxShortcutIcon,
   ProfileShieldNavIcon,
   StoryStudioNavIcon,
   PublicAskNavIcon,
   GetYourLinkIcon,
   ReceiveMessagesIcon,
-  RealPeopleIcon,
   AdminConsoleNavIcon,
+  SafetyShieldBadgeIcon,
 } from '../brand/icons/index.ts';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 import {
@@ -70,6 +56,12 @@ import {
   serializeCharacterConfig,
 } from '../brand/character/index.ts';
 import { FollowListModal } from '../modals/FollowListModal.tsx';
+import { ReportCaseChatModal } from '../modals/ReportCaseChatModal.tsx';
+import {
+  getReportThreadMessages,
+  getUnreadReportCountForReporter,
+  getReportTypeLabel,
+} from '../../lib/reportChat.ts';
 
 interface ProfileViewProps {
   initialTab?: 'posts' | 'answers' | 'saved' | 'settings';
@@ -78,15 +70,11 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }) => {
   const {
     user,
+    accounts,
     socialPosts,
     answers,
-    togglePostLike,
-    togglePostBookmark,
-    votePoll,
-    setSelectedPost,
     setSelectedAnswer,
     deleteSocialPost,
-    viewUserProfile,
     safetySettings,
     toggleLinkActive,
     copyUserLink,
@@ -96,47 +84,45 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     unblockSender,
     clearBlockedSenders,
     submitSupportTicket,
+    openTicketInSettings,
+    userModerationReports,
+    unreadReportsCount,
+    activeReportTicketId,
+    setActiveReportTicketId,
+    openReportModal,
     setActiveView,
     goBack,
     setIsCreateModalOpen,
     showToast,
-    openPostShare,
-    accounts,
-    switchAccount,
     logoutAccount,
-    openPublicAskFor,
     openLegalDoc,
     isAuthenticated,
     getFollowersForUser,
     getFollowingForUser,
     requestConfirm,
+    theme,
+    setTheme,
   } = useBopoi();
 
-  const { characterMood, setCharacterMood, availableMoods } = useCharacterMood();
-
-  const [profileTab, setProfileTab] = useState<'posts' | 'answers' | 'saved' | 'settings'>(initialTab);
-  const [postFilter, setPostFilter] = useState<'all' | 'confessions' | 'polls' | 'discussions' | 'answers'>('all');
+  const [profileTab, setProfileTab] = useState<'posts' | 'answers' | 'saved'>(
+    initialTab === 'settings' ? 'posts' : initialTab
+  );
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState<boolean>(
+    initialTab === 'settings'
+  );
+  const [postFilter, setPostFilter] = useState<
+    'all' | 'confessions' | 'polls' | 'discussions' | 'answers'
+  >('all');
   const [savedFilter, setSavedFilter] = useState<'all' | 'bookmarks' | 'liked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [activeModal, setActiveModal] = useState<
-    'edit-profile' | 'character-studio' | 'safety' | 'help' | null
+    'edit-profile' | 'character-studio' | 'safety' | 'help' | 'tickets' | null
   >(null);
+  const [activeChatTicket, setActiveChatTicket] = useState<ModerationReport | null>(null);
   const [followModalTab, setFollowModalTab] = useState<'followers' | 'following' | null>(null);
 
   const [copied, setCopied] = useState(false);
-  const settingsSectionRef = useRef<HTMLDivElement>(null);
-
-  const openAndScrollToSettings = () => {
-    setProfileTab('settings');
-    setSearchQuery('');
-    setTimeout(() => {
-      settingsSectionRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 60);
-  };
 
   // Edit profile form state
   const [editName, setEditName] = useState(user.displayName);
@@ -146,18 +132,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     user.customPrompt || "There's something you've been wanting to ask..."
   );
 
-  // Hidden word input
+  // Hidden word & support ticket state
   const [newWord, setNewWord] = useState('');
   const [supportSubject, setSupportSubject] = useState('General Question');
   const [supportMessage, setSupportMessage] = useState('');
   const [saveProfileStage, setSaveProfileStage] = useState<'idle' | 'saving' | 'confirmed'>('idle');
   const [supportStage, setSupportStage] = useState<'idle' | 'sending' | 'confirmed'>('idle');
 
+  const pendingTicketsCount = userModerationReports.filter((r) => r.status === 'pending').length;
+
+  const verifiedUsernameSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const u of accounts || []) {
+      if (u.isVerified || u.isCreator) {
+        set.add(u.username.toLowerCase());
+      }
+    }
+    return set;
+  }, [accounts]);
+
+  useEffect(() => {
+    if (initialTab === 'settings') {
+      setSettingsDrawerOpen(true);
+    } else if (initialTab === 'posts' || initialTab === 'answers' || initialTab === 'saved') {
+      setProfileTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (!activeReportTicketId) return;
+    setSettingsDrawerOpen(true);
+    setActiveModal('tickets');
+    if (activeReportTicketId !== '__LIST__') {
+      const found = userModerationReports.find((r) => r.id === activeReportTicketId);
+      if (found) {
+        setActiveChatTicket(found);
+      }
+    }
+    setActiveReportTicketId(null);
+  }, [activeReportTicketId, userModerationReports, setActiveReportTicketId]);
+
   if (!isAuthenticated || !user.username || user.username === 'student') {
     return <RegisterView initialMode="login" />;
   }
 
-  // 1. User's Own Created Posts & Stuffs
+  // 1. User's Own Posts
   const myPosts = socialPosts.filter(
     (p) =>
       p.authorUserId === user.id ||
@@ -169,14 +188,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   const myPolls = myPosts.filter((p) => p.type === 'poll');
   const myDiscussions = myPosts.filter((p) => p.type === 'discussion' || p.type === 'post');
 
-  // Public/Completed story answers
   const myAnswersList: MessageAnswer[] = Object.values(answers).filter(
     (a) => !a.isDraft && (a.authorUsername === user.username || !a.authorUsername)
   );
 
   const totalMyItems = myPosts.length + myAnswersList.length;
 
-  // Filtered list of user's posts
   const filteredMyPosts = myPosts.filter((p) => {
     if (postFilter === 'confessions' && p.type !== 'confession') return false;
     if (postFilter === 'polls' && p.type !== 'poll') return false;
@@ -203,7 +220,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     );
   });
 
-  // 2. Saved & Bookmarked Items
+  // 2. Saved & Liked Items
   const bookmarkedPosts = socialPosts.filter((p) => p.isBookmarked);
   const likedPosts = socialPosts.filter((p) => p.hasLiked);
   const allSavedPosts = socialPosts.filter((p) => p.isBookmarked || p.hasLiked);
@@ -234,6 +251,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleShareProfile = () => {
+    const url = `${window.location.origin}/?ask=${user.username}#public-ask`;
+    if (navigator.share) {
+      navigator
+        .share({
+          title: `${user.displayName} on Bopoi`,
+          text: `Send me anonymous messages on Bopoi!`,
+          url,
+        })
+        .catch(() => {});
+    } else {
+      handleCopy();
+    }
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (saveProfileStage !== 'idle') return;
@@ -262,185 +294,139 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     }
   };
 
-  const handleCardClick = (post: SocialPost) => {
-    setSelectedPost(post);
-    if (post.type === 'poll') {
-      setActiveView('poll-detail');
-    } else {
-      setActiveView('post-detail');
-    }
-  };
-
   const handleOpenAnswerStudio = (ans: MessageAnswer) => {
     setSelectedAnswer(ans);
     setActiveView('answer-studio');
   };
 
-  const handleShare = (e: React.MouseEvent, post: SocialPost) => {
-    e.stopPropagation();
-    openPostShare(post);
-  };
-
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-4 sm:py-6 px-4 sm:px-6 pb-24 text-[#191525] animate-in fade-in duration-300">
-      <div className="max-w-2xl mx-auto space-y-4">
-        {/* 1. Header Bar */}
-      <div className="flex items-center justify-between py-2 border-b border-[#EAE6F0]">
+    <div className="w-full flex flex-col bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] pb-12">
+      {/* 1. Sticky Top Header */}
+      <div className="sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036] px-4 sm:px-5 h-[52px] flex items-center justify-between gap-2">
         <button
+          type="button"
           onClick={() => goBack('home')}
-          className="p-1.5 -ml-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+          className="min-h-[44px] -ml-2 px-2 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center gap-1"
           title="Go back"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-5 h-5" />
           <span className="text-xs font-bold hidden sm:inline">Back</span>
         </button>
 
-        <h1 className="text-sm sm:text-base font-black text-[#191525] truncate">
+        <h1 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA] truncate">
           @{user.username}
         </h1>
 
-        <div className="flex items-center gap-1 -mr-1.5">
+        <div className="flex items-center gap-0.5 -mr-2">
           <button
-            onClick={() => setActiveModal('edit-profile')}
-            className="p-2 rounded-full hover:bg-purple-50 text-[#5420F5] transition-colors cursor-pointer"
-            title="Edit Profile"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              const url = `${window.location.origin}/#public-ask`;
-              if (navigator.share) {
-                navigator.share({
-                  title: `${user.displayName} on Bopoi`,
-                  text: `Send me anonymous messages on Bopoi!`,
-                  url,
-                }).catch(() => {});
-              } else {
-                handleCopy();
-              }
-            }}
-            className="p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+            type="button"
+            onClick={handleShareProfile}
+            className="min-h-[44px] min-w-[44px] rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center"
             title="Share profile link"
+            aria-label="Share profile link"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-[18px] h-[18px]" />
           </button>
           <button
-            onClick={openAndScrollToSettings}
-            className="p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
-            title="Scroll to Settings & Safety"
+            type="button"
+            onClick={() => setSettingsDrawerOpen(true)}
+            className="relative min-h-[44px] min-w-[44px] rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center"
+            title="Settings & Safety"
+            aria-label="Settings & Safety"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-[18px] h-[18px]" />
+            {unreadReportsCount > 0 && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#F52D85]" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* 2. Hero Profile Card - Clean, matching public profile layout without banner thumbnail */}
-      <div className="bg-white rounded-3xl border border-[#EAE6F0] shadow-xs p-5 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            {/* 3D Customizable Campus Student Character Portrait */}
-            <div className="relative group shrink-0">
-              <CampusCharacterAvatar
-                value={user.avatarUrl}
-                seed={user.username}
-                size={68}
-                rounded="full"
-                showRing
-                onClick={() => setActiveModal('character-studio')}
-                title="Click to customize your 3D character"
-                className="ring-2 ring-[#5420F5]/20 hover:scale-105 transition-transform"
+      {/* 2. Threads-Style Asymmetric Profile Header */}
+      <section className="px-4 sm:px-5 pt-5 pb-4 space-y-3.5 border-b border-[#EAE6F0] dark:border-[#262036]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight">
+                {user.displayName}
+              </h2>
+              <VerifiedCreatorBadge
+                isVerified={Boolean(user.isVerified || user.isCreator)}
+                username={user.username}
+                size={18}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  requestConfirm({
-                    badge: '3D Character Studio',
-                    title: 'Randomize your 3D character?',
-                    description:
-                      'Are you sure you want to roll a new random 3D character look? Your current outfit, hair, and aura will be replaced.',
-                    confirmLabel: 'Yes, Randomize Look',
-                    variant: 'primary',
-                    icon: 'sparkle',
-                    onConfirm: () => {
-                      const nextUri = serializeCharacterConfig(randomizeCharacterConfig());
-                      updateProfile({ avatarUrl: nextUri });
-                    },
-                  });
-                }}
-                title="Randomize 3D Character"
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#5420F5] text-white border-2 border-white shadow-md flex items-center justify-center hover:bg-[#4314E2] cursor-pointer transition-transform active:scale-90"
-              >
-                <Dices className="w-3.5 h-3.5" />
-              </button>
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-lg sm:text-xl font-black text-[#191525]">
-                  {user.displayName}
-                </h2>
-                <span title="Verified Campus Student" className="inline-flex items-center">
-                  <SparklePolishIcon size={16} />
-                </span>
-              </div>
-              <p className="text-xs text-[#706B7D] font-semibold">@{user.username}</p>
+            <p className="text-xs sm:text-sm text-[#706B7D] dark:text-[#9E97B3] font-semibold">
+              @{user.username}
+            </p>
 
-              {/* Campus Tag */}
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#F0EBFF] text-[#5420F5] text-[11px] font-bold rounded-full mt-1.5">
-                <School className="w-3.5 h-3.5" />
-                <span>{user.campus || 'Nigerian University Student'}</span>
-              </div>
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5420F5] dark:text-[#8E6BFF] pt-0.5">
+              <School className="w-3.5 h-3.5 shrink-0" />
+              <span>{user.campus || 'Nigerian University Student'}</span>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
-            <button
+          {/* 3D Customizable Campus Character Avatar + Dice */}
+          <div className="relative shrink-0">
+            <CampusCharacterAvatar
+              value={user.avatarUrl}
+              seed={user.username}
+              size={72}
+              rounded="full"
+              showRing
               onClick={() => setActiveModal('character-studio')}
-              className="px-3.5 py-2 bg-[#F0EBFF] hover:bg-[#5420F5] text-[#5420F5] hover:text-white text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
-            >
-              <SparklePolishIcon size={15} />
-              <span>Character Studio</span>
-            </button>
+              title="Click to customize your 3D character"
+              className="ring-1 ring-[#EAE6F0] dark:ring-[#262036] hover:scale-105 transition-transform"
+            />
             <button
-              onClick={() => setActiveModal('edit-profile')}
-              className="px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 flex items-center gap-1.5 active:scale-95 shrink-0"
+              type="button"
+              onClick={() => {
+                requestConfirm({
+                  badge: '3D Character Studio',
+                  title: 'Randomize your 3D character?',
+                  description:
+                    'Are you sure you want to roll a new random 3D character look? Your current outfit, hair, and aura will be replaced.',
+                  confirmLabel: 'Yes, Randomize Look',
+                  variant: 'primary',
+                  icon: 'sparkle',
+                  onConfirm: () => {
+                    const nextUri = serializeCharacterConfig(randomizeCharacterConfig());
+                    updateProfile({ avatarUrl: nextUri });
+                  },
+                });
+              }}
+              title="Randomize 3D Character"
+              aria-label="Randomize 3D Character"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#5420F5] text-white border-2 border-white dark:border-[#0E0C14] shadow-sm flex items-center justify-center hover:bg-[#4314E2] cursor-pointer transition-transform active:scale-90"
             >
-              <EditAliasIcon size={16} />
-              <span>Edit Profile</span>
-            </button>
-            <button
-              onClick={openAndScrollToSettings}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer shrink-0"
-              title="Settings & Safety"
-            >
-              <Settings className="w-4 h-4" />
+              <Dices className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Bio */}
         {user.bio ? (
-          <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
-            {user.bio}
+          <p className="text-sm text-[#191525] dark:text-[#F4F2FA] font-medium leading-relaxed">
+            <MentionText text={user.bio} />
           </p>
         ) : (
-          <p className="text-xs text-slate-400 italic">No bio added yet. Tap edit profile to introduce yourself!</p>
+          <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] italic">
+            No bio added yet. Tap Edit Profile to introduce yourself.
+          </p>
         )}
 
-        {/* Interactive Stats Row - Symmetrical 4-Column Grid on Mobile & Desktop */}
-        <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-100">
+        {/* Interactive Stats Row */}
+        <div className="grid grid-cols-4 gap-2 pt-1 text-center sm:text-left tabular-nums">
           <button
             type="button"
             onClick={() => setFollowModalTab('followers')}
-            className="flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors cursor-pointer group text-center"
-            title="Tap to see who follows you"
+            className="min-h-[40px] flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 cursor-pointer group"
           >
-            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
+            <span className="font-black text-[#191525] dark:text-[#F4F2FA] group-hover:text-[#5420F5] dark:group-hover:text-[#8E6BFF] text-sm">
               {getFollowersForUser(user.username).length.toLocaleString()}
             </span>
-            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
+            <span className="text-[11px] sm:text-xs text-[#706B7D] dark:text-[#9E97B3] font-semibold">
               Followers
             </span>
           </button>
@@ -448,13 +434,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <button
             type="button"
             onClick={() => setFollowModalTab('following')}
-            className="flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors cursor-pointer group text-center"
-            title="Tap to see who you are following"
+            className="min-h-[40px] flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 cursor-pointer group"
           >
-            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
+            <span className="font-black text-[#191525] dark:text-[#F4F2FA] group-hover:text-[#5420F5] dark:group-hover:text-[#8E6BFF] text-sm">
               {getFollowingForUser(user.username).length.toLocaleString()}
             </span>
-            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
+            <span className="text-[11px] sm:text-xs text-[#706B7D] dark:text-[#9E97B3] font-semibold">
               Following
             </span>
           </button>
@@ -462,12 +447,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <button
             type="button"
             onClick={() => setProfileTab('posts')}
-            className="flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors cursor-pointer group text-center"
+            className="min-h-[40px] flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 cursor-pointer group"
           >
-            <span className="font-black text-[#191525] group-hover:text-[#5420F5] tabular-nums text-sm leading-tight">
+            <span className="font-black text-[#191525] dark:text-[#F4F2FA] group-hover:text-[#5420F5] dark:group-hover:text-[#8E6BFF] text-sm">
               {myPosts.length}
             </span>
-            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#5420F5] font-semibold">
+            <span className="text-[11px] sm:text-xs text-[#706B7D] dark:text-[#9E97B3] font-semibold">
               Posts
             </span>
           </button>
@@ -475,1270 +460,918 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           <button
             type="button"
             onClick={() => setProfileTab('saved')}
-            className="flex flex-col sm:flex-row items-center justify-center sm:gap-1.5 py-1 transition-colors cursor-pointer group text-center"
+            className="min-h-[40px] flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-1.5 cursor-pointer group"
           >
-            <span className="font-black text-[#F52D85] tabular-nums text-sm leading-tight">
+            <span className="font-black text-[#F52D85] text-sm">
               {allSavedPosts.length}
             </span>
-            <span className="text-[11px] sm:text-xs text-[#706B7D] group-hover:text-[#F52D85] font-semibold">
+            <span className="text-[11px] sm:text-xs text-[#706B7D] dark:text-[#9E97B3] font-semibold">
               Saved
             </span>
           </button>
         </div>
-      </div>
 
-      {/* 3. Student's Active Anonymous Link Callout */}
-      <div className="bg-gradient-to-r from-[#F0EBFF] via-white to-[#F0EBFF] border border-[#5420F5]/25 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-        <div className="flex items-center gap-3.5 text-left w-full sm:w-auto min-w-0">
-          <BopoiAnonymousAvatar size="md" idPrefix="profile-active-link-banner" showSparkleBadge />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${user.linkActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-              <h4 className="text-sm font-black text-[#191525] truncate">
-                {user.linkActive ? 'Your anonymous link is active' : 'Your link is taking a break'}
-              </h4>
-            </div>
-            <p className="text-xs text-[#706B7D] font-mono mt-0.5 truncate">
-              bopoi.com/@{user.username}/ask
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+        {/* Dual Equal-Width Threads Buttons */}
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
           <button
+            type="button"
+            onClick={() => setActiveModal('edit-profile')}
+            className="min-h-[44px] px-4 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] hover:bg-slate-100 dark:hover:bg-[#231942] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs sm:text-sm font-black rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <EditAliasIcon size={16} />
+            <span>Edit Profile</span>
+          </button>
+          <button
+            type="button"
             onClick={handleCopy}
-            className="flex-1 sm:flex-none px-3.5 py-2 bg-white text-[#5420F5] rounded-xl hover:bg-purple-50 border border-[#5420F5]/30 transition-colors cursor-pointer font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs"
+            className="min-h-[44px] px-4 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs sm:text-sm font-black rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
           >
-            {copied ? <CopiedClipboardIcon size={16} /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied Link!' : 'Copy Link'}</span>
-          </button>
-          <button
-            onClick={() => setActiveView('public-ask')}
-            className="flex-1 sm:flex-none px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
-            title="Preview how friends view your anonymous link"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Preview</span>
+            {copied ? <Check className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+            <span>{copied ? 'Link Copied!' : 'Share Ask Link'}</span>
           </button>
         </div>
-      </div>
 
-      {/* 4. Profile Content Tabs */}
-      <div
-        ref={settingsSectionRef}
-        className="flex items-center border-b border-[#EAE6F0] pt-1 overflow-x-auto no-scrollbar scroll-mt-20"
-      >
+        {/* Instagram-Style Profile Highlights Shelf */}
+        <div className="pt-2 -mx-4 sm:-mx-5 px-4 sm:px-5 flex items-start gap-4 overflow-x-auto no-scrollbar">
+          {/* Highlight 1: Ask Link Preview */}
+          <button
+            type="button"
+            onClick={() => setActiveView('public-ask')}
+            className="flex flex-col items-center gap-1.5 w-[64px] shrink-0 cursor-pointer group"
+          >
+            <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-[#5420F5] via-[#9D50FF] to-[#F52D85] group-hover:scale-105 transition-transform">
+              <div className="w-[54px] h-[54px] rounded-full bg-white dark:bg-[#0E0C14] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#5420F5] dark:text-[#8E6BFF]">
+                <Send className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] truncate w-full text-center">
+              Ask Link
+            </span>
+          </button>
+
+          {/* Highlight 2: Story Studio / Q&A */}
+          <button
+            type="button"
+            onClick={() => {
+              if (myAnswersList.length > 0) {
+                handleOpenAnswerStudio(myAnswersList[0]);
+              } else {
+                setActiveView('inbox');
+              }
+            }}
+            className="flex flex-col items-center gap-1.5 w-[64px] shrink-0 cursor-pointer group"
+          >
+            <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-[#F52D85] to-[#FF9F43] group-hover:scale-105 transition-transform">
+              <div className="w-[54px] h-[54px] rounded-full bg-white dark:bg-[#0E0C14] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#F52D85]">
+                <Sparkles className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] truncate w-full text-center">
+              Story Cards
+            </span>
+          </button>
+
+          {/* Highlight 3: 3D Avatar Studio */}
+          <button
+            type="button"
+            onClick={() => setActiveModal('character-studio')}
+            className="flex flex-col items-center gap-1.5 w-[64px] shrink-0 cursor-pointer group"
+          >
+            <div className="p-[2.5px] rounded-full bg-[#EAE6F0] dark:bg-[#262036] group-hover:bg-[#5420F5] transition-colors">
+              <div className="w-[54px] h-[54px] rounded-full bg-white dark:bg-[#0E0C14] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#5420F5] dark:text-[#8E6BFF]">
+                <SparklePolishIcon size={20} />
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] truncate w-full text-center">
+              3D Studio
+            </span>
+          </button>
+
+          {/* Highlight 4: Saved Vault */}
+          <button
+            type="button"
+            onClick={() => setProfileTab('saved')}
+            className="flex flex-col items-center gap-1.5 w-[64px] shrink-0 cursor-pointer group"
+          >
+            <div className="p-[2.5px] rounded-full bg-[#EAE6F0] dark:bg-[#262036] group-hover:bg-[#5420F5] transition-colors">
+              <div className="w-[54px] h-[54px] rounded-full bg-white dark:bg-[#0E0C14] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#191525] dark:text-[#F4F2FA]">
+                <Bookmark className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] truncate w-full text-center">
+              Saved ({allSavedPosts.length})
+            </span>
+          </button>
+
+          {/* Highlight 5+: Recent Answered Q&A Story Cards */}
+          {myAnswersList.slice(0, 3).map((ans, idx) => (
+            <button
+              key={ans.id}
+              type="button"
+              onClick={() => handleOpenAnswerStudio(ans)}
+              className="flex flex-col items-center gap-1.5 w-[64px] shrink-0 cursor-pointer group"
+              title={ans.questionText}
+            >
+              <div className="p-[2px] rounded-full bg-[#EAE6F0] dark:bg-[#262036] group-hover:bg-[#5420F5] transition-colors">
+                <div className="w-[54px] h-[54px] rounded-full bg-[#FAF9FC] dark:bg-[#171322] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center px-1.5 text-center">
+                  <span className="text-[9px] font-black text-[#191525] dark:text-[#F4F2FA] line-clamp-2 leading-tight">
+                    Q&amp;A #{idx + 1}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3] truncate w-full text-center">
+                {ans.createdAt}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. Sticky 3-Column Underline Profile Tabs (Posts | Q&A | Saved) */}
+      <div className="sticky top-[104px] lg:top-[52px] z-10 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md grid grid-cols-3 border-b border-[#EAE6F0] dark:border-[#262036]">
         {[
-          {
-            id: 'posts',
-            label: `Posts (${myPosts.length})`,
-            icon: <StudentPostsIcon size={15} />,
-          },
-          {
-            id: 'answers',
-            label: `Answered Q&A (${myAnswersList.length})`,
-            icon: <StoryStudioNavIcon size={15} />,
-          },
-          {
-            id: 'saved',
-            label: `Saved Library (${allSavedPosts.length})`,
-            icon: <BookmarkedIcon size={15} />,
-          },
-          {
-            id: 'settings',
-            label: 'Settings & Safety',
-            icon: <ProfileShieldNavIcon size={15} />,
-          },
+          { id: 'posts' as const, label: `Posts (${myPosts.length})` },
+          { id: 'answers' as const, label: `Q&A (${myAnswersList.length})` },
+          { id: 'saved' as const, label: `Saved (${allSavedPosts.length})` },
         ].map((tab) => {
           const isActive = profileTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => {
-                setProfileTab(tab.id as any);
+                setProfileTab(tab.id);
                 setSearchQuery('');
               }}
-              className={`pb-2.5 px-4 text-xs font-black transition-all relative cursor-pointer shrink-0 inline-flex items-center gap-1.5 ${
-                isActive ? 'text-[#5420F5]' : 'text-[#706B7D] hover:text-[#191525]'
+              className={`min-h-[44px] py-2.5 px-2 text-xs sm:text-sm font-black transition-colors relative cursor-pointer hover:bg-[#FAF9FC] dark:hover:bg-[#171322] inline-flex items-center justify-center gap-1 tabular-nums truncate ${
+                isActive
+                  ? 'text-[#191525] dark:text-[#F4F2FA]'
+                  : 'text-[#706B7D] dark:text-[#9E97B3]'
               }`}
             >
-              {tab.icon}
-              <span>{tab.label}</span>
+              <span className="truncate">{tab.label}</span>
               {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5420F5] rounded-full" />
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-[3px] bg-[#5420F5] rounded-full" />
               )}
             </button>
           );
         })}
       </div>
 
-        {/* ========================================================= */}
-        {/* TAB 1: MY POSTS & STUFFS SECTION                          */}
-        {/* ========================================================= */}
-        {profileTab === 'posts' && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {/* Header info & Filter Chips */}
-            <div className="bg-white rounded-3xl p-5 border border-[#EAE6F0] shadow-xs space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div>
-                  <h2 className="text-base font-black text-[#191525] flex items-center gap-1.5">
-                    <span>Posts</span>
-                    <span className="text-xs text-slate-400 font-normal">
-                      ({totalMyItems} published)
-                    </span>
-                  </h2>
-                  <p className="text-xs text-[#706B7D] mt-0.5">
-                    All confessions, polls, discussions, and story answers you've shared.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs shrink-0 self-start sm:self-center"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>+ Create Post</span>
-                </button>
-              </div>
-
-              {/* Sub-Filter Pills */}
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-100 overflow-x-auto no-scrollbar py-0.5">
-                <button
-                  onClick={() => setPostFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    postFilter === 'all'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span>All</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    postFilter === 'all' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {totalMyItems}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setPostFilter('confessions')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    postFilter === 'confessions'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      postFilter === 'confessions' ? 'bg-white shadow-2xs' : 'bg-purple-50'
-                    }`}
-                  >
-                    <CreateConfessionIcon size={13} />
-                  </span>
-                  <span>Confessions</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    postFilter === 'confessions' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {myConfessions.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setPostFilter('polls')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    postFilter === 'polls'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      postFilter === 'polls' ? 'bg-white shadow-2xs' : 'bg-purple-50'
-                    }`}
-                  >
-                    <CreatePollIcon size={13} />
-                  </span>
-                  <span>Polls</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    postFilter === 'polls' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {myPolls.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setPostFilter('discussions')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    postFilter === 'discussions'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      postFilter === 'discussions' ? 'bg-white shadow-2xs' : 'bg-purple-50'
-                    }`}
-                  >
-                    <CreateDiscussionIcon size={13} />
-                  </span>
-                  <span>Discussions</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    postFilter === 'discussions' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {myDiscussions.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setPostFilter('answers')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    postFilter === 'answers'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      postFilter === 'answers' ? 'bg-white shadow-2xs' : 'bg-purple-50'
-                    }`}
-                  >
-                    <StoryStudioNavIcon size={13} />
-                  </span>
-                  <span>Answered Q&amp;A</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    postFilter === 'answers' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {myAnswersList.length}
-                  </span>
-                </button>
-              </div>
-
-              {/* Search bar inside user posts */}
-              {totalMyItems > 0 && (
-                <div className="relative pt-1">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center mt-0.5">
-                    <BopoiSearchIcon size={16} />
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search your posts, topics, or answers..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-xl text-base sm:text-xs text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5] transition-colors"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-black mt-0.5"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Posts & Answers Stream */}
-            {filteredMyPosts.length > 0 || filteredMyAnswers.length > 0 ? (
-              <div className="space-y-3.5">
-                {/* 1. Social Posts (Confessions, Polls, Discussions) */}
-                {filteredMyPosts.map((post) => {
-                  const isPoll = post.type === 'poll';
-                  const isConfession = post.type === 'confession';
-                  const isDiscussion = post.type === 'discussion';
-
+      {/* ========================================================= */}
+      {/* TAB 1: MY POSTS                                           */}
+      {/* ========================================================= */}
+      {profileTab === 'posts' && (
+        <div className="flex flex-col">
+          {/* Sub-filter & Search Strip */}
+          <div className="px-4 sm:px-5 py-3 border-b border-[#EAE6F0] dark:border-[#262036] space-y-2.5 bg-[#FAF9FC]/40 dark:bg-[#171322]/40">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {[
+                  { id: 'all' as const, label: `All (${totalMyItems})`, icon: null },
+                  {
+                    id: 'confessions' as const,
+                    label: `Confessions (${myConfessions.length})`,
+                    icon: <CreateConfessionIcon size={13} />,
+                  },
+                  {
+                    id: 'polls' as const,
+                    label: `Polls (${myPolls.length})`,
+                    icon: <CreatePollIcon size={13} />,
+                  },
+                  {
+                    id: 'discussions' as const,
+                    label: `Discussions (${myDiscussions.length})`,
+                    icon: <CreateDiscussionIcon size={13} />,
+                  },
+                  {
+                    id: 'answers' as const,
+                    label: `Q&A (${myAnswersList.length})`,
+                    icon: <StoryStudioNavIcon size={13} />,
+                  },
+                ].map((f) => {
+                  const isActive = postFilter === f.id;
                   return (
-                    <div
-                      key={post.id}
-                      onClick={() => handleCardClick(post)}
-                      className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EAE6F0] shadow-xs hover:border-[#5420F5]/30 hover:shadow-md transition-all cursor-pointer space-y-3"
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setPostFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 tabular-nums whitespace-nowrap ${
+                        isActive
+                          ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                          : 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+                      }`}
                     >
-                      {/* Card Author Header */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          {post.isAnonymous ? (
-                            <BopoiAnonymousAvatar size="sm" idPrefix={`mypost-${post.id}`} />
-                          ) : (
-                            <CampusCharacterAvatar
-                              value={post.authorAvatar || user.avatarUrl}
-                              seed={post.authorUsername || user.username}
-                              size={32}
-                              rounded="full"
-                            />
-                          )}
-                          <div>
-                            <span className="text-xs font-black text-[#191525] block">
-                              {post.isAnonymous ? 'Anonymous' : user.displayName}
-                            </span>
-                            <span className="text-[10px] text-[#706B7D] block">
-                              {post.createdAt} {post.authorCampus && `• ${post.authorCampus}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status Badges */}
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`text-[10px] font-black px-2.5 py-0.5 rounded-full capitalize inline-flex items-center gap-1 ${
-                              isConfession
-                                ? 'bg-purple-100 text-purple-700'
-                                : isPoll
-                                ? 'bg-orange-100 text-orange-700'
-                                : isDiscussion
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {isConfession ? (
-                              <CreateConfessionIcon size={13} />
-                            ) : isPoll ? (
-                              <CreatePollIcon size={13} />
-                            ) : isDiscussion ? (
-                              <CreateDiscussionIcon size={13} />
-                            ) : (
-                              <CreatePostIcon size={13} />
-                            )}
-                            <span>{post.type}</span>
-                          </span>
-
-                          {/* Delete my post */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSocialPost(post.id);
-                            }}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Delete this post"
-                          >
-                            <DeleteRemoveIcon size={16} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Title if discussion */}
-                      {post.title && (
-                        <h3 className="text-sm sm:text-base font-black text-[#191525] leading-snug">
-                          {post.title}
-                        </h3>
-                      )}
-
-                      {/* Content */}
-                      <p className="text-xs sm:text-sm text-[#191525] font-medium leading-relaxed">
-                        {post.content}
-                      </p>
-
-                      {/* Poll Voting Interface inside Card */}
-                      {isPoll && post.pollOptions && (
-                        <div className="space-y-2 pt-1" onClick={(e) => e.stopPropagation()}>
-                          {post.pollOptions.map((opt) => {
-                            const total = post.pollTotalVotes || 1;
-                            const pct = Math.round((opt.votes / total) * 100);
-                            const isVoted = post.userVotedOptionId === opt.id;
-
-                            return (
-                              <button
-                                key={opt.id}
-                                onClick={() => votePoll(post.id, opt.id)}
-                                className={`w-full text-left rounded-xl p-2.5 relative overflow-hidden border transition-all cursor-pointer ${
-                                  isVoted
-                                    ? 'border-[#5420F5] bg-[#F0EBFF]/30 font-bold'
-                                    : 'border-[#EAE6F0] bg-slate-50/70 hover:bg-slate-100/80 font-medium'
-                                }`}
-                              >
-                                <div
-                                  className={`absolute top-0 bottom-0 left-0 transition-all duration-500 ${
-                                    isVoted ? 'bg-[#5420F5]/20' : 'bg-slate-200/60'
-                                  }`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                                <div className="relative z-10 flex items-center justify-between text-xs text-[#191525]">
-                                  <span className="flex items-center gap-1.5">
-                                    {isVoted && <CheckCircle2 className="w-3.5 h-3.5 text-[#5420F5]" />}
-                                    <span>{opt.text}</span>
-                                  </span>
-                                  <span className="font-bold text-slate-700">{pct}%</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                          <div className="text-[10px] text-slate-400 text-right pt-0.5">
-                            {post.pollTotalVotes || 0} total student votes
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Hashtags */}
-                      {post.hashtags && post.hashtags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {post.hashtags.map((tag) => (
-                            <span key={tag} className="text-[11px] font-bold text-[#5420F5]">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Action Toolbar */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-slate-500 text-xs">
-                        {/* Heart / Like */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePostLike(post.id);
-                          }}
-                          className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-pink-50 ${
-                            post.hasLiked ? 'text-[#F52D85] font-bold' : 'hover:text-[#F52D85]'
-                          }`}
-                          title="Likes"
-                        >
-                          <Heart className={`w-4 h-4 ${post.hasLiked ? 'fill-[#F52D85]' : ''}`} />
-                          <span>{post.likes}</span>
-                        </button>
-
-                        {/* Comment */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCardClick(post);
-                          }}
-                          className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{post.commentsCount} comments</span>
-                        </button>
-
-                        {/* Share */}
-                        <button
-                          onClick={(e) => handleShare(e, post)}
-                          className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-                          title="Share post off-campus"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          <span>{post.sharesCount || 0}</span>
-                        </button>
-
-                        {/* Open Detail */}
-                        <span className="text-[11px] font-bold text-[#5420F5] hover:underline flex items-center gap-0.5">
-                          <span>View Discussion</span>
-                          <span>→</span>
-                        </span>
-                      </div>
-                    </div>
+                      {f.icon}
+                      <span>{f.label}</span>
+                    </button>
                   );
                 })}
+              </div>
 
-                {/* 2. Answered Story Q&A Cards */}
-                {filteredMyAnswers.map((ans) => (
-                  <div
-                    key={ans.id}
-                    onClick={() => handleOpenAnswerStudio(ans)}
-                    className="bg-white rounded-3xl p-5 border border-[#EAE6F0] shadow-xs hover:border-[#5420F5]/30 hover:shadow-md transition-all cursor-pointer space-y-3.5 group"
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="min-h-[38px] px-3 py-1.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1 shrink-0 whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
+                <span>New</span>
+              </button>
+            </div>
+
+            {totalMyItems > 0 && (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                  <BopoiSearchIcon size={15} />
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search your posts, topics, or answers..."
+                  className="w-full pl-9 pr-14 py-2 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-purple-50 text-[#5420F5] flex items-center justify-center">
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-black text-[#191525] block">
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {filteredMyPosts.length > 0 || filteredMyAnswers.length > 0 ? (
+            <div className="flex flex-col">
+              {filteredMyPosts.map((post) => (
+                <FeedPostRow
+                  key={post.id}
+                  post={post}
+                  verifiedUsernameSet={verifiedUsernameSet}
+                  showDeleteButton={true}
+                  onDelete={(id) => deleteSocialPost(id)}
+                />
+              ))}
+
+              {filteredMyAnswers.length > 0 && (
+                <div className="divide-y divide-[#EAE6F0] dark:divide-[#262036] border-b border-[#EAE6F0] dark:border-[#262036]">
+                  {filteredMyAnswers.map((ans) => (
+                    <div
+                      key={ans.id}
+                      onClick={() => handleOpenAnswerStudio(ans)}
+                      className="px-4 sm:px-5 py-4 hover:bg-[#FAF9FC] dark:hover:bg-[#171322]/60 transition-colors cursor-pointer space-y-3"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
+                          <span className="font-black text-[#191525] dark:text-[#F4F2FA]">
                             Story Answer Card
                           </span>
-                          <span className="text-[10px] text-[#706B7D] block">
-                            {ans.createdAt} · 1080x1350 Canvas Ready
+                          <span className="text-[#706B7D] dark:text-[#9E97B3]">
+                            · {ans.createdAt}
                           </span>
                         </div>
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                          Public Q&amp;A
+                        </span>
                       </div>
 
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        Public Q&amp;A
-                      </span>
-                    </div>
+                      <div className="p-3.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl">
+                        <span className="text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] block mb-0.5">
+                          Anonymous Question
+                        </span>
+                        <p className="text-xs sm:text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
+                          &ldquo;<MentionText text={ans.questionText} />&rdquo;
+                        </p>
+                      </div>
 
-                    {/* Question Box */}
-                    <div className="p-3 bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
-                        Anonymous Question
-                      </span>
-                      <p className="text-xs sm:text-sm font-bold text-[#191525]">
-                        "{ans.questionText}"
+                      <p className="text-xs sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-medium leading-relaxed">
+                        <MentionText text={ans.answerText} />
                       </p>
-                    </div>
 
-                    {/* Answer Text */}
-                    <div className="pl-1">
-                      <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-                        {ans.answerText}
-                      </p>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                      <span className="text-[#F52D85] font-bold flex items-center gap-1">
-                        <Heart className="w-3.5 h-3.5 fill-[#F52D85]" />
-                        <span>{ans.likes} likes</span>
-                      </span>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenAnswerStudio(ans);
-                        }}
-                        className="py-1 px-3 bg-[#F0EBFF] hover:bg-purple-100 text-[#5420F5] rounded-xl font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Open Story Studio</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* Empty state */
-              <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center space-y-4 shadow-xs">
-                <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] text-[#5420F5] flex items-center justify-center mx-auto shadow-2xs p-2">
-                  {searchQuery ? <SearchEmptyIcon size={44} /> : <CreatePostIcon size={44} />}
-                </div>
-                <div className="max-w-sm mx-auto space-y-1.5">
-                  <h3 className="text-base font-black text-[#191525]">
-                    {searchQuery
-                      ? 'No posts matching search'
-                      : postFilter === 'confessions'
-                      ? 'No confessions posted yet'
-                      : postFilter === 'polls'
-                      ? 'No polls posted yet'
-                      : postFilter === 'discussions'
-                      ? 'No discussions started yet'
-                      : postFilter === 'answers'
-                      ? 'No story answers yet'
-                      : 'You haven’t posted anything yet'}
-                  </h3>
-                  <p className="text-xs text-[#706B7D] leading-relaxed">
-                    {searchQuery
-                      ? `We couldn't find any of your posts matching "${searchQuery}".`
-                      : 'Share an anonymous secret, ask the campus a spicy question, or publish an interactive poll!'}
-                  </p>
-                </div>
-
-                <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
-                  <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="py-2.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>Create Post Now</span>
-                    <LaunchTrendingIcon size={15} />
-                  </button>
-                  <button
-                    onClick={() => setActiveView('inbox')}
-                    className="py-2.5 px-4 bg-[#FAF9FC] border border-[#EAE6F0] hover:bg-slate-100 text-[#191525] rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <InboxShortcutIcon size={15} />
-                    <span>Answer Inbox Messages</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 2: ANSWERED Q&A SECTION                               */}
-        {/* ========================================================= */}
-        {profileTab === 'answers' && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <div className="bg-white rounded-3xl p-5 border border-[#EAE6F0] shadow-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-black text-[#191525] flex items-center gap-1.5">
-                    <span>Answered Q&A</span>
-                    <span className="text-xs text-slate-400 font-normal">
-                      ({myAnswersList.length} answered)
-                    </span>
-                  </h2>
-                  <p className="text-xs text-[#706B7D] mt-0.5">
-                    Anonymous questions you've replied to and shared to your campus story.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveView('inbox')}
-                  className="px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0"
-                >
-                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
-                    <InboxShortcutIcon size={13} />
-                  </span>
-                  <span>Open Inbox</span>
-                </button>
-              </div>
-            </div>
-
-            {myAnswersList.length === 0 ? (
-              <div className="text-center py-12 px-4 bg-white rounded-3xl border border-[#EAE6F0] shadow-2xs space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-purple-50 text-[#5420F5] flex items-center justify-center mx-auto shadow-2xs p-2">
-                  <StoryStudioNavIcon size={44} />
-                </div>
-                <h3 className="text-base font-black text-[#191525]">No Answered Questions Yet</h3>
-                <p className="text-xs text-[#706B7D] max-w-sm mx-auto">
-                  When you receive anonymous messages in your inbox, reply and generate colorful story cards to showcase them here!
-                </p>
-                <button
-                  onClick={() => setActiveView('inbox')}
-                  className="py-2.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs inline-flex items-center gap-2"
-                >
-                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
-                    <InboxShortcutIcon size={13} />
-                  </span>
-                  <span>Check Inbox Messages</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myAnswersList.map((ans) => (
-                  <div
-                    key={ans.id}
-                    className="bg-white rounded-3xl p-5 border border-[#EAE6F0] shadow-xs space-y-3 hover:border-[#5420F5]/30 hover:shadow-md transition-all"
-                  >
-                    <div className="bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-3.5">
-                      <span className="text-[10px] font-bold text-[#706B7D] inline-flex items-center gap-1 mb-1">
-                        <PersonaMaskIcon mask="secret-confession" size={13} />
-                        <span>Anonymous Question</span>
-                      </span>
-                      <p className="text-xs font-bold text-[#191525]">
-                        "{ans.questionText}"
-                      </p>
-                    </div>
-
-                    <div className="bg-[#F0EBFF]/50 rounded-2xl p-3.5 border border-[#5420F5]/20">
-                      <span className="text-[10px] font-black text-[#5420F5] inline-flex items-center gap-1 mb-1">
-                        <SparklePolishIcon size={13} />
-                        <span>Your Answer</span>
-                      </span>
-                      <p className="text-xs text-slate-800 font-semibold leading-relaxed">
-                        "{ans.answerText}"
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-100">
-                      <span>Shared to story</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between text-xs pt-1 tabular-nums">
+                        <span className="text-[#F52D85] font-bold flex items-center gap-1">
+                          <Heart className="w-3.5 h-3.5 fill-[#F52D85]" />
+                          <span>{ans.likes} likes</span>
+                        </span>
                         <button
-                          onClick={() => {
-                            setSelectedAnswer(ans);
-                            setActiveView('answer-studio');
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAnswerStudio(ans);
                           }}
-                          className="px-3 py-1.5 bg-[#F0EBFF] hover:bg-purple-100 text-[#5420F5] text-xs font-black rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                          className="min-h-[38px] px-3 py-1 bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>View Story Card</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Open Story Studio</span>
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* TAB 3: SAVED & BOOKMARKS SECTION                           */}
-        {/* ========================================================= */}
-        {profileTab === 'saved' && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {/* Header info & Filter Chips */}
-            <div className="bg-white rounded-3xl p-5 border border-[#EAE6F0] shadow-xs space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base font-black text-[#191525] flex items-center gap-1.5">
-                    <span>Saved Campus Content</span>
-                    <span className="text-xs text-slate-400 font-normal">
-                      ({currentSavedList.length} items)
-                    </span>
-                  </h2>
-                  <p className="text-xs text-[#706B7D] mt-0.5">
-                    Confessions, discussions, and polls you've flagged or liked for later reading.
-                  </p>
-                </div>
-              </div>
-
-              {/* Sub-Filter Pills */}
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-100 overflow-x-auto no-scrollbar py-0.5">
-                <button
-                  onClick={() => setSavedFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    savedFilter === 'all'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span>All Saved</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    savedFilter === 'all' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {allSavedPosts.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setSavedFilter('bookmarks')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    savedFilter === 'bookmarks'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      savedFilter === 'bookmarks' ? 'bg-white shadow-2xs' : 'bg-purple-50'
-                    }`}
-                  >
-                    <BookmarkedIcon size={13} />
-                  </span>
-                  <span>Bookmarks</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    savedFilter === 'bookmarks' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {bookmarkedPosts.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setSavedFilter('liked')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    savedFilter === 'liked'
-                      ? 'bg-[#5420F5] text-white shadow-xs'
-                      : 'bg-[#FAF9FC] text-slate-600 hover:bg-slate-100 border border-[#EAE6F0]'
-                  }`}
-                >
-                  <Heart className="w-3.5 h-3.5" />
-                  <span>Liked Content</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    savedFilter === 'liked' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {likedPosts.length}
-                  </span>
-                </button>
-              </div>
-
-              {/* Search bar inside saved collection */}
-              {allSavedPosts.length > 0 && (
-                <div className="relative pt-1">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center mt-0.5">
-                    <BopoiSearchIcon size={16} />
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search in your saved posts..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-xl text-base sm:text-xs text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5] transition-colors"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-black mt-0.5"
-                    >
-                      Clear
-                    </button>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
-
-            {/* Saved Posts Stream */}
-            {filteredSavedPosts.length > 0 ? (
-              <div className="space-y-3.5">
-                {filteredSavedPosts.map((post) => {
-                  const isPoll = post.type === 'poll';
-                  const isConfession = post.type === 'confession';
-                  const isDiscussion = post.type === 'discussion';
-
-                  return (
-                    <div
-                      key={post.id}
-                      onClick={() => handleCardClick(post)}
-                      className="bg-white rounded-3xl p-4 sm:p-5 border border-[#EAE6F0] shadow-xs hover:border-[#5420F5]/30 hover:shadow-md transition-all cursor-pointer space-y-3"
-                    >
-                      {/* Card Author Header */}
-                      <div className="flex items-center justify-between">
-                        <div
-                          className="flex items-center gap-2.5 hover:opacity-85 cursor-pointer transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            viewUserProfile(post.authorUsername, post.isAnonymous, post.authorCampus);
-                          }}
-                          title={`View ${post.authorName}'s public profile`}
-                        >
-                          {post.isAnonymous ? (
-                            <BopoiAnonymousAvatar size="sm" idPrefix={`saved-${post.id}`} />
-                          ) : (
-                            <CampusCharacterAvatar
-                              value={post.authorAvatar}
-                              seed={post.authorUsername}
-                              size={32}
-                              rounded="full"
-                            />
-                          )}
-                          <div>
-                            <span className="text-xs font-black text-[#191525] block hover:underline">
-                              {post.authorName}
-                            </span>
-                            <span className="text-[10px] text-[#706B7D] block">
-                              {post.createdAt} {post.authorCampus && `• ${post.authorCampus}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status Badges */}
-                        <div className="flex items-center gap-1.5">
-                          {post.isBookmarked && (
-                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#F0EBFF] text-[#5420F5] flex items-center gap-1">
-                              <BookmarkedIcon size={14} />
-                              <span>Bookmarked</span>
-                            </span>
-                          )}
-                          <span
-                            className={`text-[10px] font-black px-2.5 py-0.5 rounded-full capitalize inline-flex items-center gap-1 ${
-                              isConfession
-                                ? 'bg-purple-100 text-purple-700'
-                                : isPoll
-                                ? 'bg-orange-100 text-orange-700'
-                                : isDiscussion
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {isConfession ? (
-                              <CreateConfessionIcon size={13} />
-                            ) : isPoll ? (
-                              <CreatePollIcon size={13} />
-                            ) : isDiscussion ? (
-                              <CreateDiscussionIcon size={13} />
-                            ) : (
-                              <CreatePostIcon size={13} />
-                            )}
-                            <span>{post.type}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Title if discussion */}
-                      {post.title && (
-                        <h3 className="text-sm sm:text-base font-black text-[#191525] leading-snug">
-                          {post.title}
-                        </h3>
-                      )}
-
-                      {/* Content */}
-                      <p className="text-xs sm:text-sm text-[#191525] font-medium leading-relaxed">
-                        {post.content}
-                      </p>
-
-                      {/* Poll Voting Interface inside Card */}
-                      {isPoll && post.pollOptions && (
-                        <div className="space-y-2 pt-1" onClick={(e) => e.stopPropagation()}>
-                          {post.pollOptions.map((opt) => {
-                            const total = post.pollTotalVotes || 1;
-                            const pct = Math.round((opt.votes / total) * 100);
-                            const isVoted = post.userVotedOptionId === opt.id;
-
-                            return (
-                              <button
-                                key={opt.id}
-                                onClick={() => votePoll(post.id, opt.id)}
-                                className={`w-full text-left rounded-xl p-2.5 relative overflow-hidden border transition-all cursor-pointer ${
-                                  isVoted
-                                    ? 'border-[#5420F5] bg-[#F0EBFF]/30 font-bold'
-                                    : 'border-[#EAE6F0] bg-slate-50/70 hover:bg-slate-100/80 font-medium'
-                                }`}
-                              >
-                                <div
-                                  className={`absolute top-0 bottom-0 left-0 transition-all duration-500 ${
-                                    isVoted ? 'bg-[#5420F5]/20' : 'bg-slate-200/60'
-                                  }`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                                <div className="relative z-10 flex items-center justify-between text-xs text-[#191525]">
-                                  <span className="flex items-center gap-1.5">
-                                    {isVoted && <CheckCircle2 className="w-3.5 h-3.5 text-[#5420F5]" />}
-                                    <span>{opt.text}</span>
-                                  </span>
-                                  <span className="font-bold text-slate-700">{pct}%</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                          <div className="text-[10px] text-slate-400 text-right pt-0.5">
-                            {post.pollTotalVotes || 0} total votes
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Hashtags */}
-                      {post.hashtags && post.hashtags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {post.hashtags.map((tag) => (
-                            <span key={tag} className="text-[11px] font-bold text-[#5420F5]">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Action Toolbar */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-slate-500 text-xs">
-                        {/* Heart / Like */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePostLike(post.id);
-                          }}
-                          className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-pink-50 ${
-                            post.hasLiked ? 'text-[#F52D85] font-bold' : 'hover:text-[#F52D85]'
-                          }`}
-                          title={post.hasLiked ? 'Unlike post' : 'Like post'}
-                        >
-                          <Heart className={`w-4 h-4 ${post.hasLiked ? 'fill-[#F52D85]' : ''}`} />
-                          <span>{post.likes}</span>
-                        </button>
-
-                        {/* Comment */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCardClick(post);
-                          }}
-                          className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{post.commentsCount}</span>
-                        </button>
-
-                        {/* Share */}
-                        <button
-                          onClick={(e) => handleShare(e, post)}
-                          className="flex items-center gap-1.5 hover:text-[#5420F5] transition-colors cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0EBFF]"
-                          title="Share post off-campus"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          <span>{post.sharesCount || 0}</span>
-                        </button>
-
-                        {/* Bookmark Toggle */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePostBookmark(post.id);
-                          }}
-                          className={`flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-lg ${
-                            post.isBookmarked
-                              ? 'bg-[#F0EBFF] text-[#5420F5] font-bold hover:bg-purple-100'
-                              : 'hover:text-[#5420F5] hover:bg-purple-50'
-                          }`}
-                          title={post.isBookmarked ? 'Remove from Bookmarks' : 'Save Bookmark'}
-                        >
-                          {post.isBookmarked ? (
-                            <BookmarkedIcon size={16} />
-                          ) : (
-                            <Bookmark className="w-4 h-4" />
-                          )}
-                          <span className="text-[11px]">{post.isBookmarked ? 'Saved' : 'Save'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+          ) : (
+            <div className="px-6 py-14 text-center space-y-3.5 border-b border-[#EAE6F0] dark:border-[#262036]">
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto p-2">
+                {searchQuery ? <SearchEmptyIcon size={32} /> : <CreatePostIcon size={32} />}
               </div>
-            ) : (
-              /* Empty state */
-              <div className="bg-white rounded-3xl p-8 border border-[#EAE6F0] text-center flex flex-col items-center justify-center space-y-4 shadow-xs">
-                <div className="w-16 h-16 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 text-[#5420F5] flex items-center justify-center mx-auto shadow-2xs p-2">
-                  {searchQuery ? <SearchEmptyIcon size={44} /> : <BookmarkedIcon size={44} />}
-                </div>
-                <div className="max-w-sm mx-auto space-y-1.5">
-                  <h3 className="text-base font-black text-[#191525]">
-                    {searchQuery
-                      ? 'No matches found in saved items'
-                      : savedFilter === 'bookmarks'
-                      ? 'No bookmarked posts yet'
-                      : savedFilter === 'liked'
-                      ? 'No liked posts yet'
-                      : 'Your saved collection is empty'}
-                  </h3>
-                  <p className="text-xs text-[#706B7D] leading-relaxed">
-                    {searchQuery
-                      ? `We couldn't find anything matching "${searchQuery}". Try a different keyword.`
-                      : 'Flag your favorite campus confessions, insightful discussions, and live polls by tapping the bookmark or heart icon to read them anytime!'}
-                  </p>
-                </div>
+              <div className="max-w-xs mx-auto space-y-1">
+                <h3 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                  {searchQuery ? 'No posts matching search' : 'You haven’t posted anything yet'}
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-relaxed">
+                  {searchQuery
+                    ? `We couldn't find any of your posts matching "${searchQuery}".`
+                    : 'Share an anonymous secret, start a campus discussion, or launch an interactive poll!'}
+                </p>
+              </div>
 
-                <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
-                  <button
-                    onClick={() => setActiveView('home')}
-                    className="py-2.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
-                  >
-                    <LaunchTrendingIcon size={15} />
-                    <span>Explore Campus Feed</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveView('confessions')}
-                    className="py-2.5 px-4 bg-[#FAF9FC] border border-[#EAE6F0] hover:bg-slate-100 text-[#191525] rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <CreateConfessionIcon size={15} />
-                    <span>Browse Confessions</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveView('polls')}
-                    className="py-2.5 px-4 bg-[#FAF9FC] border border-[#EAE6F0] hover:bg-slate-100 text-[#191525] rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <CreatePollIcon size={15} />
-                    <span>Check Polls</span>
-                  </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="min-h-[44px] py-2 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
+                  <span>Create Post</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('inbox')}
+                  className="min-h-[44px] py-2 px-4 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] hover:bg-slate-100 dark:hover:bg-[#231942] text-[#191525] dark:text-[#F4F2FA] rounded-xl text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <InboxShortcutIcon size={15} />
+                  <span>Answer Inbox</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 2: ANSWERED Q&A                                       */}
+      {/* ========================================================= */}
+      {profileTab === 'answers' && (
+        <div className="flex flex-col">
+          <div className="px-4 sm:px-5 py-3.5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
+                Answered Q&amp;A ({myAnswersList.length})
+              </h2>
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
+                Anonymous questions you've replied to for your campus story
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveView('inbox')}
+              className="min-h-[40px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer shrink-0"
+            >
+              Open Inbox
+            </button>
+          </div>
+
+          {myAnswersList.length === 0 ? (
+            <div className="px-6 py-14 text-center space-y-3 border-b border-[#EAE6F0] dark:border-[#262036]">
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto p-2">
+                <StoryStudioNavIcon size={32} />
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                No Answered Questions Yet
+              </h3>
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-xs mx-auto">
+                Reply to anonymous questions in your inbox and generate 1080×1350 story cards.
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveView('inbox')}
+                className="min-h-[44px] py-2 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer"
+              >
+                Check Inbox Messages
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#EAE6F0] dark:divide-[#262036] border-b border-[#EAE6F0] dark:border-[#262036]">
+              {myAnswersList.map((ans) => (
+                <div key={ans.id} className="px-4 sm:px-5 py-4 space-y-3">
+                  <div className="bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-3.5">
+                    <span className="text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] inline-flex items-center gap-1 mb-1">
+                      <PersonaMaskIcon mask="secret-confession" size={13} />
+                      <span>Anonymous Question</span>
+                    </span>
+                    <p className="text-xs sm:text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
+                      &ldquo;<MentionText text={ans.questionText} />&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="bg-[#FAF8FF] dark:bg-[#231942]/50 rounded-2xl p-3.5 border border-[#5420F5]/20 dark:border-[#5420F5]/35">
+                    <span className="text-[11px] font-black text-[#5420F5] dark:text-[#B9A4FF] block mb-1">
+                      Your Answer
+                    </span>
+                    <p className="text-xs sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-semibold leading-relaxed">
+                      &ldquo;<MentionText text={ans.answerText} />&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-[#706B7D] dark:text-[#9E97B3] pt-1">
+                    <span>Shared to story</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAnswerStudio(ans)}
+                      className="min-h-[38px] px-3 py-1.5 bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-black rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>View Story Card</span>
+                    </button>
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 3: SAVED & BOOKMARKS                                  */}
+      {/* ========================================================= */}
+      {profileTab === 'saved' && (
+        <div className="flex flex-col">
+          <div className="px-4 sm:px-5 py-3 border-b border-[#EAE6F0] dark:border-[#262036] space-y-2.5 bg-[#FAF9FC]/40 dark:bg-[#171322]/40">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {[
+                { id: 'all' as const, label: `All Saved (${allSavedPosts.length})` },
+                { id: 'bookmarks' as const, label: `Bookmarks (${bookmarkedPosts.length})` },
+                { id: 'liked' as const, label: `Liked (${likedPosts.length})` },
+              ].map((f) => {
+                const isActive = savedFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setSavedFilter(f.id)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 tabular-nums whitespace-nowrap ${
+                      isActive
+                        ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                        : 'bg-white dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] border border-[#EAE6F0] dark:border-[#262036]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {allSavedPosts.length > 0 && (
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                  <BopoiSearchIcon size={15} />
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search in your saved posts..."
+                  className="w-full pl-9 pr-14 py-2 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             )}
           </div>
-        )}
 
-        {/* ========================================================= */}
-        {/* TAB 3: ACCOUNT & SAFETY SETTINGS                           */}
-        {/* ========================================================= */}
-        {profileTab === 'settings' && (
-          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {/* Master Toggle: "Link is active" */}
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#EAE6F0] flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-3.5">
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center p-1.5 shadow-2xs shrink-0 ${
-                    user.linkActive
-                      ? 'bg-emerald-50 border border-emerald-200'
-                      : 'bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  <GetYourLinkIcon size={26} />
+          {filteredSavedPosts.length > 0 ? (
+            <div className="flex flex-col">
+              {filteredSavedPosts.map((post) => (
+                <FeedPostRow
+                  key={post.id}
+                  post={post}
+                  verifiedUsernameSet={verifiedUsernameSet}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-14 text-center flex flex-col items-center justify-center space-y-3 border-b border-[#EAE6F0] dark:border-[#262036]">
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center p-2">
+                {searchQuery ? <SearchEmptyIcon size={32} /> : <BookmarkedIcon size={32} />}
+              </div>
+              <div className="max-w-xs mx-auto space-y-1">
+                <h3 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                  {searchQuery
+                    ? 'No matches found in saved items'
+                    : savedFilter === 'bookmarks'
+                    ? 'No bookmarked posts yet'
+                    : savedFilter === 'liked'
+                    ? 'No liked posts yet'
+                    : 'Your saved collection is empty'}
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-relaxed">
+                  Bookmark or like confessions, polls, and discussions from the feed to revisit them here.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveView('home')}
+                className="min-h-[44px] py-2 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl text-xs font-black transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <LaunchTrendingIcon size={15} />
+                <span>Explore Campus Feed</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* SETTINGS & SAFETY BOTTOM SHEET / MODAL                    */}
+      {/* ========================================================= */}
+      {settingsDrawerOpen && (
+        <div
+          onClick={() => setSettingsDrawerOpen(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] w-full max-w-md max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden"
+          >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
+            <div className="px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                  Settings &amp; Safety
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
+                  Appearance, anonymous link privacy &amp; support
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSettingsDrawerOpen(false)}
+                className="min-h-[40px] min-w-[40px] rounded-full flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                aria-label="Close settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-[#EAE6F0] dark:divide-[#262036] no-scrollbar">
+              {/* Appearance Mode Switcher: Crisp White / Night Campus */}
+              <div className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-sm font-black text-[#191525] dark:text-[#F4F2FA] block">
+                    Appearance Theme
+                  </span>
+                  <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                    {theme === 'dark' ? 'Night Campus dark surface active' : 'Crisp White light surface active'}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-[#191525]">
-                    {user.linkActive ? 'Anonymous link is open' : 'Link is temporarily paused'}
-                  </h3>
-                  <p className="text-xs text-[#706B7D] mt-0.5">
-                    {user.linkActive
-                      ? 'Anyone with your link can send you anonymous questions'
-                      : 'Visitors are notified that your link is taking a break'}
-                  </p>
+                <div className="inline-flex items-center p-1 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setTheme('light')}
+                    className={`min-h-[34px] px-2.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                      theme === 'light'
+                        ? 'bg-white text-[#191525] shadow-xs'
+                        : 'text-[#706B7D] dark:text-[#9E97B3]'
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>Light</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('dark')}
+                    className={`min-h-[34px] px-2.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                      theme === 'dark'
+                        ? 'bg-[#5420F5] text-white shadow-xs'
+                        : 'text-[#706B7D]'
+                    }`}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>Night</span>
+                  </button>
                 </div>
               </div>
 
-              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={user.linkActive}
-                  onChange={toggleLinkActive}
-                  className="sr-only peer"
-                />
-                <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#18845B]"></div>
-              </label>
-            </div>
+              {/* Master Toggle: Link active */}
+              <div className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <GetYourLinkIcon size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
+                      {user.linkActive ? 'Anonymous link is open' : 'Link is paused'}
+                    </h4>
+                    <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
+                      {user.linkActive
+                        ? 'Anyone with your link can send anonymous questions'
+                        : 'Visitors are notified that your link is taking a break'}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Settings Navigation Menu */}
-            <div className="bg-white rounded-3xl border border-[#EAE6F0] divide-y divide-[#EAE6F0] shadow-xs overflow-hidden">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={user.linkActive}
+                    onChange={toggleLinkActive}
+                    className="sr-only peer"
+                  />
+                  <div className="w-12 h-6 bg-slate-200 dark:bg-[#262036] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#18845B]" />
+                </label>
+              </div>
+
               <button
-                onClick={() => setActiveModal('character-studio')}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setSettingsDrawerOpen(false);
+                  setActiveModal('character-studio');
+                }}
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3.5">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <CampusCharacterAvatar
                     value={user.avatarUrl}
                     seed={user.username}
-                    size={36}
+                    size={34}
                     rounded="xl"
                   />
-                  <div>
-                    <span className="text-sm font-bold text-[#191525] block">
-                      Customize 3D Campus Character
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] block">
+                      3D Campus Character Studio
                     </span>
-                    <span className="text-xs text-[#706B7D]">
-                      Design skin tone, hair, headgear, shades &amp; aura backdrop
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Design skin tone, hair, headgear, shades &amp; aura
                     </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
               </button>
 
               <button
-                onClick={() => setActiveModal('edit-profile')}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setSettingsDrawerOpen(false);
+                  setActiveModal('edit-profile');
+                }}
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center p-1 shadow-2xs">
-                    <EditAliasIcon size={22} />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <EditAliasIcon size={20} />
                   </div>
-                  <div>
-                    <span className="text-sm font-bold text-[#191525] block">
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] block">
                       Edit Profile Details
                     </span>
-                    <span className="text-xs text-[#706B7D]">Change display name, bio, campus</span>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Display name, bio, campus &amp; ask prompt
+                    </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
               </button>
 
               <button
+                type="button"
                 onClick={() => {
+                  setSettingsDrawerOpen(false);
                   handleCopy();
                   setActiveView('public-ask');
                 }}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center p-1 shadow-2xs">
-                    <PublicAskNavIcon size={22} />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <PublicAskNavIcon size={20} />
                   </div>
-                  <div>
-                    <span className="text-sm font-bold text-[#191525] block">
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] block">
                       Link Settings &amp; Preview
                     </span>
-                    <span className="text-xs text-[#706B7D]">Preview how visitors experience your link</span>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Preview how visitors see bopoi.com/@{user.username}/ask
+                    </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
               </button>
 
               <button
-                onClick={() => setActiveModal('safety')}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setSettingsDrawerOpen(false);
+                  setActiveModal('safety');
+                }}
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center p-1 shadow-2xs">
-                    <ProfileShieldNavIcon size={22} />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <ProfileShieldNavIcon size={20} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[#191525] block">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
                         Safety Shield &amp; Hidden Words
                       </span>
-                      <span className="text-[10px] bg-purple-100 text-[#5420F5] font-bold px-2 py-0.5 rounded-full">
-                        {safetySettings.hiddenWords.length} words filtered
+                      <span className="text-xs text-[#5420F5] dark:text-[#8E6BFF] font-bold tabular-nums">
+                        · {safetySettings.hiddenWords.length} filtered
                       </span>
                     </div>
-                    <span className="text-xs text-[#706B7D]">Block harassment words and repeat abusers</span>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Block harassment words and repeat abusers
+                    </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
               </button>
 
               <button
-                onClick={() => setActiveModal('help')}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setSettingsDrawerOpen(false);
+                  setActiveModal('tickets');
+                }}
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center p-1 shadow-2xs">
-                    <ReceiveMessagesIcon size={22} />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <SafetyShieldBadgeIcon size={20} />
                   </div>
-                  <div>
-                    <span className="text-sm font-bold text-[#191525] block">
-                      Help, Privacy &amp; Support
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
+                        Reports &amp; Support Chats
+                      </span>
+                      {unreadReportsCount > 0 ? (
+                        <span className="text-xs text-[#F52D85] font-black tabular-nums">
+                          · {unreadReportsCount} new reply
+                        </span>
+                      ) : pendingTicketsCount > 0 ? (
+                        <span className="text-xs text-[#5420F5] dark:text-[#8E6BFF] font-bold tabular-nums">
+                          · {pendingTicketsCount} open
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Chat with moderators about reports or support tickets
                     </span>
-                    <span className="text-xs text-[#706B7D]">Community rules, FAQs &amp; support ticket</span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSettingsDrawerOpen(false);
+                  setActiveModal('help');
+                }}
+                className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                    <ReceiveMessagesIcon size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] block">
+                      Help, Privacy &amp; Support
+                    </span>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Community rules, FAQs &amp; support ticket
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
               </button>
 
               {(user.isAdmin || user.role === 'admin') && (
                 <button
-                  onClick={() => setActiveView('admin')}
-                  className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    setSettingsDrawerOpen(false);
+                    setActiveView('admin');
+                  }}
+                  className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center p-1 shadow-2xs">
-                      <AdminConsoleNavIcon size={22} />
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
+                      <AdminConsoleNavIcon size={20} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#191525]">
-                          Bopoi Admin Console
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-[#5420F5] text-[10px] font-bold">
-                          Real-Time &amp; RLS
-                        </span>
-                      </div>
-                      <span className="text-xs text-[#706B7D]">Manage users, posts, rooms, convos, reports &amp; 27-table SQL</span>
+                    <div className="min-w-0">
+                      <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] block">
+                        Bopoi Admin Console
+                      </span>
+                      <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                        Manage users, verification badges &amp; moderation
+                      </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] shrink-0" />
                 </button>
               )}
 
-              {/* Legal Policies Strip in Settings */}
-              <div className="p-4 sm:p-5 bg-[#FAF9FC] flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="font-extrabold text-[#191525]">Legal &amp; Campus Policies:</span>
-                <div className="flex flex-wrap items-center gap-3 font-bold text-[#5420F5]">
+              {/* Legal Policies Row */}
+              <div className="px-5 py-3 bg-[#FAF9FC] dark:bg-[#171322] flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-black text-[#191525] dark:text-[#F4F2FA]">Legal</span>
+                <div className="flex flex-wrap items-center gap-2 font-bold text-[#5420F5] dark:text-[#8E6BFF]">
                   <button
                     type="button"
-                    onClick={() => openLegalDoc('terms')}
+                    onClick={() => {
+                      setSettingsDrawerOpen(false);
+                      openLegalDoc('terms');
+                    }}
                     className="hover:underline cursor-pointer"
                   >
-                    Terms of Service
+                    Terms
                   </button>
-                  <span>•</span>
+                  <span className="text-[#706B7D]" aria-hidden="true">
+                    ·
+                  </span>
                   <button
                     type="button"
-                    onClick={() => openLegalDoc('privacy')}
+                    onClick={() => {
+                      setSettingsDrawerOpen(false);
+                      openLegalDoc('privacy');
+                    }}
                     className="hover:underline cursor-pointer"
                   >
-                    Privacy Policy
+                    Privacy
                   </button>
-                  <span>•</span>
+                  <span className="text-[#706B7D]" aria-hidden="true">
+                    ·
+                  </span>
                   <button
                     type="button"
-                    onClick={() => openLegalDoc('guidelines')}
+                    onClick={() => {
+                      setSettingsDrawerOpen(false);
+                      openLegalDoc('guidelines');
+                    }}
                     className="hover:underline cursor-pointer"
                   >
-                    Community Guidelines
+                    Guidelines
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Account Session & Sign Out Card */}
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#EAE6F0] shadow-xs flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <CampusCharacterAvatar
-                  value={user.avatarUrl}
-                  seed={user.username}
-                  size={38}
-                  rounded="full"
-                />
-                <div className="min-w-0">
-                  <span className="text-xs font-black text-[#191525] block truncate">
-                    {user.displayName}
-                  </span>
-                  <span className="text-[11px] text-[#706B7D] block truncate">
-                    Signed in as <strong className="text-[#191525]">@{user.username}</strong>
-                  </span>
+              {/* Account Session & Sign Out Row */}
+              <div className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CampusCharacterAvatar
+                    value={user.avatarUrl}
+                    seed={user.username}
+                    size={36}
+                    rounded="full"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] block truncate">
+                      {user.displayName}
+                    </span>
+                    <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] block truncate">
+                      Signed in as <strong className="text-[#191525] dark:text-[#F4F2FA]">@{user.username}</strong>
+                    </span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsDrawerOpen(false);
+                    logoutAccount();
+                  }}
+                  className="min-h-[40px] px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 text-rose-600 dark:text-rose-400 text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={logoutAccount}
-                className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 1. Edit Profile Modal */}
       {activeModal === 'edit-profile' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[#191525]">Edit Profile</h3>
+              <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">Edit Profile</h3>
               <button
+                type="button"
                 onClick={() => setActiveModal(null)}
-                className="p-1 text-slate-400 hover:text-black cursor-pointer"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1746,32 +1379,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Display Name
                 </label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#EAE6F0] rounded-xl text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5]"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] focus:outline-none focus:border-[#5420F5]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Bio
                 </label>
                 <textarea
                   rows={2}
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#EAE6F0] rounded-xl text-base sm:text-sm text-[#191525] resize-none focus:outline-none focus:border-[#5420F5]"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] resize-none focus:outline-none focus:border-[#5420F5]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Anonymous Ask Prompt
                 </label>
                 <input
@@ -1779,15 +1412,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                   value={editCustomPrompt}
                   onChange={(e) => setEditCustomPrompt(e.target.value)}
                   placeholder="Ask me anything anonymously..."
-                  className="w-full px-3.5 py-2.5 border border-[#EAE6F0] rounded-xl text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5]"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] focus:outline-none focus:border-[#5420F5]"
                 />
-                <span className="text-[11px] text-[#706B7D] mt-1 block">
+                <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] mt-1 block">
                   Shown on your public anonymous ask link
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   University
                 </label>
                 <div className="space-y-1.5">
@@ -1798,14 +1431,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                         key={u.name}
                         type="button"
                         onClick={() => setEditCampus(u.name)}
-                        className={`w-full px-3.5 py-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-left flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
-                            ? 'border-[#5420F5] bg-[#F0EBFF] text-[#191525] font-bold'
-                            : 'border-[#EAE6F0] bg-[#FAF9FC] text-[#191525]'
+                            ? 'border-[#5420F5] bg-[#F0EBFF] dark:bg-[#231942] text-[#191525] dark:text-[#F4F2FA] font-bold'
+                            : 'border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] text-[#191525] dark:text-[#F4F2FA]'
                         }`}
                       >
                         <span className="text-xs sm:text-sm">{u.name}</span>
-                        {isSelected && <Check className="w-4 h-4 text-[#5420F5]" />}
+                        {isSelected && <Check className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />}
                       </button>
                     );
                   })}
@@ -1817,19 +1450,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                   type="button"
                   disabled={saveProfileStage !== 'idle'}
                   onClick={() => setActiveModal(null)}
-                  className="flex-1 py-3 text-xs font-bold text-slate-600 hover:text-black cursor-pointer disabled:opacity-50"
+                  className="flex-1 min-h-[42px] py-2.5 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saveProfileStage !== 'idle'}
-                  className={`flex-1 py-3 text-white font-extrabold text-xs rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ${
+                  className={`flex-1 min-h-[42px] py-2.5 text-white font-extrabold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ${
                     saveProfileStage === 'confirmed'
-                      ? 'bg-emerald-600 shadow-emerald-600/20 scale-[0.99]'
+                      ? 'bg-emerald-600'
                       : saveProfileStage === 'saving'
-                      ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
-                      : 'bg-[#5420F5] shadow-[#5420F5]/20 hover:bg-[#4314E2] active:scale-[0.98]'
+                      ? 'bg-[#4314E2]'
+                      : 'bg-[#5420F5] hover:bg-[#4314E2]'
                   }`}
                 >
                   {saveProfileStage === 'saving' ? (
@@ -1852,37 +1485,39 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
         </div>
       )}
 
-      {/* 2. Safety & Privacy Modal (Hidden words filter) */}
+      {/* 2. Safety & Privacy Modal */}
       {activeModal === 'safety' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#191525]">Safety Shield &amp; Hidden Words</h3>
-                <p className="text-xs text-[#706B7D] mt-0.5">
+                <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                  Safety Shield &amp; Hidden Words
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-0.5">
                   Prohibit abusive words &amp; protect your inbox automatically
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setActiveModal(null)}
-                className="p-1 text-slate-400 hover:text-black cursor-pointer"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Add hidden word */}
             <form onSubmit={handleAddWord} className="flex gap-2">
               <input
                 type="text"
                 value={newWord}
                 onChange={(e) => setNewWord(e.target.value)}
                 placeholder="Add word to filter (e.g. cheat, idiot)..."
-                className="flex-1 px-3.5 py-2 border border-[#EAE6F0] rounded-xl text-xs focus:outline-none focus:border-[#5420F5]"
+                className="flex-1 min-h-[40px] px-3.5 py-2 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] focus:outline-none focus:border-[#5420F5]"
               />
               <button
                 type="submit"
-                className="px-4 py-2 bg-[#5420F5] text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer hover:bg-[#4314E2]"
+                className="min-h-[40px] px-4 py-2 bg-[#5420F5] text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer hover:bg-[#4314E2]"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add</span>
@@ -1890,17 +1525,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             </form>
 
             <div>
-              <span className="text-xs font-bold text-slate-700">Currently Filtered Words:</span>
+              <span className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                Currently Filtered Words:
+              </span>
               <div className="flex flex-wrap gap-2 mt-2">
                 {safetySettings.hiddenWords.map((word) => (
                   <span
                     key={word}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-100"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-semibold rounded-lg border border-rose-200 dark:border-rose-900"
                   >
                     <span>{word}</span>
                     <button
+                      type="button"
                       onClick={() => removeHiddenWord(word)}
-                      className="hover:text-red-900 cursor-pointer"
+                      className="hover:text-rose-900 dark:hover:text-rose-100 cursor-pointer"
+                      aria-label={`Remove ${word}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1909,22 +1548,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 space-y-2">
+            <div className="pt-3 border-t border-[#EAE6F0] dark:border-[#262036] space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Blocked Senders:</span>
+                <span className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                  Blocked Senders:
+                </span>
                 {safetySettings.blockedSenders.length > 0 && (
                   <button
                     type="button"
                     onClick={clearBlockedSenders}
-                    className="text-[11px] font-bold text-[#5420F5] hover:underline cursor-pointer"
+                    className="text-xs font-bold text-[#5420F5] dark:text-[#8E6BFF] hover:underline cursor-pointer"
                   >
                     Unblock All
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-relaxed">
                 {safetySettings.blockedSenders.length === 0
-                  ? 'No senders currently blocked. You can block any sender directly from message cards.'
+                  ? 'No senders currently blocked. You can block any sender directly from message details.'
                   : `${safetySettings.blockedSenders.length} sender(s) blocked from sending messages.`}
               </p>
               {safetySettings.blockedSenders.length > 0 && (
@@ -1932,13 +1573,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                   {safetySettings.blockedSenders.map((senderId, idx) => (
                     <span
                       key={senderId}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 text-[11px] font-semibold rounded-lg border border-slate-200"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#FAF9FC] dark:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] text-xs font-semibold rounded-lg border border-[#EAE6F0] dark:border-[#262036]"
                     >
                       <span>Anonymous Sender #{idx + 1}</span>
                       <button
                         type="button"
                         onClick={() => unblockSender(senderId)}
-                        className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                        className="text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 cursor-pointer"
                         title="Unblock sender"
                       >
                         <X className="w-3 h-3" />
@@ -1950,8 +1591,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             </div>
 
             <button
+              type="button"
               onClick={() => setActiveModal(null)}
-              className="w-full py-2.5 bg-slate-100 text-slate-800 text-xs font-bold rounded-xl hover:bg-slate-200 cursor-pointer"
+              className="w-full min-h-[42px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer"
             >
               Done
             </button>
@@ -1961,30 +1603,37 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
       {/* 3. Help & Support Modal */}
       {activeModal === 'help' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[88vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[88dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-[#191525]">Help, Privacy &amp; Support</h3>
+              <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                Help, Privacy &amp; Support
+              </h3>
               <button
+                type="button"
                 onClick={() => setActiveModal(null)}
-                className="p-1 text-slate-400 hover:text-black cursor-pointer"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-600">
-              <div className="p-3 bg-slate-50 rounded-2xl">
-                <p className="font-bold text-slate-800 text-xs">How does anonymity work?</p>
+            <div className="space-y-2.5 text-xs text-[#706B7D] dark:text-[#9E97B3]">
+              <div className="p-3.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl">
+                <p className="font-bold text-[#191525] dark:text-[#F4F2FA] text-xs">
+                  How does anonymity work?
+                </p>
                 <p className="mt-1 leading-relaxed">
-                  When someone visits your link, they do not need an account. We protect the sender's identity while rejecting blocked words and spam.
+                  When someone visits your link, they do not need an account. We protect the sender's identity while filtering blocked words and spam.
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-2xl">
-                <p className="font-bold text-slate-800 text-xs">How do I share answers to WhatsApp or Instagram?</p>
+              <div className="p-3.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl">
+                <p className="font-bold text-[#191525] dark:text-[#F4F2FA] text-xs">
+                  How do I share answers to WhatsApp or Instagram?
+                </p>
                 <p className="mt-1 leading-relaxed">
-                  Go to any message, type your response, click "Share Studio", and press "Save Image (PNG)". Your 3D campus character and answer save directly to your device!
+                  Open any message, type your response, click "Story Card", and press "Save Image (PNG)". Your 3D character and answer save to your device.
                 </p>
               </div>
             </div>
@@ -1999,25 +1648,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                 }
                 setSupportStage('sending');
                 setTimeout(() => {
-                  submitSupportTicket(supportSubject, supportMessage);
+                  const created = submitSupportTicket(supportSubject, supportMessage);
                   setSupportStage('confirmed');
                   setTimeout(() => {
                     setSupportStage('idle');
                     setSupportMessage('');
                     setActiveModal(null);
-                  }, 480);
-                }, 360);
+                    if (created) {
+                      openTicketInSettings(created.id);
+                    }
+                  }, 520);
+                }, 320);
               }}
-              className="pt-3 border-t border-[#EAE6F0] space-y-3"
+              className="pt-3 border-t border-[#EAE6F0] dark:border-[#262036] space-y-3"
             >
               <div>
-                <label className="block text-xs font-bold text-[#191525] mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Contact Campus Safety &amp; Support
                 </label>
                 <select
                   value={supportSubject}
                   onChange={(e) => setSupportSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#EAE6F0] text-xs font-semibold text-[#191525] bg-[#FAF9FC] focus:outline-none focus:border-[#5420F5]"
+                  className="w-full min-h-[40px] px-3 py-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-xs font-semibold text-[#191525] dark:text-[#F4F2FA] bg-[#FAF9FC] dark:bg-[#171322] focus:outline-none focus:border-[#5420F5]"
                 >
                   <option value="General Question">General Question</option>
                   <option value="Safety & Harassment Report">Safety &amp; Harassment Report</option>
@@ -2031,18 +1683,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                 value={supportMessage}
                 onChange={(e) => setSupportMessage(e.target.value)}
                 placeholder="Describe how we can help you..."
-                className="w-full p-3 rounded-xl border border-[#EAE6F0] text-xs text-[#191525] bg-[#FAF9FC] focus:outline-none focus:border-[#5420F5] resize-none"
+                className="w-full p-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] bg-[#FAF9FC] dark:bg-[#171322] focus:outline-none focus:border-[#5420F5] resize-none"
               />
 
               <button
                 type="submit"
                 disabled={supportStage !== 'idle'}
-                className={`w-full py-3 text-white text-xs font-extrabold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:cursor-not-allowed ${
+                className={`w-full min-h-[42px] py-2.5 text-white text-xs font-extrabold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ${
                   supportStage === 'confirmed'
-                    ? 'bg-emerald-600 shadow-emerald-600/20 scale-[0.99]'
+                    ? 'bg-emerald-600'
                     : supportStage === 'sending'
-                    ? 'bg-[#4314E2] shadow-[#5420F5]/20 scale-[0.99]'
-                    : 'bg-[#5420F5] hover:bg-[#4314E2] active:scale-[0.98]'
+                    ? 'bg-[#4314E2]'
+                    : 'bg-[#5420F5] hover:bg-[#4314E2]'
                 }`}
               >
                 {supportStage === 'sending' ? (
@@ -2062,6 +1714,178 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             </form>
           </div>
         </div>
+      )}
+
+      {/* 3b. Reports & Support Chats Modal */}
+      {activeModal === 'tickets' && (
+        <div
+          onClick={() => setActiveModal(null)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl border border-[#EAE6F0] dark:border-[#262036] max-h-[85dvh] flex flex-col"
+          >
+            <div className="flex items-center justify-between gap-2 shrink-0">
+              <div>
+                <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
+                  Reports &amp; Support Chats
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-0.5">
+                  Reply directly to campus moderators on open tickets
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModal(null);
+                    openReportModal({
+                      targetType: 'support_ticket',
+                      targetId: `support_${Date.now()}`,
+                      targetLabel: 'Support Ticket',
+                      defaultSubject: 'General Question',
+                    });
+                  }}
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal(null)}
+                  className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-[#EAE6F0] dark:divide-[#262036] border-y border-[#EAE6F0] dark:border-[#262036]">
+              {userModerationReports.length === 0 ? (
+                <div className="py-10 px-4 text-center space-y-2.5">
+                  <div className="w-11 h-11 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto">
+                    <SafetyShieldBadgeIcon size={22} />
+                  </div>
+                  <p className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
+                    No reports or tickets yet
+                  </p>
+                  <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-xs mx-auto leading-relaxed">
+                    When you report content or open a support ticket, your conversation with moderators appears here.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveModal(null);
+                      openReportModal({
+                        targetType: 'support_ticket',
+                        targetId: `support_${Date.now()}`,
+                        targetLabel: 'Support Ticket',
+                        defaultSubject: 'General Question',
+                      });
+                    }}
+                    className="mt-1 min-h-[40px] px-4 py-2 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Open Support Ticket</span>
+                  </button>
+                </div>
+              ) : (
+                [...userModerationReports]
+                  .sort((a, b) => {
+                    const unreadDiff =
+                      getUnreadReportCountForReporter(b) - getUnreadReportCountForReporter(a);
+                    if (unreadDiff !== 0) return unreadDiff;
+                    if (a.status === 'pending' && b.status !== 'pending') return -1;
+                    if (a.status !== 'pending' && b.status === 'pending') return 1;
+                    return 0;
+                  })
+                  .map((ticket) => {
+                    const thread = getReportThreadMessages(ticket);
+                    const lastMsg = thread[thread.length - 1];
+                    const unreadReplies = getUnreadReportCountForReporter(ticket);
+
+                    return (
+                      <button
+                        key={ticket.id}
+                        type="button"
+                        onClick={() => setActiveChatTicket(ticket)}
+                        className={`w-full text-left py-3.5 px-1 transition-colors cursor-pointer space-y-1 ${
+                          unreadReplies > 0
+                            ? 'bg-[#FAF8FF] dark:bg-[#19132B] hover:bg-[#F2EDFF] dark:hover:bg-[#221A3A]'
+                            : 'bg-white dark:bg-[#0E0C14] hover:bg-[#FAF9FC] dark:hover:bg-[#171322]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-black text-[#191525] dark:text-[#F4F2FA] truncate">
+                              {getReportTypeLabel(ticket.targetType)}
+                            </span>
+                            <span
+                              className={`font-bold capitalize shrink-0 ${
+                                ticket.status === 'pending'
+                                  ? 'text-[#5420F5] dark:text-[#8E6BFF]'
+                                  : ticket.status === 'resolved'
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : 'text-[#706B7D] dark:text-[#9E97B3]'
+                              }`}
+                            >
+                              · {ticket.status === 'pending' ? 'Open' : ticket.status}
+                            </span>
+                          </div>
+                          {unreadReplies > 0 && (
+                            <span className="text-xs font-black text-[#F52D85] shrink-0 tabular-nums">
+                              {unreadReplies} new
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs font-semibold text-[#191525] dark:text-[#F4F2FA] line-clamp-1">
+                          {ticket.reason}
+                        </p>
+
+                        {lastMsg && (
+                          <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-1">
+                            {lastMsg.senderRole === 'moderator'
+                              ? `Moderator: ${lastMsg.text}`
+                              : lastMsg.senderRole === 'reporter'
+                              ? `You: ${lastMsg.text}`
+                              : lastMsg.text}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between pt-0.5 text-[11px] tabular-nums">
+                          <span className="text-[#706B7D] dark:text-[#9E97B3]">{ticket.createdAt}</span>
+                          <span className="font-bold text-[#5420F5] dark:text-[#8E6BFF] inline-flex items-center gap-1">
+                            <MessageCircle className="w-3 h-3" />
+                            <span>Chat ({thread.length})</span>
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              className="w-full min-h-[42px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer shrink-0"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeChatTicket && (
+        <ReportCaseChatModal
+          report={activeChatTicket}
+          viewerRole="reporter"
+          onClose={() => setActiveChatTicket(null)}
+        />
       )}
 
       {/* 4. Character Studio Modal */}

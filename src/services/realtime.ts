@@ -95,6 +95,7 @@ export function mapRoomMessageRow(row: RawRoomMessageRow): RoomMessage {
  */
 export function mapPostCommentRow(row: RawPostCommentRow): SocialComment {
   const createdTs = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+  const parsedMedia = parseRoomMessageMedia(row.text);
   return {
     id: row.id,
     postId: row.post_id,
@@ -103,7 +104,9 @@ export function mapPostCommentRow(row: RawPostCommentRow): SocialComment {
     authorAvatar: row.author_avatar || undefined,
     authorCampus: row.author_campus || undefined,
     isAnonymous: Boolean(row.is_anonymous),
-    text: row.text || '',
+    text: parsedMedia.text,
+    mediaUrl: parsedMedia.mediaUrl,
+    mediaType: parsedMedia.mediaType,
     createdAt: formatRelativeTime(row.created_at),
     createdTimestamp: Number.isNaN(createdTs) ? Date.now() : createdTs,
     likes: row.likes_count ?? 0,

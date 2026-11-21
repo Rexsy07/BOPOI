@@ -579,10 +579,10 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
   return (
     <div className="w-full space-y-4">
       {/* Theme Picker Row */}
-      <div className="flex items-center justify-between bg-white border border-[#EAE6F0] rounded-2xl p-3 shadow-2xs">
+      <div className="flex items-center justify-between bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-3 shadow-2xs">
         <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-[#5420F5]" />
-          <span className="text-xs font-bold text-[#191525]">Card Theme:</span>
+          <Palette className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
+          <span className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">Card Theme:</span>
         </div>
         <div className="flex items-center gap-1.5">
           {CARD_THEMES.map((theme) => {
@@ -595,7 +595,7 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
                 title={theme.name}
                 className={`w-7 h-7 rounded-full ${theme.bgGradient} transition-all cursor-pointer flex items-center justify-center ${
                   isSelected
-                    ? 'ring-2 ring-offset-2 ring-[#5420F5] scale-110 shadow-sm'
+                    ? 'ring-2 ring-offset-2 dark:ring-offset-[#0E0C14] ring-[#5420F5] scale-110 shadow-sm'
                     : 'opacity-75 hover:opacity-100 hover:scale-105'
                 }`}
               >
@@ -606,10 +606,11 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
         </div>
       </div>
 
-      {/* Visual Story Card: This EXACT element is both what you see in preview and what gets downloaded */}
+      {/* Visual Story Card: Protected by data-story-card-canvas so dark mode never mutates PNG exports */}
       <div
         ref={cardRef}
         id="bopoi-story-card-element"
+        data-story-card-canvas="true"
         className={`relative w-full rounded-3xl p-6 ${activeTheme.bgGradient} text-white shadow-2xl overflow-hidden border border-white/20 select-none transition-all flex flex-col justify-between`}
         style={{ minHeight: '440px' }}
       >
@@ -729,9 +730,9 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
       </div>
 
       {/* Export Action Buttons */}
-      <div className="bg-white rounded-2xl p-3.5 border border-[#EAE6F0] shadow-xs space-y-2.5">
-        <div className="flex items-center justify-between text-xs text-[#706B7D] px-1">
-          <span className="font-bold text-[#191525]">Story Export</span>
+      <div className="bg-white dark:bg-[#171322] rounded-2xl p-3.5 border border-[#EAE6F0] dark:border-[#262036] shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between text-xs text-[#706B7D] dark:text-[#9E97B3] px-1">
+          <span className="font-bold text-[#191525] dark:text-[#F4F2FA]">Story Export</span>
           <span>Ultra-crisp 1080×1350 PNG</span>
         </div>
 
@@ -741,7 +742,7 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
             type="button"
             onClick={handleDownload}
             disabled={isExporting}
-            className="py-2.5 px-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#5420F5]/20 cursor-pointer disabled:opacity-50"
+            className="min-h-[42px] py-2.5 px-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#5420F5]/20 cursor-pointer disabled:opacity-50"
           >
             {isExporting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -756,16 +757,16 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
             type="button"
             onClick={handleCopyImage}
             disabled={isExporting}
-            className="py-2.5 px-3 bg-[#FAF9FC] hover:bg-[#F0EBFF] text-[#191525] hover:text-[#5420F5] border border-[#EAE6F0] text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="min-h-[42px] py-2.5 px-3 bg-[#FAF9FC] dark:bg-[#0E0C14] hover:bg-[#F0EBFF] dark:hover:bg-[#231942] text-[#191525] dark:text-[#F4F2FA] hover:text-[#5420F5] border border-[#EAE6F0] dark:border-[#262036] text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             {copySuccess ? (
               <>
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-700">Copied!</span>
+                <span className="text-emerald-700 dark:text-emerald-400">Copied!</span>
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4 text-[#5420F5]" />
+                <Copy className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
                 <span>Copy Image</span>
               </>
             )}
@@ -776,14 +777,14 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
             type="button"
             onClick={handleWebShare}
             disabled={isExporting}
-            className="py-2.5 px-3 bg-white hover:bg-slate-50 text-slate-800 border border-[#EAE6F0] text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="min-h-[42px] py-2.5 px-3 bg-white dark:bg-[#0E0C14] hover:bg-slate-50 dark:hover:bg-[#231942] text-slate-800 dark:text-[#F4F2FA] border border-[#EAE6F0] dark:border-[#262036] text-xs font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <Share2 className="w-4 h-4 text-[#5420F5]" />
+            <Share2 className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
             <span>Share Link</span>
           </button>
         </div>
 
-        <p className="text-[11px] text-center text-[#706B7D] pt-1 flex items-center justify-center gap-1">
+        <p className="text-[11px] text-center text-[#706B7D] dark:text-[#9E97B3] pt-1 flex items-center justify-center gap-1">
           <SparklePolishIcon size={14} className="shrink-0" />
           <span>Exact match guarantee: What you see in the preview is precisely what downloads to your camera roll.</span>
         </p>

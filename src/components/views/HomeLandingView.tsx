@@ -19,6 +19,7 @@ import {
   CreateConfessionIcon,
 } from '../brand/icons/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
+import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 
 export const HomeLandingView: React.FC = () => {
   const { setActiveView, user } = useBopoi();
@@ -34,12 +35,11 @@ export const HomeLandingView: React.FC = () => {
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
           {/* Left Column: Headline & CTAs */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-[#FFC928] mb-6">
-              <SparklePolishIcon size={16} />
-              <span>Campus Social &amp; Anonymous Q&amp;A</span>
-            </div>
+            <span className="text-xs sm:text-sm font-extrabold text-[#FFC928] mb-3.5">
+              Campus Social &amp; Anonymous Q&amp;A
+            </span>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08] text-white [text-wrap:balance]">
               There's something you've been wanting to ask...
             </h1>
 
@@ -88,18 +88,13 @@ export const HomeLandingView: React.FC = () => {
           {/* Right Column: Interactive Card Showcase */}
           <div className="lg:col-span-5 flex justify-center">
             <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-white/20 text-[#191525] relative">
-              {/* Campus sticker badge on top left */}
-              <div className="absolute -top-2.5 left-6 bg-[#FFDE43] text-[#191525] text-[10px] font-black px-2.5 py-0.5 rounded-md shadow-xs rotate-[-3deg] border border-[#FFDE43]">
-                #CAMPUSVIBES
-              </div>
-
               {/* Bopoi Official App Icon on top right */}
-              <div className="absolute -top-6 -right-4 drop-shadow-xl hover:scale-105 transition-transform">
-                <BopoiAppIcon size={52} />
+              <div className="absolute -top-5 -right-3 drop-shadow-xl hover:scale-105 transition-transform">
+                <BopoiAppIcon size={48} />
               </div>
 
               {/* Host preview header */}
-              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 pt-1">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
                 <CampusCharacterAvatar
                   value={user.avatarUrl}
                   seed={user.username}
@@ -107,8 +102,15 @@ export const HomeLandingView: React.FC = () => {
                   rounded="full"
                   className="ring-2 ring-[#5420F5]/30"
                 />
-                <div>
-                  <h4 className="text-sm font-extrabold text-[#191525]">{user.displayName}</h4>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <h4 className="text-sm font-extrabold text-[#191525] truncate">{user.displayName}</h4>
+                    <VerifiedCreatorBadge
+                      isVerified={Boolean(user.isVerified || user.isCreator)}
+                      username={user.username}
+                      size={15}
+                    />
+                  </div>
                   <span className="text-xs text-[#5420F5] font-semibold">@{user.username}</span>
                 </div>
               </div>
@@ -165,19 +167,21 @@ export const HomeLandingView: React.FC = () => {
           </p>
         </div>
 
-        {/* Onboarding Highlights Bar */}
-        <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap mb-10">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white border border-[#EAE6F0] shadow-xs text-xs font-bold text-[#191525]">
-            <YourCampusIcon size={24} />
-            <span>Your Campus Verified</span>
+        {/* Quiet Editorial Highlights Strip */}
+        <div className="flex items-center justify-center gap-5 sm:gap-8 flex-wrap mb-10 text-xs font-bold text-[#191525]">
+          <div className="flex items-center gap-2">
+            <YourCampusIcon size={22} />
+            <span>Nigerian Campuses</span>
           </div>
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white border border-[#EAE6F0] shadow-xs text-xs font-bold text-[#191525]">
-            <RealPeopleIcon size={24} />
+          <span className="hidden sm:inline text-[#EAE6F0]">|</span>
+          <div className="flex items-center gap-2">
+            <RealPeopleIcon size={22} />
             <span>Real Student Circles</span>
           </div>
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white border border-[#EAE6F0] shadow-xs text-xs font-bold text-[#191525]">
-            <LaunchTrendingIcon size={24} />
-            <span>Launch &amp; Trending</span>
+          <span className="hidden sm:inline text-[#EAE6F0]">|</span>
+          <div className="flex items-center gap-2">
+            <LaunchTrendingIcon size={22} />
+            <span>Trending Topics</span>
           </div>
         </div>
 
@@ -217,7 +221,7 @@ export const HomeLandingView: React.FC = () => {
                   <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center p-1 shadow-2xs">
                     {step.icon}
                   </div>
-                  <span className="text-xs font-black text-[#5420F5] font-mono bg-[#F0EBFF] px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-black text-[#706B7D] tabular-nums tracking-wider">
                     {step.num}
                   </span>
                 </div>
@@ -233,7 +237,7 @@ export const HomeLandingView: React.FC = () => {
       <section className="bg-white border-y border-[#EAE6F0] py-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-3">
+            <div className="inline-flex items-center gap-1.5 text-emerald-700 text-xs font-extrabold mb-2">
               <SafetyShieldBadgeIcon size={16} />
               <span>Campus Safety Shield</span>
             </div>

@@ -50,23 +50,41 @@ export function useMobileKeyboard(): MobileKeyboardState {
 
     let focusTimeout: ReturnType<typeof setTimeout> | null = null;
     let baselineHeight = window.innerHeight;
+    let lastInnerWidth = window.innerWidth;
 
     const updateViewportMetrics = () => {
       const vv = window.visualViewport;
       const currentInnerHeight = window.innerHeight;
-      if (currentInnerHeight > baselineHeight) {
+      const currentInnerWidth = window.innerWidth;
+
+      const activeEl = document.activeElement;
+      const inputFocused = isEditableTextElement(activeEl);
+      const isMobileViewport = currentInnerWidth < 1024;
+
+      // Reset baseline on orientation / window width changes or whenever no input is focused
+      // and visualViewport matches layout height (prevents portrait->landscape or desktop resize
+      // from permanently trapping the app in "keyboard open" mode).
+      const widthChanged = Math.abs(currentInnerWidth - lastInnerWidth) > 20;
+      if (widthChanged) {
+        lastInnerWidth = currentInnerWidth;
+        baselineHeight = currentInnerHeight;
+      } else if (currentInnerHeight > baselineHeight) {
         baselineHeight = currentInnerHeight;
       }
 
       const vvHeight = vv ? vv.height : currentInnerHeight;
       const vvOffsetTop = vv ? vv.offsetTop : 0;
 
-      const activeEl = document.activeElement;
-      const inputFocused = isEditableTextElement(activeEl);
-      const isMobileViewport = window.innerWidth < 1024;
+      if (!inputFocused && Math.abs(currentInnerHeight - vvHeight) < 40) {
+        baselineHeight = currentInnerHeight;
+      }
 
-      const heightDiff = Math.max(baselineHeight, currentInnerHeight) - vvHeight;
-      const keyboardDetectedByHeight = isMobileViewport && heightDiff > 110;
+      // iOS shrinks visualViewport.height relative to innerHeight;
+      // Android Chrome often shrinks innerHeight as well while an editable element is focused.
+      const visualInset = currentInnerHeight - vvHeight;
+      const focusedBaselineDiff = inputFocused ? baselineHeight - vvHeight : 0;
+      const keyboardDetectedByHeight =
+        isMobileViewport && (visualInset > 120 || focusedBaselineDiff > 130);
       const isKeyboardOpen = isMobileViewport && (inputFocused || keyboardDetectedByHeight);
 
       const rawBottomOffset = vv
@@ -96,6 +114,14 @@ export function useMobileKeyboard(): MobileKeyboardState {
       });
     };
 
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        baselineHeight = window.innerHeight;
+        lastInnerWidth = window.innerWidth;
+        updateViewportMetrics();
+      }, 120);
+    };
+
     const handleFocusIn = (e: FocusEvent) => {
       if (focusTimeout) {
         clearTimeout(focusTimeout);
@@ -112,7 +138,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
       if (focusTimeout) clearTimeout(focusTimeout);
       focusTimeout = setTimeout(() => {
         updateViewportMetrics();
-      }, 60);
+      }, 80);
     };
 
     const vv = window.visualViewport;
@@ -121,6 +147,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
       vv.addEventListener('scroll', updateViewportMetrics);
     }
     window.addEventListener('resize', updateViewportMetrics);
+    window.addEventListener('orientationchange', handleOrientationChange);
     document.addEventListener('focusin', handleFocusIn, true);
     document.addEventListener('focusout', handleFocusOut, true);
 
@@ -133,6 +160,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
         vv.removeEventListener('scroll', updateViewportMetrics);
       }
       window.removeEventListener('resize', updateViewportMetrics);
+      window.removeEventListener('orientationchange', handleOrientationChange);
       document.removeEventListener('focusin', handleFocusIn, true);
       document.removeEventListener('focusout', handleFocusOut, true);
     };

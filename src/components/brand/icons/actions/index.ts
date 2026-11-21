@@ -6,3 +6,5 @@ export * from './SparklePolishIcon.tsx';
 export * from './InboxCaughtUpIcon.tsx';
 export * from './EditAliasIcon.tsx';
 export * from './InboxShortcutIcon.tsx';
+export * from './VerifiedCreatorBadgeIcon.tsx';
+

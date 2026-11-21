@@ -260,6 +260,12 @@ CREATE POLICY "Public read platform settings" ON public.platform_settings FOR SE
 DROP POLICY IF EXISTS "Public read active campus announcements" ON public.campus_announcements;
 CREATE POLICY "Public read active campus announcements" ON public.campus_announcements FOR SELECT USING (is_active = true OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can view own moderation reports" ON public.moderation_reports;
+CREATE POLICY "Users can view own moderation reports" ON public.moderation_reports FOR SELECT USING (reporter_user_id = auth.uid() OR public.is_admin());
+
+DROP POLICY IF EXISTS "Reporters can reply to own pending reports" ON public.moderation_reports;
+CREATE POLICY "Reporters can reply to own pending reports" ON public.moderation_reports FOR UPDATE USING (reporter_user_id = auth.uid() AND status = 'pending') WITH CHECK (reporter_user_id = auth.uid() AND status = 'pending');
+
 DROP POLICY IF EXISTS "Users manage own safety settings" ON public.user_safety_settings;
 CREATE POLICY "Users manage own safety settings" ON public.user_safety_settings FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 

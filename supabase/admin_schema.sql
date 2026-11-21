@@ -362,6 +362,12 @@ CREATE POLICY "Users can view own moderation reports"
   ON public.moderation_reports FOR SELECT
   USING (reporter_user_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "Reporters can reply to own pending reports" ON public.moderation_reports;
+CREATE POLICY "Reporters can reply to own pending reports"
+  ON public.moderation_reports FOR UPDATE
+  USING (reporter_user_id = auth.uid() AND status = 'pending')
+  WITH CHECK (reporter_user_id = auth.uid() AND status = 'pending');
+
 -- 6.3 Owner-Scoped Policies Across All User, Social, Inbox & Room Tables
 DO $$
 BEGIN

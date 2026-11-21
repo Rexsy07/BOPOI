@@ -672,6 +672,656 @@ async function startServer() {
     }
   });
 
+  // ==========================================================================
+  // 8. MODERATION REPORTS & LIVE TWO-WAY TICKET CHAT ENDPOINTS
+  // ==========================================================================
+  const REPORTS_STORE_FILE = '/tmp/bopoi-reports-store.json';
+
+  const readServerReportsStore = (): any[] => {
+    try {
+      if (!fs.existsSync(REPORTS_STORE_FILE)) return [];
+      const raw = fs.readFileSync(REPORTS_STORE_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const writeServerReportsStore = (items: any[]) => {
+    try {
+      fs.writeFileSync(REPORTS_STORE_FILE, JSON.stringify(items.slice(0, 500)), 'utf-8');
+    } catch {
+      // Ignore read-only fs errors
+    }
+  };
+
+  const formatRelTs = (ts: number) => {
+    const mins = Math.floor(Math.max(0, Date.now() - ts) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  const serializeEnvelope = (rep: any) =>
+    `__BOPOI_CASE_V1__:${JSON.stringify({
+      __v: 1,
+      notes: rep.adminNotes || undefined,
+      targetPreview: rep.targetPreview || undefined,
+      reporterLastReadAt: rep.reporterLastReadAt || undefined,
+      moderatorLastReadAt: rep.moderatorLastReadAt || undefined,
+      messages: Array.isArray(rep.ticketMessages) ? rep.ticketMessages : [],
+    })}`;
+
+  const parseEnvelope = (raw?: string | null) => {
+    if (!raw || typeof raw !== 'string') return { ticketMessages: [] as any[] };
+    if (raw.startsWith('__BOPOI_CASE_V1__:')) {
+      try {
+        const parsed = JSON.parse(raw.slice('__BOPOI_CASE_V1__:'.length));
+        return {
+          adminNotes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+          targetPreview: typeof parsed.targetPreview === 'string' ? parsed.targetPreview : undefined,
+          reporterLastReadAt:
+            typeof parsed.reporterLastReadAt === 'number' ? parsed.reporterLastReadAt : undefined,
+          moderatorLastReadAt:
+            typeof parsed.moderatorLastReadAt === 'number' ? parsed.moderatorLastReadAt : undefined,
+          ticketMessages: Array.isArray(parsed.messages) ? parsed.messages : [],
+        };
+      } catch {
+        return { adminNotes: raw, ticketMessages: [] as any[] };
+      }
+    }
+    return { adminNotes: raw, ticketMessages: [] as any[] };
+  };
+
+  const mapSupabaseReportRow = (r: any) => {
+    const parsed = parseEnvelope(r.admin_notes);
+    const createdTs = r.created_at ? new Date(r.created_at).getTime() : Date.now();
+    return {
+      id: r.id,
+      reporterUserId: r.reporter_user_id || undefined,
+      reporterUsername: r.reporter_username || undefined,
+      targetType: r.target_type || 'social_post',
+      targetId: r.target_id || '',
+      targetPreview: parsed.targetPreview,
+      reason: r.reason || '',
+      status: r.status || 'pending',
+      adminNotes: parsed.adminNotes,
+      ticketMessages: parsed.ticketMessages,
+      reporterLastReadAt: parsed.reporterLastReadAt,
+      moderatorLastReadAt: parsed.moderatorLastReadAt,
+      createdAt: formatRelTs(createdTs),
+      createdTimestamp: createdTs,
+      resolvedAt: r.resolved_at ? formatRelTs(new Date(r.resolved_at).getTime()) : undefined,
+    };
+  };
+
+  app.get('/api/reports', async (req, res) => {
+    try {
+      const isAdmin = req.query.isAdmin === 'true';
+      const userId = String(req.query.userId || '').trim();
+      const username = String(req.query.username || '').trim().toLowerCase();
+
+      const localStore = readServerReportsStore();
+      let remoteRows: any[] = [];
+      const sb = getServerSupabase();
+
+      if (sb) {
+        try {
+          if (isAdmin) {
+            const { data } = await sb
+              .from('moderation_reports')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(150);
+            if (Array.isArray(data)) remoteRows = data.map(mapSupabaseReportRow);
+          } else if (userId || username) {
+            let query = sb
+              .from('moderation_reports')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(100);
+            if (userId && /^[0-9a-f-]{36}$/i.test(userId) && username) {
+              query = query.or(`reporter_user_id.eq.${userId},reporter_username.ilike.${username}`);
+            } else if (userId && /^[0-9a-f-]{36}$/i.test(userId)) {
+              query = query.eq('reporter_user_id', userId);
+            } else if (username) {
+              query = query.ilike('reporter_username', username);
+            }
+            const { data } = await query;
+            if (Array.isArray(data)) remoteRows = data.map(mapSupabaseReportRow);
+          }
+        } catch {
+          // Fall back cleanly to local server store
+        }
+      }
+
+      const filteredLocal = isAdmin
+        ? localStore
+        : localStore.filter((r) => {
+            if (userId && r.reporterUserId === userId) return true;
+            if (username && String(r.reporterUsername || '').toLowerCase() === username) return true;
+            return false;
+          });
+
+      const mergedMap = new Map<string, any>();
+      [...filteredLocal, ...remoteRows].forEach((r) => {
+        const prev = mergedMap.get(r.id);
+        if (!prev) {
+          mergedMap.set(r.id, r);
+          return;
+        }
+        const msgMap = new Map<string, any>();
+        [...(prev.ticketMessages || []), ...(r.ticketMessages || [])].forEach((m: any) =>
+          msgMap.set(m.id, m)
+        );
+        mergedMap.set(r.id, {
+          ...prev,
+          ...r,
+          status: r.status !== 'pending' ? r.status : prev.status,
+          targetPreview: r.targetPreview || prev.targetPreview,
+          adminNotes: r.adminNotes || prev.adminNotes,
+          reporterLastReadAt:
+            Math.max(prev.reporterLastReadAt || 0, r.reporterLastReadAt || 0) || undefined,
+          moderatorLastReadAt:
+            Math.max(prev.moderatorLastReadAt || 0, r.moderatorLastReadAt || 0) || undefined,
+          ticketMessages: Array.from(msgMap.values()).sort(
+            (a: any, b: any) => (a.createdTimestamp || 0) - (b.createdTimestamp || 0)
+          ),
+        });
+      });
+
+      const reports = Array.from(mergedMap.values()).sort(
+        (a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0)
+      );
+      res.json({ ok: true, reports });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Failed to fetch reports' });
+    }
+  });
+
+  app.post('/api/reports/create', async (req, res) => {
+    try {
+      const report = req.body?.report;
+      if (!report || !report.id) {
+        res.status(400).json({ ok: false, error: 'report payload is required' });
+        return;
+      }
+
+      const store = readServerReportsStore();
+      const idx = store.findIndex((r) => r.id === report.id);
+      if (idx >= 0) {
+        store[idx] = { ...store[idx], ...report };
+      } else {
+        store.unshift(report);
+      }
+      writeServerReportsStore(store);
+
+      const sb = getServerSupabase();
+      let canonicalId = report.id;
+      if (sb) {
+        try {
+          const validReporterUuid =
+            report.reporterUserId && /^[0-9a-f-]{36}$/i.test(String(report.reporterUserId))
+              ? String(report.reporterUserId)
+              : null;
+          const envelope = serializeEnvelope(report);
+          const { data: inserted } = await sb
+            .from('moderation_reports')
+            .insert({
+              ...( /^[0-9a-f-]{36}$/i.test(String(report.id)) ? { id: String(report.id) } : {}),
+              reporter_user_id: validReporterUuid,
+              reporter_username: report.reporterUsername || 'student',
+              target_type: report.targetType || 'social_post',
+              target_id: String(report.targetId || report.id),
+              reason: String(report.reason || 'Reported content'),
+              status: report.status || 'pending',
+              admin_notes: envelope,
+            })
+            .select('id')
+            .maybeSingle();
+
+          if (inserted?.id) {
+            canonicalId = inserted.id;
+          }
+        } catch {
+          // Local server store already saved it
+        }
+      }
+
+      res.json({ ok: true, id: canonicalId });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Failed to create report' });
+    }
+  });
+
+  app.post('/api/reports/message', async (req, res) => {
+    try {
+      const { reportId, message, fullReport } = req.body || {};
+      if (!reportId || !message || typeof message.text !== 'string') {
+        res.status(400).json({ ok: false, error: 'reportId and message are required' });
+        return;
+      }
+
+      const store = readServerReportsStore();
+      const idx = store.findIndex((r) => r.id === reportId);
+      const baseReport =
+        idx >= 0
+          ? store[idx]
+          : fullReport || {
+              id: reportId,
+              targetType: 'support_ticket',
+              targetId: reportId,
+              reason: message.text,
+              status: 'pending',
+              createdAt: 'Just now',
+              createdTimestamp: Date.now(),
+              ticketMessages: [],
+            };
+
+      const existingMsgs = Array.isArray(baseReport.ticketMessages)
+        ? baseReport.ticketMessages
+        : [];
+      const hasMsg = existingMsgs.some((m: any) => m.id === message.id);
+      const nextMessages = hasMsg ? existingMsgs : [...existingMsgs, message];
+      const updatedReport = {
+        ...baseReport,
+        ticketMessages: nextMessages,
+        reporterLastReadAt:
+          message.senderRole === 'reporter'
+            ? message.createdTimestamp || Date.now()
+            : baseReport.reporterLastReadAt,
+        moderatorLastReadAt:
+          message.senderRole === 'moderator'
+            ? message.createdTimestamp || Date.now()
+            : baseReport.moderatorLastReadAt,
+      };
+
+      if (idx >= 0) {
+        store[idx] = updatedReport;
+      } else {
+        store.unshift(updatedReport);
+      }
+      writeServerReportsStore(store);
+
+      const sb = getServerSupabase();
+      if (sb && /^[0-9a-f-]{36}$/i.test(String(reportId))) {
+        try {
+          const envelope = serializeEnvelope(updatedReport);
+          await sb
+            .from('moderation_reports')
+            .update({ admin_notes: envelope })
+            .eq('id', String(reportId));
+
+          if (
+            message.senderRole === 'moderator' &&
+            updatedReport.reporterUserId &&
+            /^[0-9a-f-]{36}$/i.test(String(updatedReport.reporterUserId))
+          ) {
+            await sb.from('notifications').insert({
+              recipient_user_id: String(updatedReport.reporterUserId),
+              type: 'report_reply',
+              title: 'Moderator replied to your ticket',
+              body: String(message.text).slice(0, 120),
+              target_view: 'inbox',
+              target_id: String(reportId),
+              actor_name: String(message.senderName || 'Campus Moderator'),
+              actor_username: String(message.senderUsername || 'moderator'),
+              is_anonymous: false,
+            });
+          }
+        } catch {
+          // Local store still synced
+        }
+      }
+
+      res.json({ ok: true, report: updatedReport });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Failed to save report message' });
+    }
+  });
+
+  app.post('/api/reports/read', async (req, res) => {
+    try {
+      const { reportId, viewerRole, timestamp } = req.body || {};
+      if (!reportId || !viewerRole) {
+        res.status(400).json({ ok: false, error: 'reportId and viewerRole are required' });
+        return;
+      }
+      const ts = Number(timestamp) || Date.now();
+      const store = readServerReportsStore();
+      const idx = store.findIndex((r) => r.id === reportId);
+      if (idx >= 0) {
+        store[idx] = {
+          ...store[idx],
+          ...(viewerRole === 'reporter' ? { reporterLastReadAt: ts } : { moderatorLastReadAt: ts }),
+        };
+        writeServerReportsStore(store);
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Failed to mark report read' });
+    }
+  });
+
+  app.post('/api/reports/resolve', async (req, res) => {
+    try {
+      const { reportId, status, systemMessage, adminNotes, fullReport } = req.body || {};
+      if (!reportId || !status) {
+        res.status(400).json({ ok: false, error: 'reportId and status are required' });
+        return;
+      }
+
+      const store = readServerReportsStore();
+      const idx = store.findIndex((r) => r.id === reportId);
+      const baseReport = idx >= 0 ? store[idx] : fullReport || { id: reportId, ticketMessages: [] };
+      const existingMsgs = Array.isArray(baseReport.ticketMessages)
+        ? baseReport.ticketMessages
+        : [];
+      const nextMessages =
+        systemMessage && !existingMsgs.some((m: any) => m.id === systemMessage.id)
+          ? [...existingMsgs, systemMessage]
+          : existingMsgs;
+
+      const updatedReport = {
+        ...baseReport,
+        status,
+        adminNotes: adminNotes ?? baseReport.adminNotes,
+        resolvedAt: 'Just now',
+        ticketMessages: nextMessages,
+      };
+
+      if (idx >= 0) {
+        store[idx] = updatedReport;
+      } else {
+        store.unshift(updatedReport);
+      }
+      writeServerReportsStore(store);
+
+      const sb = getServerSupabase();
+      if (sb && /^[0-9a-f-]{36}$/i.test(String(reportId))) {
+        try {
+          const envelope = serializeEnvelope(updatedReport);
+          await sb
+            .from('moderation_reports')
+            .update({
+              status,
+              admin_notes: envelope,
+              resolved_at: new Date().toISOString(),
+            })
+            .eq('id', String(reportId));
+
+          if (
+            updatedReport.reporterUserId &&
+            /^[0-9a-f-]{36}$/i.test(String(updatedReport.reporterUserId))
+          ) {
+            await sb.from('notifications').insert({
+              recipient_user_id: String(updatedReport.reporterUserId),
+              type: 'report_status_updated',
+              title: `Ticket marked as ${status}`,
+              body:
+                systemMessage?.text ||
+                `Campus Moderation updated your report status to ${status}.`,
+              target_view: 'inbox',
+              target_id: String(reportId),
+              actor_name: 'Campus Moderation',
+              actor_username: 'moderator',
+              is_anonymous: false,
+            });
+          }
+        } catch {
+          // Local store synced
+        }
+      }
+
+      res.json({ ok: true, report: updatedReport });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || 'Failed to resolve report' });
+    }
+  });
+
+  // ==========================================================================
+  // 9. KLIPY GIF SEARCH & TRENDING PROXY ENDPOINTS (Cached, Key Protected)
+  // ==========================================================================
+  const normalizeKlipyGifItem = (raw: any) => {
+    if (!raw || typeof raw !== 'object') return null;
+
+    // Skip programmatic ad placeholders if any don't carry standard GIF asset URLs
+    const filesObj = raw.file || raw.files || null;
+    const legacyFormats = raw.media_formats || null;
+
+    const pickTierUrl = (tier: any) => {
+      if (!tier || typeof tier !== 'object') return undefined;
+      return (
+        tier.gif?.url ||
+        tier.webp?.url ||
+        tier.mp4?.url ||
+        tier.webm?.url ||
+        undefined
+      );
+    };
+
+    let url: string | undefined;
+    let previewUrl: string | undefined;
+    let mp4Url: string | undefined;
+    let width: number | undefined;
+    let height: number | undefined;
+
+    if (filesObj && typeof filesObj === 'object') {
+      // Shape A: files.{gif|webp|mp4}.{hd|md|sm}.url
+      const gifGroup = filesObj.gif;
+      const webpGroup = filesObj.webp;
+      const mp4Group = filesObj.mp4;
+
+      if (gifGroup || webpGroup || mp4Group) {
+        const bestGif = gifGroup?.md || gifGroup?.hd || gifGroup?.sm;
+        const smallPreview =
+          webpGroup?.sm ||
+          gifGroup?.sm ||
+          webpGroup?.md ||
+          gifGroup?.md ||
+          bestGif;
+        const bestMp4 = mp4Group?.sm || mp4Group?.md || mp4Group?.hd;
+
+        url = bestGif?.url || webpGroup?.md?.url || webpGroup?.hd?.url || bestMp4?.url;
+        previewUrl = smallPreview?.url || url;
+        mp4Url = bestMp4?.url;
+        width = Number(bestGif?.width || smallPreview?.width) || undefined;
+        height = Number(bestGif?.height || smallPreview?.height) || undefined;
+      } else {
+        // Shape B: file.{hd|md|sm}.{gif|webp|mp4}.url
+        url =
+          pickTierUrl(filesObj.md) ||
+          pickTierUrl(filesObj.hd) ||
+          pickTierUrl(filesObj.sm) ||
+          pickTierUrl(filesObj.xs);
+        previewUrl =
+          filesObj.sm?.webp?.url ||
+          filesObj.sm?.gif?.url ||
+          filesObj.xs?.webp?.url ||
+          filesObj.xs?.gif?.url ||
+          filesObj.md?.webp?.url ||
+          filesObj.md?.gif?.url ||
+          url;
+        mp4Url =
+          filesObj.sm?.mp4?.url ||
+          filesObj.md?.mp4?.url ||
+          filesObj.xs?.mp4?.url ||
+          filesObj.hd?.mp4?.url;
+        const dimsSource = filesObj.md?.gif || filesObj.sm?.gif || filesObj.hd?.gif;
+        width = Number(dimsSource?.width) || undefined;
+        height = Number(dimsSource?.height) || undefined;
+      }
+    } else if (legacyFormats && typeof legacyFormats === 'object') {
+      const mainFmt = legacyFormats.mediumgif || legacyFormats.gif || legacyFormats.tinygif;
+      const tinyFmt = legacyFormats.tinygif || legacyFormats.nanogif || mainFmt;
+      const mp4Fmt = legacyFormats.tinymp4 || legacyFormats.mp4;
+      url = mainFmt?.url || mp4Fmt?.url;
+      previewUrl = tinyFmt?.url || url;
+      mp4Url = mp4Fmt?.url;
+      const dims = Array.isArray(mainFmt?.dims) ? mainFmt.dims : [];
+      width = Number(mainFmt?.width || dims[0]) || undefined;
+      height = Number(mainFmt?.height || dims[1]) || undefined;
+    }
+
+    if (!url) return null;
+
+    return {
+      id: String(raw.id || raw.slug || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`),
+      title: String(raw.title || 'GIF').trim() || 'GIF',
+      previewUrl: String(previewUrl || url),
+      url: String(url),
+      mp4Url: mp4Url ? String(mp4Url) : undefined,
+      width,
+      height,
+    };
+  };
+
+  const fetchKlipyCatalog = async (params: {
+    mode: 'trending' | 'search';
+    q?: string;
+    page: number;
+    perPage: number;
+    customerId: string;
+  }) => {
+    const apiKey = (process.env.KLIPY_API_KEY || '').trim();
+    if (!apiKey) {
+      return {
+        ok: false,
+        configured: false,
+        status: 503,
+        error: 'KLIPY_API_KEY is not configured yet on the server.',
+        items: [],
+        hasNext: false,
+      };
+    }
+
+    const { mode, q = '', page, perPage, customerId } = params;
+    const normalizedQuery = q.trim().toLowerCase();
+    const cacheKey =
+      mode === 'trending'
+        ? `klipy:trending:p${page}:n${perPage}`
+        : `klipy:search:${normalizedQuery}:p${page}:n${perPage}`;
+
+    const cached = await redisCache.get<{ items: any[]; hasNext: boolean }>(cacheKey);
+    if (cached && Array.isArray(cached.items)) {
+      return {
+        ok: true,
+        configured: true,
+        status: 200,
+        source: 'cache',
+        items: cached.items,
+        hasNext: cached.hasNext,
+      };
+    }
+
+    const qs = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+      customer_id: customerId,
+    });
+    if (mode === 'search' && q.trim()) {
+      qs.set('q', q.trim());
+    }
+
+    const endpoint =
+      mode === 'trending'
+        ? `https://api.klipy.com/api/v1/${encodeURIComponent(apiKey)}/gifs/trending?${qs.toString()}`
+        : `https://api.klipy.com/api/v1/${encodeURIComponent(apiKey)}/gifs/search?${qs.toString()}`;
+
+    const upstream = await fetch(endpoint, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!upstream.ok) {
+      const errText = await upstream.text().catch(() => '');
+      return {
+        ok: false,
+        configured: true,
+        status: upstream.status,
+        error: errText || `Klipy API responded with status ${upstream.status}`,
+        items: [],
+        hasNext: false,
+      };
+    }
+
+    const json = await upstream.json();
+    const rawList = Array.isArray(json?.data?.data)
+      ? json.data.data
+      : Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.results)
+      ? json.results
+      : [];
+
+    const items = rawList.map(normalizeKlipyGifItem).filter(Boolean);
+    const hasNext = Boolean(json?.data?.has_next);
+
+    await redisCache.setex(cacheKey, mode === 'trending' ? 300 : 180, {
+      items,
+      hasNext,
+    });
+
+    return {
+      ok: true,
+      configured: true,
+      status: 200,
+      source: 'klipy',
+      items,
+      hasNext,
+    };
+  };
+
+  app.get('/api/gifs/trending', async (req, res) => {
+    try {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const perPage = Math.min(36, Math.max(6, Number(req.query.per_page) || 24));
+      const customerId = String(req.query.customer_id || 'bopoi_campus_student').slice(0, 64);
+
+      const result = await fetchKlipyCatalog({
+        mode: 'trending',
+        page,
+        perPage,
+        customerId,
+      });
+      res.status(result.status).json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        ok: false,
+        configured: Boolean((process.env.KLIPY_API_KEY || '').trim()),
+        error: err?.message || 'Failed to fetch trending GIFs',
+        items: [],
+      });
+    }
+  });
+
+  app.get('/api/gifs/search', async (req, res) => {
+    try {
+      const q = String(req.query.q || '').trim();
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const perPage = Math.min(36, Math.max(6, Number(req.query.per_page) || 24));
+      const customerId = String(req.query.customer_id || 'bopoi_campus_student').slice(0, 64);
+
+      const result = await fetchKlipyCatalog({
+        mode: q ? 'search' : 'trending',
+        q,
+        page,
+        perPage,
+        customerId,
+      });
+      res.status(result.status).json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        ok: false,
+        configured: Boolean((process.env.KLIPY_API_KEY || '').trim()),
+        error: err?.message || 'Failed to search GIFs',
+        items: [],
+      });
+    }
+  });
+
   // Mount Vite dev server middleware or static production build
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

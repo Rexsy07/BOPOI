@@ -47,6 +47,7 @@ import {
   InboxCaughtUpIcon,
   EditAliasIcon,
   InboxShortcutIcon,
+  VerifiedCreatorBadgeIcon,
 } from './actions/index.ts';
 
 import { PersonaMaskIcon } from '../masks/PersonaMaskIcon.tsx';
@@ -127,6 +128,8 @@ export type BopoiIconName =
   | 'Edit Alias'
   | 'inbox-shortcut'
   | 'Inbox Shortcut'
+  | 'verified-creator'
+  | 'Verified Creator'
   | string;
 
 interface BopoiIconProps {
@@ -283,6 +286,9 @@ export const BopoiIcon: React.FC<BopoiIconProps> = ({
   }
   if (normalized.includes('inbox shortcut') || normalized.includes('inbox-shortcut') || normalized.includes('inbox tray')) {
     return <InboxShortcutIcon size={size} className={className} />;
+  }
+  if (normalized.includes('verified-creator') || normalized.includes('verified creator')) {
+    return <VerifiedCreatorBadgeIcon size={size} className={className} />;
   }
 
   // Default custom icon fallback (no raw emoji)

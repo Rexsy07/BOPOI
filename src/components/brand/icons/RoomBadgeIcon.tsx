@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import {
   RoomIconConfig,
@@ -13,6 +13,7 @@ interface RoomBadgeIconProps {
   roomName?: string;
   configOverride?: RoomIconConfig;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  rounded?: '2xl' | 'full';
   className?: string;
 }
 
@@ -34,13 +35,20 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
   roomName,
   configOverride,
   size = 'md',
+  rounded = '2xl',
   className = '',
 }) => {
   const config =
     configOverride || parseRoomIcon(iconEmoji, iconBg, category, roomName);
   const dims = SIZE_MAP[size] || SIZE_MAP.md;
 
-  const isImageMode = config.mode === 'image' && Boolean(config.value);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [config.value]);
+
+  const isImageMode = config.mode === 'image' && Boolean(config.value) && !imgError;
 
   return (
     <div
@@ -55,7 +63,9 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
           width: dims.box,
           height: dims.box,
         }}
-        className={`w-full h-full rounded-2xl flex items-center justify-center overflow-hidden transition-transform duration-200 ${
+        className={`w-full h-full ${
+          rounded === 'full' ? 'rounded-full' : 'rounded-2xl'
+        } flex items-center justify-center overflow-hidden transition-transform duration-200 ${
           isImageMode
             ? 'bg-[#191525] border-2 border-white/30 shadow-xs'
             : 'bg-[#F0EBFF] border-2 border-dashed border-[#5420F5]/35 text-[#5420F5]'
@@ -65,6 +75,7 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
           <img
             src={config.value}
             alt={roomName ? `#${roomName} icon` : 'Room icon'}
+            onError={() => setImgError(true)}
             className="w-full h-full object-cover select-none pointer-events-none"
             draggable={false}
           />
@@ -79,5 +90,3 @@ export const RoomBadgeIcon: React.FC<RoomBadgeIconProps> = ({
     </div>
   );
 };
-
-

@@ -36,10 +36,10 @@ export const SplashView: React.FC = () => {
             className="w-full h-full object-cover object-center"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-xs text-white/90">
-            <span className="font-semibold bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full">
-              Uni Vibes
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
+          <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-xs text-white/90">
+            <span className="font-bold tracking-tight">
+              Nigerian Campus Voices
             </span>
             <span className="font-handwriting text-base text-[#FFC928]">
               #CampusLife

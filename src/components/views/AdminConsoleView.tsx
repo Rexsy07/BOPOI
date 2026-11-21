@@ -21,8 +21,14 @@ import {
   DatabaseSqlIcon,
   SparklePolishIcon,
   RoomBadgeIcon,
+  VerifiedCreatorBadgeIcon,
 } from '../brand/icons/index.ts';
 import { RoomIconStudioPicker } from '../modals/RoomIconStudioPicker.tsx';
+import { ReportCaseChatModal } from '../modals/ReportCaseChatModal.tsx';
+import {
+  getReportThreadMessages,
+  getUnreadReportCountForModerator,
+} from '../../lib/reportChat.ts';
 import {
   CheckCircle2,
   XCircle,
@@ -42,6 +48,7 @@ import {
   Send,
   ChevronDown,
   ChevronUp,
+  MessageCircle,
 } from 'lucide-react';
 
 type AdminModuleId =
@@ -143,6 +150,7 @@ export const AdminConsoleView: React.FC = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserCampus, setNewUserCampus] = useState('University of Lagos');
   const [newUserRole, setNewUserRole] = useState<'student' | 'creator' | 'moderator' | 'admin'>('student');
+  const [quickVerifyUsername, setQuickVerifyUsername] = useState('');
 
   // Module 3: Posts, Polls, Confessions & Comments state
   const [postSearch, setPostSearch] = useState('');
@@ -160,6 +168,7 @@ export const AdminConsoleView: React.FC = () => {
 
   // Module 5: Reports, Support Tickets & Word Filters state
   const [reportFilter, setReportFilter] = useState<'all' | 'pending' | 'support_ticket' | 'resolved' | 'dismissed'>('all');
+  const [activeChatReportId, setActiveChatReportId] = useState<string | null>(null);
   const [newBlockedWord, setNewBlockedWord] = useState('');
 
   // Module 6: SQL Copy state
@@ -292,7 +301,7 @@ export const AdminConsoleView: React.FC = () => {
     try {
       await navigator.clipboard.writeText(ADMIN_SQL_MIGRATION_SCRIPT);
       setCopiedSql(true);
-      showToast('Complete 27-Table Admin SQL + RLS script copied!', 'success');
+      showToast('Admin SQL migration script copied!', 'success');
       setTimeout(() => setCopiedSql(false), 2500);
     } catch {
       showToast('Failed to copy SQL script', 'error');
@@ -389,27 +398,22 @@ export const AdminConsoleView: React.FC = () => {
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[#5420F5]">
+              <span className="inline-flex items-center gap-1.5 text-sm font-black text-[#5420F5]">
                 <AdminConsoleNavIcon size={18} />
                 Admin Console
               </span>
               <span
-                className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
                   connectionStatus === 'connected'
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'bg-amber-50 text-amber-700'
                 }`}
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                  }`}
-                />
-                Realtime {connectionStatus === 'connected' ? 'Live' : 'Syncing'}
+                {connectionStatus === 'connected' ? 'Live' : 'Syncing'}
               </span>
             </div>
             <p className="text-xs text-[#706B7D] truncate mt-0.5">
-              Signed in as <span className="font-bold text-[#191525]">@{user.username || 'admin'}</span> • Full 27-Table RLS Override Active
+              Signed in as <span className="font-bold text-[#191525]">@{user.username || 'admin'}</span> · Campus &amp; Platform Administration
             </p>
           </div>
         </div>
@@ -439,7 +443,7 @@ export const AdminConsoleView: React.FC = () => {
       {/* ============================================================================ */}
       <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
         {/* Mobile Horizontal Module Switcher (44px+ touch hitboxes) */}
-        <div className="w-full lg:w-64 shrink-0 bg-white rounded-3xl border border-[#EAE6F0] p-2 sm:p-3 sticky top-16 z-20 lg:static">
+        <div className="w-full lg:w-64 shrink-0 bg-white rounded-3xl border border-[#EAE6F0] p-2 sm:p-3 sticky top-[52px] z-20 lg:static">
           <div className="flex lg:flex-col gap-1.5 overflow-x-auto no-scrollbar">
             {navItems.map((item) => {
               const isActive = activeModule === item.id;
@@ -585,14 +589,14 @@ export const AdminConsoleView: React.FC = () => {
                   className="bg-white rounded-3xl border border-[#EAE6F0] hover:border-emerald-400/50 p-4 text-left transition-all cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-[#706B7D] text-xs font-bold">
-                    <span>Realtime RLS Tables</span>
+                    <span>Database Schema</span>
                     <DatabaseSqlIcon size={20} />
                   </div>
                   <div className="text-2xl sm:text-3xl font-black text-[#191525] font-mono tabular-nums mt-1.5">
-                    27 / 27
+                    27
                   </div>
-                  <div className="text-[11px] text-emerald-600 font-bold mt-1">
-                    REPLICA IDENTITY FULL
+                  <div className="text-[11px] text-emerald-700 font-bold mt-1">
+                    Tables &amp; security rules
                   </div>
                 </button>
               </div>
@@ -703,7 +707,7 @@ export const AdminConsoleView: React.FC = () => {
                 {/* Active Broadcasts List */}
                 {campusAnnouncements.length > 0 && (
                   <div className="pt-3 border-t border-[#EAE6F0] space-y-2">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[#706B7D]">
+                    <span className="text-xs font-black text-[#706B7D] tabular-nums">
                       Recent Campus Broadcasts ({campusAnnouncements.length})
                     </span>
                     <div className="space-y-2">
@@ -799,21 +803,74 @@ export const AdminConsoleView: React.FC = () => {
               <div className="bg-white rounded-3xl border border-[#EAE6F0] p-4 sm:p-5 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-black text-[#191525]">
-                      Users, Roles, Verification &amp; Bans ({filteredUsers.length})
+                    <h2 className="text-base font-black text-[#191525] flex items-center gap-2">
+                      <span>Users, Creator Verification &amp; Roles</span>
+                      <span className="text-xs font-mono text-[#706B7D] tabular-nums">({filteredUsers.length})</span>
                     </h2>
                     <p className="text-xs text-[#706B7D]">
-                      Verify creators, grant admin roles, edit student profiles, pause anonymous links, or suspend accounts.
+                      Grant or revoke the custom Bopoi Verification Badge on selected creators, manage roles, or moderate accounts.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowCreateUserForm(!showCreateUserForm)}
-                    className="min-h-[44px] px-4 rounded-2xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                    className="min-h-[44px] px-4 rounded-2xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Add User / Admin</span>
+                    <span>Add User / Creator</span>
                   </button>
+                </div>
+
+                {/* Quick Grant Creator Verification Bar */}
+                <div className="p-3 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-[#F0EBFF] flex items-center justify-center shrink-0">
+                      <VerifiedCreatorBadgeIcon size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-[#191525] truncate">
+                        Creator Verification Badge
+                      </p>
+                      <p className="text-[11px] text-[#706B7D] truncate tabular-nums">
+                        {allUsersDirectory.filter((u) => u.isVerified || u.isCreator).length} verified creators currently active
+                      </p>
+                    </div>
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const clean = quickVerifyUsername.replace(/^@/, '').trim().toLowerCase();
+                      if (!clean) {
+                        showToast('Enter a @username to verify.', 'error');
+                        return;
+                      }
+                      const matched = allUsersDirectory.find(
+                        (item) => item.username.toLowerCase() === clean
+                      );
+                      const currentlyVerified = Boolean(matched?.isVerified || matched?.isCreator);
+                      adminUpdateUser(matched?.id || clean, {
+                        isVerified: !currentlyVerified,
+                        isCreator: !currentlyVerified,
+                      });
+                      setQuickVerifyUsername('');
+                    }}
+                    className="flex items-center gap-2 w-full sm:w-auto"
+                  >
+                    <input
+                      type="text"
+                      value={quickVerifyUsername}
+                      onChange={(e) => setQuickVerifyUsername(e.target.value)}
+                      placeholder="@username to verify..."
+                      className="flex-1 sm:w-48 min-h-[40px] px-3 rounded-xl bg-white border border-[#EAE6F0] text-xs font-bold text-[#191525] outline-none focus:border-[#5420F5]"
+                    />
+                    <button
+                      type="submit"
+                      className="min-h-[40px] px-3.5 rounded-xl bg-[#191525] hover:bg-[#5420F5] text-white text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      <VerifiedCreatorBadgeIcon size={14} />
+                      <span>Toggle Badge</span>
+                    </button>
+                  </form>
                 </div>
 
                 {/* Provision New User Drawer */}
@@ -998,6 +1055,37 @@ export const AdminConsoleView: React.FC = () => {
                       </button>
                     </div>
                     <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-[#706B7D]">Official Verification Badge</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextV = !(editingUser.isVerified || editingUser.isCreator);
+                          setEditingUser({
+                            ...editingUser,
+                            isVerified: nextV,
+                            isCreator: nextV,
+                          });
+                        }}
+                        className={`w-full min-h-[44px] px-3.5 rounded-xl border text-xs font-bold mt-1 flex items-center justify-between cursor-pointer transition-colors ${
+                          editingUser.isVerified || editingUser.isCreator
+                            ? 'bg-[#F0EBFF] border-[#5420F5]/35 text-[#5420F5]'
+                            : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#706B7D]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <VerifiedCreatorBadgeIcon size={17} />
+                          <span>
+                            {editingUser.isVerified || editingUser.isCreator
+                              ? 'Verified Creator Badge Active'
+                              : 'Not Verified (Standard Account)'}
+                          </span>
+                        </span>
+                        <span className="text-[10px] uppercase font-black">
+                          {editingUser.isVerified || editingUser.isCreator ? 'Revoke' : 'Grant'}
+                        </span>
+                      </button>
+                    </div>
+                    <div className="sm:col-span-2">
                       <label className="text-[11px] font-bold text-[#706B7D]">Bio</label>
                       <input
                         type="text"
@@ -1036,7 +1124,8 @@ export const AdminConsoleView: React.FC = () => {
                           customPrompt: editingUser.customPrompt,
                           role: editingUser.role,
                           isAdmin: editingUser.isAdmin,
-                          isCreator: editingUser.isCreator,
+                          isVerified: Boolean(editingUser.isVerified || editingUser.isCreator),
+                          isCreator: Boolean(editingUser.isCreator || editingUser.isVerified),
                           linkActive: editingUser.linkActive,
                         });
                         setEditingUser(null);
@@ -1076,20 +1165,20 @@ export const AdminConsoleView: React.FC = () => {
                             <span className="font-black text-sm text-[#191525] truncate">
                               {u.displayName}
                             </span>
+                            {isUserVerified && (
+                              <span title="Verified Creator on Bopoi" className="inline-flex items-center shrink-0">
+                                <VerifiedCreatorBadgeIcon size={16} />
+                              </span>
+                            )}
                             <span className="text-xs font-mono text-[#706B7D]">@{u.username}</span>
                             {isUserAdmin && (
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-[#F0EBFF] text-[#5420F5]">
-                                Admin
+                              <span className="text-[10px] font-extrabold text-[#5420F5]">
+                                · Admin
                               </span>
                             )}
                             {u.role === 'moderator' && !isUserAdmin && (
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
-                                Moderator
-                              </span>
-                            )}
-                            {isUserVerified && (
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700">
-                                Verified
+                              <span className="text-[10px] font-extrabold text-indigo-700">
+                                · Moderator
                               </span>
                             )}
                             {u.isSuspended && (
@@ -1100,9 +1189,9 @@ export const AdminConsoleView: React.FC = () => {
                           </div>
                           <div className="text-[11px] text-[#706B7D] mt-0.5 flex items-center gap-2 flex-wrap">
                             <span>{u.campus || 'University of Lagos'}</span>
-                            <span>•</span>
+                            <span>·</span>
                             <span className="font-mono tabular-nums">{u.followersCount || 0} followers</span>
-                            <span>•</span>
+                            <span>·</span>
                             <button
                               type="button"
                               onClick={() =>
@@ -1131,15 +1220,15 @@ export const AdminConsoleView: React.FC = () => {
                               isCreator: !isUserVerified,
                             })
                           }
-                          className={`min-h-[40px] px-3 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                          className={`min-h-[40px] px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors ${
                             isUserVerified
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-[#FAF9FC] text-[#706B7D] border border-[#EAE6F0] hover:border-emerald-300 hover:text-emerald-700'
+                              ? 'bg-[#F0EBFF] text-[#5420F5] border border-[#5420F5]/25 hover:bg-[#E5DCFF]'
+                              : 'bg-[#FAF9FC] text-[#706B7D] border border-[#EAE6F0] hover:border-[#5420F5]/40 hover:text-[#5420F5]'
                           }`}
-                          title={isUserVerified ? 'Click to Unverify User' : 'Click to Verify User'}
+                          title={isUserVerified ? 'Revoke Verification Badge' : 'Grant Verification Badge'}
                         >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          <span>{isUserVerified ? 'Verified ✓' : 'Verify'}</span>
+                          <VerifiedCreatorBadgeIcon size={15} />
+                          <span>{isUserVerified ? 'Verified' : 'Verify'}</span>
                         </button>
 
                         <button
@@ -1967,7 +2056,11 @@ export const AdminConsoleView: React.FC = () => {
                                         <span className="font-black text-[#191525]">
                                           {reply.authorName} ({reply.authorRole || 'sender'})
                                         </span>
-                                        <p className="text-xs text-[#706B7D] mt-0.5 break-words">{reply.text}</p>
+                                        <p className="text-xs text-[#706B7D] mt-0.5 break-words">
+                                          {reply.mediaType === 'gif'
+                                            ? `[GIF] ${reply.text || '(No caption)'}`
+                                            : reply.text}
+                                        </p>
                                       </div>
                                       <button
                                         type="button"
@@ -2209,84 +2302,144 @@ export const AdminConsoleView: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    {filteredReports.map((rep) => (
-                      <div
-                        key={rep.id}
-                        className="p-4 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                                rep.status === 'pending'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : rep.status === 'resolved'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-slate-200 text-slate-700'
-                              }`}
-                            >
-                              {rep.status}
-                            </span>
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-purple-100 text-[#5420F5]">
-                              {rep.targetType}
-                            </span>
-                            {rep.reporterUsername && (
-                              <span className="text-xs font-bold text-[#191525]">
-                                Reported by @{rep.reporterUsername}
+                    {filteredReports.map((rep) => {
+                      const threadMsgs = getReportThreadMessages(rep);
+                      const unreadFromReporter = getUnreadReportCountForModerator(rep);
+                      const latestMsg = threadMsgs[threadMsgs.length - 1];
+                      return (
+                        <div
+                          key={rep.id}
+                          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            unreadFromReporter > 0
+                              ? 'bg-[#FAF8FF] border-[#5420F5]/40 shadow-2xs'
+                              : 'bg-[#FAF9FC] border-[#EAE6F0]'
+                          }`}
+                        >
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                  rep.status === 'pending'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : rep.status === 'resolved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {rep.status}
                               </span>
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-purple-100 text-[#5420F5]">
+                                {rep.targetType}
+                              </span>
+                              {unreadFromReporter > 0 && (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#F52D85] text-white">
+                                  {unreadFromReporter} New
+                                </span>
+                              )}
+                              {rep.reporterUsername && (
+                                <span className="text-xs font-bold text-[#191525]">
+                                  Reported by @{rep.reporterUsername}
+                                </span>
+                              )}
+                              <span className="text-[11px] font-mono text-[#706B7D]">{rep.createdAt}</span>
+                            </div>
+                            <p className="text-xs font-semibold text-[#191525] break-words">
+                              {rep.reason}
+                            </p>
+                            {latestMsg && threadMsgs.length > 1 && (
+                              <p className="text-[11px] text-[#706B7D] bg-white px-2.5 py-1 rounded-lg border border-[#EAE6F0] line-clamp-1">
+                                <strong className="text-[#191525]">
+                                  {latestMsg.senderRole === 'moderator'
+                                    ? 'Moderator'
+                                    : latestMsg.senderRole === 'system'
+                                    ? 'System'
+                                    : `@${rep.reporterUsername || 'reporter'}`}
+                                  :
+                                </strong>{' '}
+                                {latestMsg.text}
+                              </p>
                             )}
-                            <span className="text-[11px] font-mono text-[#706B7D]">{rep.createdAt}</span>
+                            <p className="text-[11px] font-mono text-[#706B7D]">
+                              Target ID: {rep.targetId}
+                            </p>
                           </div>
-                          <p className="text-xs font-semibold text-[#191525] break-words">
-                            {rep.reason}
-                          </p>
-                          <p className="text-[11px] font-mono text-[#706B7D]">
-                            Target ID: {rep.targetId}
-                          </p>
-                        </div>
 
-                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              adminResolveReport(rep.id, 'resolved', { deleteTarget: false })
-                            }
-                            className="min-h-[40px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Resolve</span>
-                          </button>
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setActiveChatReportId(rep.id)}
+                              className="min-h-[40px] px-3 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Chat ({threadMsgs.length})</span>
+                            </button>
 
-                          {rep.targetType !== 'support_ticket' && (
                             <button
                               type="button"
                               onClick={() =>
-                                adminResolveReport(rep.id, 'resolved', {
-                                  deleteTarget: true,
-                                  banTargetUser: true,
-                                })
+                                adminResolveReport(rep.id, 'resolved', { deleteTarget: false })
                               }
-                              className="min-h-[40px] px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer"
+                              className="min-h-[40px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Delete Target &amp; Ban</span>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Resolve</span>
                             </button>
-                          )}
 
-                          <button
-                            type="button"
-                            onClick={() => adminResolveReport(rep.id, 'dismissed')}
-                            className="min-h-[40px] px-3 rounded-xl bg-white border border-[#EAE6F0] text-xs font-bold text-[#706B7D] hover:text-[#191525] flex items-center gap-1 cursor-pointer"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Dismiss</span>
-                          </button>
+                            {rep.targetType !== 'support_ticket' && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  adminResolveReport(rep.id, 'resolved', {
+                                    deleteTarget: true,
+                                    banTargetUser: true,
+                                  })
+                                }
+                                className="min-h-[40px] px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Target &amp; Ban</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => adminResolveReport(rep.id, 'dismissed')}
+                              className="min-h-[40px] px-3 rounded-xl bg-white border border-[#EAE6F0] text-xs font-bold text-[#706B7D] hover:text-[#191525] flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Dismiss</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
+
+              {/* Moderator Case Chat Drawer */}
+              {activeChatReportId && (() => {
+                const selectedRep = moderationReports.find((r) => r.id === activeChatReportId);
+                if (!selectedRep) return null;
+                let fallbackPreview: string | undefined = selectedRep.targetPreview;
+                if (!fallbackPreview && selectedRep.targetType === 'social_post') {
+                  const foundPost = socialPosts.find((p) => p.id === selectedRep.targetId);
+                  if (foundPost) {
+                    fallbackPreview = [foundPost.title, foundPost.content].filter(Boolean).join(': ').slice(0, 140);
+                  }
+                } else if (!fallbackPreview && selectedRep.targetType === 'anonymous_message') {
+                  const foundMsg = allPlatformMessages.find((m) => m.id === selectedRep.targetId);
+                  if (foundMsg) fallbackPreview = foundMsg.text.slice(0, 140);
+                }
+                return (
+                  <ReportCaseChatModal
+                    report={selectedRep}
+                    viewerRole="moderator"
+                    targetContentPreview={fallbackPreview}
+                    onClose={() => setActiveChatReportId(null)}
+                  />
+                );
+              })()}
             </div>
           )}
 
@@ -2299,10 +2452,10 @@ export const AdminConsoleView: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-black text-[#191525]">
-                      Complete 27-Table Admin SQL, Universal RLS &amp; Realtime Script
+                      Database Schema &amp; Security Migration
                     </h2>
                     <p className="text-xs text-[#706B7D]">
-                      100% idempotent PostgreSQL migration with <code className="font-mono">public.is_admin()</code> RLS policies across all 27 tables, <code className="font-mono">REPLICA IDENTITY FULL</code>, and atomic moderation RPCs.
+                      Idempotent PostgreSQL migration script for admin permissions, realtime tables, and moderation actions.
                     </p>
                   </div>
                   <button
