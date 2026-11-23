@@ -18,6 +18,7 @@ import { LegalPoliciesModal } from './components/modals/LegalPoliciesModal.tsx';
 import { ConfirmActionModal } from './components/modals/ConfirmActionModal.tsx';
 import { ReportTicketModal } from './components/modals/ReportTicketModal.tsx';
 import { GlobalSearchModal } from './components/modals/GlobalSearchModal.tsx';
+import { StartPagePickerModal } from './components/modals/StartPagePickerModal.tsx';
 import { BottomNavBar } from './components/navigation/BottomNavBar.tsx';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.tsx';
 import { useMobileKeyboard } from './hooks/useMobileKeyboard.ts';
@@ -396,6 +397,7 @@ const AppContent: React.FC = () => {
       <ConfirmActionModal />
       <ReportTicketModal />
       <GlobalSearchModal />
+      <StartPagePickerModal />
 
       {/* Mobile-First 5-Tab Navigation Bar for app views (hidden on lg+ and while typing on mobile keyboard) */}
       {!isStandaloneView && !isKeyboardOpen && <BottomNavBar />}

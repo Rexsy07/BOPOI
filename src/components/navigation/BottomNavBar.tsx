@@ -2,6 +2,7 @@ import React from 'react';
 import { Home, Compass, Plus, Inbox, User } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
+import { useNavLongPress } from '../../hooks/useNavLongPress.ts';
 
 export const BottomNavBar: React.FC = () => {
   const {
@@ -12,9 +13,14 @@ export const BottomNavBar: React.FC = () => {
     unreadCount,
     unreadReportsCount,
     setIsCreateModalOpen,
+    setIsStartPagePickerOpen,
   } = useBopoi();
 
   const isLoggedIn = Boolean(isAuthenticated && user.username && user.username !== 'student');
+
+  const { holdingTarget, getHandlers } = useNavLongPress({
+    onTrigger: () => setIsStartPagePickerOpen(true),
+  });
 
   const isHomeActive =
     activeView === 'home' ||
@@ -41,14 +47,17 @@ export const BottomNavBar: React.FC = () => {
         <button
           type="button"
           aria-current={isHomeActive ? 'page' : undefined}
-          onClick={() => {
+          title="Home (Hold to choose start page on login)"
+          {...getHandlers('home', () => {
             if (activeView === 'home') {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
               setActiveView('home');
             }
-          }}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
+          })}
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
+            holdingTarget === 'home' ? 'scale-90 opacity-75' : ''
+          } ${
             isHomeActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
@@ -74,14 +83,17 @@ export const BottomNavBar: React.FC = () => {
         <button
           type="button"
           aria-current={isDiscoverActive ? 'page' : undefined}
-          onClick={() => {
+          title="Discover (Hold to choose start page on login)"
+          {...getHandlers('discover', () => {
             if (activeView === 'discover') {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
               setActiveView('discover');
             }
-          }}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
+          })}
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
+            holdingTarget === 'discover' ? 'scale-90 opacity-75' : ''
+          } ${
             isDiscoverActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
@@ -118,14 +130,17 @@ export const BottomNavBar: React.FC = () => {
         <button
           type="button"
           aria-current={isInboxActive ? 'page' : undefined}
-          onClick={() => {
+          title="Inbox (Hold to choose start page on login)"
+          {...getHandlers('inbox', () => {
             if (activeView === 'inbox') {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
               setActiveView('inbox');
             }
-          }}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
+          })}
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
+            holdingTarget === 'inbox' ? 'scale-90 opacity-75' : ''
+          } ${
             isInboxActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
@@ -156,14 +171,17 @@ export const BottomNavBar: React.FC = () => {
         <button
           type="button"
           aria-current={isProfileActive ? 'page' : undefined}
-          onClick={() => {
+          title="Profile (Hold to choose start page on login)"
+          {...getHandlers('profile', () => {
             if (activeView === 'profile') {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
               setActiveView('profile');
             }
-          }}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
+          })}
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
+            holdingTarget === 'profile' ? 'scale-90 opacity-75' : ''
+          } ${
             isProfileActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'

@@ -17,11 +17,12 @@ import {
   Moon,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
-import { ActiveAppView } from '../../types/index.ts';
+import { ActiveAppView, StartupNavView } from '../../types/index.ts';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
 import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 import { NotificationsPortalModal } from './NotificationsPortalModal.tsx';
+import { useNavLongPress } from '../../hooks/useNavLongPress.ts';
 
 export const DesktopNavRail: React.FC = () => {
   const {
@@ -32,6 +33,7 @@ export const DesktopNavRail: React.FC = () => {
     unreadReportsCount,
     unreadNotificationsCount,
     setIsCreateModalOpen,
+    setIsStartPagePickerOpen,
     isAuthenticated,
     logoutAccount,
     moderationReports,
@@ -47,6 +49,12 @@ export const DesktopNavRail: React.FC = () => {
 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const { holdingTarget, getHandlers } = useNavLongPress({
+    onTrigger: () => setIsStartPagePickerOpen(true),
+  });
+
+  const STARTUP_VIEWS: StartupNavView[] = ['home', 'discover', 'inbox', 'profile'];
 
   const navItems: Array<{
     view: ActiveAppView;
@@ -182,19 +190,34 @@ export const DesktopNavRail: React.FC = () => {
             const isActive = item.activeMatch
               ? item.activeMatch.includes(activeView)
               : activeView === item.view;
+            const isStartupEligible = STARTUP_VIEWS.includes(item.view as StartupNavView);
+            const handleTap = () => {
+              if (activeView === item.view) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                setActiveView(item.view);
+              }
+            };
+            const holdProps = isStartupEligible
+              ? getHandlers(item.view as StartupNavView, handleTap)
+              : { onClick: handleTap };
+
             return (
               <button
                 key={item.view}
                 type="button"
                 aria-current={isActive ? 'page' : undefined}
-                onClick={() => {
-                  if (activeView === item.view) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  } else {
-                    setActiveView(item.view);
-                  }
-                }}
-                className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-colors cursor-pointer whitespace-nowrap ${
+                title={
+                  isStartupEligible
+                    ? `${item.label} (Hold to choose start page on login)`
+                    : item.label
+                }
+                {...holdProps}
+                className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-all duration-150 cursor-pointer whitespace-nowrap [webkit-touch-callout:none] ${
+                  isStartupEligible && holdingTarget === item.view
+                    ? 'scale-[0.97] opacity-80'
+                    : ''
+                } ${
                   isActive
                     ? 'bg-white dark:bg-[#171322] text-[#5420F5] dark:text-[#9B82FF] font-black border border-[#EAE6F0] dark:border-[#262036] shadow-2xs'
                     : 'text-[#191525]/85 dark:text-[#D9D3EB] hover:bg-white/80 dark:hover:bg-[#171322]/70 hover:text-[#191525] dark:hover:text-white font-semibold border border-transparent'

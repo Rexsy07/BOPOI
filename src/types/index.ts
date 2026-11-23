@@ -348,6 +348,8 @@ export interface AppNotification {
 
 export type StudentAppTab = 'home' | 'discover' | 'create' | 'inbox' | 'profile';
 
+export type StartupNavView = 'home' | 'discover' | 'inbox' | 'profile';
+
 export type ActiveAppView = 
   | 'splash'
   | 'onboarding'

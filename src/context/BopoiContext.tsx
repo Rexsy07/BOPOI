@@ -11,6 +11,7 @@ import {
   MessageAnswer,
   SafetySettings,
   StudentAppTab,
+  StartupNavView,
   ActiveAppView,
   InboxFilter,
   SocialPost,
@@ -323,6 +324,10 @@ interface BopoiContextType {
   // Navigation & View Actions
   setActiveTab: (tab: StudentAppTab) => void;
   setActiveView: (view: ActiveAppView) => void;
+  defaultLoginView: StartupNavView;
+  setDefaultLoginView: (view: StartupNavView) => void;
+  isStartPagePickerOpen: boolean;
+  setIsStartPagePickerOpen: (open: boolean) => void;
   goBack: (fallbackView?: ActiveAppView) => void;
   setSelectedMessage: (msg: AnonymousMessage | null) => void;
   setSelectedAnswer: (ans: MessageAnswer | null) => void;
@@ -753,6 +758,61 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   });
 
+  const STARTUP_NAV_VIEWS: StartupNavView[] = ['home', 'discover', 'inbox', 'profile'];
+
+  const isValidStartupNavView = (value: unknown): value is StartupNavView =>
+    typeof value === 'string' && STARTUP_NAV_VIEWS.includes(value as StartupNavView);
+
+  const getSavedStartupNavView = (
+    userId?: string,
+    metadataView?: unknown
+  ): StartupNavView => {
+    try {
+      if (typeof window !== 'undefined') {
+        if (userId) {
+          const perUser = localStorage.getItem(`bopoi_default_login_view_${userId}`);
+          if (isValidStartupNavView(perUser)) return perUser;
+        }
+        const globalSaved = localStorage.getItem('bopoi_default_login_view');
+        if (isValidStartupNavView(globalSaved)) return globalSaved;
+      }
+    } catch {
+      // ignore
+    }
+    if (isValidStartupNavView(metadataView)) return metadataView;
+    return 'home';
+  };
+
+  const [defaultLoginView, setDefaultLoginViewState] = useState<StartupNavView>(() =>
+    getSavedStartupNavView(user.id && user.username !== 'student' ? user.id : undefined)
+  );
+  const [isStartPagePickerOpen, setIsStartPagePickerOpen] = useState(false);
+
+  const setDefaultLoginView = (view: StartupNavView) => {
+    if (!isValidStartupNavView(view)) return;
+    setDefaultLoginViewState(view);
+    try {
+      localStorage.setItem('bopoi_default_login_view', view);
+      if (user.id && user.username && user.username !== 'student') {
+        localStorage.setItem(`bopoi_default_login_view_${user.id}`, view);
+      }
+    } catch {
+      // ignore
+    }
+    if (supabase && isAuthenticated) {
+      supabase.auth
+        .updateUser({ data: { default_login_view: view } })
+        .catch(() => {});
+    }
+    const labelMap: Record<StartupNavView, string> = {
+      home: 'Home',
+      discover: 'Discover',
+      inbox: 'Inbox',
+      profile: 'Profile',
+    };
+    showToast(`${labelMap[view]} will open first on login`, 'success');
+  };
+
   // Character Mood / Emote state
   const [characterMood, setCharacterMoodState] = useState<string>(() => {
     try {
@@ -894,7 +954,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // ignore
     }
-    return 'home';
+    return getSavedStartupNavView();
   });
 
   const [selectedMessage, setSelectedMessage] = useState<AnonymousMessage | null>(() => {
@@ -1313,6 +1373,11 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!pendingAuthTransitionRef.current) {
             setUser(loadedUser);
             setIsAuthenticated(true);
+            const resolvedDefault = getSavedStartupNavView(
+              loadedUser.id,
+              authUser.user_metadata?.default_login_view
+            );
+            setDefaultLoginViewState(resolvedDefault);
           }
         }
 
@@ -1998,9 +2063,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             window.history.replaceState({ view: 'home' }, '', `${window.location.pathname}#home`);
           }
         } else if (isFirstLoad) {
-          const rawRestored = (localStorage.getItem('bopoi_active_view') as ActiveAppView) || 'home';
+          const rawRestored =
+            (localStorage.getItem('bopoi_active_view') as ActiveAppView) ||
+            getSavedStartupNavView();
           const restored: ActiveAppView =
-            rawRestored === 'admin' && !isAdminUnlockedRef.current ? 'home' : rawRestored;
+            rawRestored === 'admin' && !isAdminUnlockedRef.current
+              ? getSavedStartupNavView()
+              : rawRestored;
           setActiveViewState(restored);
           window.history.replaceState(
             { view: restored },
@@ -3716,6 +3785,11 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const commitLogin = () => {
           pendingAuthTransitionRef.current = false;
+          const startupTarget = getSavedStartupNavView(
+            loadedUser.id,
+            data.user?.user_metadata?.default_login_view
+          );
+          setDefaultLoginViewState(startupTarget);
           setUser(loadedUser);
           setIsAuthenticated(true);
           setSelectedMessage(null);
@@ -3723,7 +3797,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             loadedUser,
             ...prev.filter((a) => a.username.toLowerCase() !== loadedUser.username.toLowerCase()),
           ]);
-          setActiveView('profile');
+          setActiveView(startupTarget);
           showToast(
             `Welcome back, ${loadedUser.displayName} (@${loadedUser.username})!`,
             'success'
@@ -3752,10 +3826,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (found && !found.isAdmin && found.role !== 'admin') {
       const commitLocalLogin = () => {
         pendingAuthTransitionRef.current = false;
+        const startupTarget = getSavedStartupNavView(found.id);
+        setDefaultLoginViewState(startupTarget);
         setUser(found);
         setIsAuthenticated(true);
         setSelectedMessage(null);
-        setActiveView('profile');
+        setActiveView(startupTarget);
         showToast(`Welcome back, ${found.displayName} (@${found.username})!`, 'success');
       };
 
@@ -7486,6 +7562,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleTheme,
         setActiveTab,
         setActiveView,
+        defaultLoginView,
+        setDefaultLoginView,
+        isStartPagePickerOpen,
+        setIsStartPagePickerOpen,
         goBack,
         setSelectedMessage,
         setSelectedAnswer,

@@ -45,6 +45,7 @@ interface RegisterViewProps {
 export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login' }) => {
   const {
     setActiveView,
+    defaultLoginView,
     registerAccount,
     loginAccount,
     accounts,
@@ -265,7 +266,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
       if (res.commit) {
         res.commit();
       } else {
-        setActiveView('profile');
+        setActiveView(defaultLoginView);
       }
     }, 650);
   };
