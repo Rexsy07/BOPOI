@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Home, Compass, Inbox, User, Check, X } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { StartupNavView } from '../../types/index.ts';
@@ -44,6 +44,7 @@ export const StartPagePickerModal: React.FC = () => {
   } = useBopoi();
 
   const [justPicked, setJustPicked] = useState<StartupNavView | null>(null);
+  const openedAtRef = useRef(0);
 
   const isLoggedIn = Boolean(
     isAuthenticated && user.username && user.username !== 'student'
@@ -54,6 +55,7 @@ export const StartPagePickerModal: React.FC = () => {
       setJustPicked(null);
       return;
     }
+    openedAtRef.current = Date.now();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -129,7 +131,10 @@ export const StartPagePickerModal: React.FC = () => {
 
   return (
     <div
-      onClick={() => setIsStartPagePickerOpen(false)}
+      onClick={() => {
+        if (Date.now() - openedAtRef.current < 350) return;
+        setIsStartPagePickerOpen(false);
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="start-page-picker-title"

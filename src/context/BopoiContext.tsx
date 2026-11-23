@@ -769,10 +769,15 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): StartupNavView => {
     try {
       if (typeof window !== 'undefined') {
+        const pendingPreLogin = localStorage.getItem('bopoi_default_login_view_pending');
+        if (isValidStartupNavView(pendingPreLogin)) return pendingPreLogin;
+
         if (userId) {
           const perUser = localStorage.getItem(`bopoi_default_login_view_${userId}`);
           if (isValidStartupNavView(perUser)) return perUser;
         }
+        if (isValidStartupNavView(metadataView)) return metadataView;
+
         const globalSaved = localStorage.getItem('bopoi_default_login_view');
         if (isValidStartupNavView(globalSaved)) return globalSaved;
       }
@@ -791,15 +796,19 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setDefaultLoginView = (view: StartupNavView) => {
     if (!isValidStartupNavView(view)) return;
     setDefaultLoginViewState(view);
+    const hasLoggedInUser = Boolean(isAuthenticated && user.id && user.username && user.username !== 'student');
     try {
       localStorage.setItem('bopoi_default_login_view', view);
-      if (user.id && user.username && user.username !== 'student') {
+      if (hasLoggedInUser) {
         localStorage.setItem(`bopoi_default_login_view_${user.id}`, view);
+        localStorage.removeItem('bopoi_default_login_view_pending');
+      } else {
+        localStorage.setItem('bopoi_default_login_view_pending', view);
       }
     } catch {
       // ignore
     }
-    if (supabase && isAuthenticated) {
+    if (supabase && hasLoggedInUser) {
       supabase.auth
         .updateUser({ data: { default_login_view: view } })
         .catch(() => {});
@@ -1378,6 +1387,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               authUser.user_metadata?.default_login_view
             );
             setDefaultLoginViewState(resolvedDefault);
+            try {
+              localStorage.setItem('bopoi_default_login_view', resolvedDefault);
+              localStorage.setItem(`bopoi_default_login_view_${loadedUser.id}`, resolvedDefault);
+              localStorage.removeItem('bopoi_default_login_view_pending');
+            } catch {
+              // ignore
+            }
           }
         }
 
@@ -3785,11 +3801,29 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const commitLogin = () => {
           pendingAuthTransitionRef.current = false;
+          let hasPendingPreLogin = false;
+          try {
+            hasPendingPreLogin = isValidStartupNavView(
+              localStorage.getItem('bopoi_default_login_view_pending')
+            );
+          } catch {
+            // ignore
+          }
           const startupTarget = getSavedStartupNavView(
             loadedUser.id,
             data.user?.user_metadata?.default_login_view
           );
           setDefaultLoginViewState(startupTarget);
+          try {
+            localStorage.setItem('bopoi_default_login_view', startupTarget);
+            localStorage.setItem(`bopoi_default_login_view_${loadedUser.id}`, startupTarget);
+            localStorage.removeItem('bopoi_default_login_view_pending');
+          } catch {
+            // ignore
+          }
+          if (hasPendingPreLogin && sb) {
+            sb.auth.updateUser({ data: { default_login_view: startupTarget } }).catch(() => {});
+          }
           setUser(loadedUser);
           setIsAuthenticated(true);
           setSelectedMessage(null);
@@ -3828,6 +3862,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         pendingAuthTransitionRef.current = false;
         const startupTarget = getSavedStartupNavView(found.id);
         setDefaultLoginViewState(startupTarget);
+        try {
+          localStorage.setItem('bopoi_default_login_view', startupTarget);
+          localStorage.setItem(`bopoi_default_login_view_${found.id}`, startupTarget);
+          localStorage.removeItem('bopoi_default_login_view_pending');
+        } catch {
+          // ignore
+        }
         setUser(found);
         setIsAuthenticated(true);
         setSelectedMessage(null);

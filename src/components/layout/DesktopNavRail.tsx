@@ -213,9 +213,11 @@ export const DesktopNavRail: React.FC = () => {
                     : item.label
                 }
                 {...holdProps}
-                className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-all duration-150 cursor-pointer whitespace-nowrap [webkit-touch-callout:none] ${
+                className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-colors duration-150 cursor-pointer whitespace-nowrap select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${
+                  isStartupEligible ? 'touch-none' : ''
+                } ${
                   isStartupEligible && holdingTarget === item.view
-                    ? 'scale-[0.97] opacity-80'
+                    ? 'bg-[#F0EBFF]/80 dark:bg-[#231A45]/80 ring-2 ring-[#5420F5]/35 dark:ring-[#8E72FF]/45'
                     : ''
                 } ${
                   isActive
@@ -223,14 +225,18 @@ export const DesktopNavRail: React.FC = () => {
                     : 'text-[#191525]/85 dark:text-[#D9D3EB] hover:bg-white/80 dark:hover:bg-[#171322]/70 hover:text-[#191525] dark:hover:text-white font-semibold border border-transparent'
                 }`}
               >
-                <span className="flex items-center gap-3 min-w-0">
+                <span
+                  className={`pointer-events-none flex items-center gap-3 min-w-0 transition-transform duration-150 ${
+                    isStartupEligible && holdingTarget === item.view ? 'scale-[0.95]' : ''
+                  }`}
+                >
                   <span className="shrink-0 flex items-center justify-center w-5 h-5">
                     {item.renderIcon(isActive)}
                   </span>
                   <span className="truncate">{item.label}</span>
                 </span>
                 {Boolean(item.badge && item.badge > 0) && (
-                  <span className="text-[11px] font-black text-[#F52D85] tabular-nums shrink-0">
+                  <span className="pointer-events-none text-[11px] font-black text-[#F52D85] tabular-nums shrink-0">
                     {item.badge}
                   </span>
                 )}

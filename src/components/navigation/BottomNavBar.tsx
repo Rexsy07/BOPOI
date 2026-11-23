@@ -55,27 +55,37 @@ export const BottomNavBar: React.FC = () => {
               setActiveView('home');
             }
           })}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
-            holdingTarget === 'home' ? 'scale-90 opacity-75' : ''
-          } ${
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center transition-colors duration-150 cursor-pointer touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${
             isHomeActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
           }`}
         >
           {isHomeActive && (
-            <span className="absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
+            <span className="pointer-events-none absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
           )}
-          <span className="w-8 h-6 flex items-center justify-center shrink-0">
-            <Home
-              className="w-[22px] h-[22px] shrink-0"
-              strokeWidth={isHomeActive ? 2.5 : 1.85}
-              fill={isHomeActive ? 'currentColor' : 'none'}
-              fillOpacity={isHomeActive ? 0.14 : 0}
-            />
-          </span>
-          <span className={`text-[10px] leading-none ${isHomeActive ? 'font-black' : 'font-semibold'}`}>
-            Home
+          <span
+            className={`pointer-events-none flex flex-col items-center justify-center gap-0.5 transition-transform duration-150 ${
+              holdingTarget === 'home' ? 'scale-90 opacity-80' : ''
+            }`}
+          >
+            <span
+              className={`w-8 h-6 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 ${
+                holdingTarget === 'home'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] ring-2 ring-[#5420F5]/45 dark:ring-[#8E72FF]/50 text-[#5420F5] dark:text-[#9B82FF]'
+                  : ''
+              }`}
+            >
+              <Home
+                className="w-[22px] h-[22px] shrink-0"
+                strokeWidth={isHomeActive ? 2.5 : 1.85}
+                fill={isHomeActive ? 'currentColor' : 'none'}
+                fillOpacity={isHomeActive ? 0.14 : 0}
+              />
+            </span>
+            <span className={`text-[10px] leading-none ${isHomeActive ? 'font-black' : 'font-semibold'}`}>
+              Home
+            </span>
           </span>
         </button>
 
@@ -91,27 +101,37 @@ export const BottomNavBar: React.FC = () => {
               setActiveView('discover');
             }
           })}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
-            holdingTarget === 'discover' ? 'scale-90 opacity-75' : ''
-          } ${
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center transition-colors duration-150 cursor-pointer touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${
             isDiscoverActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
           }`}
         >
           {isDiscoverActive && (
-            <span className="absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
+            <span className="pointer-events-none absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
           )}
-          <span className="w-8 h-6 flex items-center justify-center shrink-0">
-            <Compass
-              className="w-[22px] h-[22px] shrink-0"
-              strokeWidth={isDiscoverActive ? 2.5 : 1.85}
-              fill={isDiscoverActive ? 'currentColor' : 'none'}
-              fillOpacity={isDiscoverActive ? 0.14 : 0}
-            />
-          </span>
-          <span className={`text-[10px] leading-none ${isDiscoverActive ? 'font-black' : 'font-semibold'}`}>
-            Discover
+          <span
+            className={`pointer-events-none flex flex-col items-center justify-center gap-0.5 transition-transform duration-150 ${
+              holdingTarget === 'discover' ? 'scale-90 opacity-80' : ''
+            }`}
+          >
+            <span
+              className={`w-8 h-6 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 ${
+                holdingTarget === 'discover'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] ring-2 ring-[#5420F5]/45 dark:ring-[#8E72FF]/50 text-[#5420F5] dark:text-[#9B82FF]'
+                  : ''
+              }`}
+            >
+              <Compass
+                className="w-[22px] h-[22px] shrink-0"
+                strokeWidth={isDiscoverActive ? 2.5 : 1.85}
+                fill={isDiscoverActive ? 'currentColor' : 'none'}
+                fillOpacity={isDiscoverActive ? 0.14 : 0}
+              />
+            </span>
+            <span className={`text-[10px] leading-none ${isDiscoverActive ? 'font-black' : 'font-semibold'}`}>
+              Discover
+            </span>
           </span>
         </button>
 
@@ -138,32 +158,42 @@ export const BottomNavBar: React.FC = () => {
               setActiveView('inbox');
             }
           })}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
-            holdingTarget === 'inbox' ? 'scale-90 opacity-75' : ''
-          } ${
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center transition-colors duration-150 cursor-pointer touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${
             isInboxActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
           }`}
         >
           {isInboxActive && (
-            <span className="absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
+            <span className="pointer-events-none absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
           )}
-          <span className="relative w-8 h-6 flex items-center justify-center shrink-0">
-            <Inbox
-              className="w-[22px] h-[22px] shrink-0"
-              strokeWidth={isInboxActive ? 2.5 : 1.85}
-              fill={isInboxActive ? 'currentColor' : 'none'}
-              fillOpacity={isInboxActive ? 0.14 : 0}
-            />
-            {Boolean(unreadCount && unreadCount > 0) && (
-              <span className="absolute -top-1 -right-1.5 bg-[#F52D85] text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </span>
-          <span className={`text-[10px] leading-none ${isInboxActive ? 'font-black' : 'font-semibold'}`}>
-            Inbox
+          <span
+            className={`pointer-events-none flex flex-col items-center justify-center gap-0.5 transition-transform duration-150 ${
+              holdingTarget === 'inbox' ? 'scale-90 opacity-80' : ''
+            }`}
+          >
+            <span
+              className={`relative w-8 h-6 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 ${
+                holdingTarget === 'inbox'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] ring-2 ring-[#5420F5]/45 dark:ring-[#8E72FF]/50 text-[#5420F5] dark:text-[#9B82FF]'
+                  : ''
+              }`}
+            >
+              <Inbox
+                className="w-[22px] h-[22px] shrink-0"
+                strokeWidth={isInboxActive ? 2.5 : 1.85}
+                fill={isInboxActive ? 'currentColor' : 'none'}
+                fillOpacity={isInboxActive ? 0.14 : 0}
+              />
+              {Boolean(unreadCount && unreadCount > 0) && (
+                <span className="absolute -top-1 -right-1.5 bg-[#F52D85] text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </span>
+            <span className={`text-[10px] leading-none ${isInboxActive ? 'font-black' : 'font-semibold'}`}>
+              Inbox
+            </span>
           </span>
         </button>
 
@@ -179,49 +209,59 @@ export const BottomNavBar: React.FC = () => {
               setActiveView('profile');
             }
           })}
-          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer [webkit-touch-callout:none] ${
-            holdingTarget === 'profile' ? 'scale-90 opacity-75' : ''
-          } ${
+          className={`relative flex-1 max-w-[76px] min-w-0 h-full flex flex-col items-center justify-center transition-colors duration-150 cursor-pointer touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${
             isProfileActive
               ? 'text-[#5420F5] dark:text-[#8E72FF]'
               : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
           }`}
         >
           {isProfileActive && (
-            <span className="absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
+            <span className="pointer-events-none absolute top-0 w-7 h-0.5 rounded-full bg-[#5420F5] dark:bg-[#8E72FF]" />
           )}
-          <span className="relative w-8 h-6 flex items-center justify-center shrink-0">
-            {isLoggedIn ? (
-              <span
-                className={`rounded-full p-[1.5px] transition-all ${
-                  isProfileActive
-                    ? 'ring-2 ring-[#5420F5] dark:ring-[#8E72FF]'
-                    : 'ring-1 ring-[#EAE6F0] dark:ring-[#262036]'
-                }`}
-              >
-                <CampusCharacterAvatar
-                  value={user.avatarUrl}
-                  seed={user.username}
-                  size={21}
-                  rounded="full"
+          <span
+            className={`pointer-events-none flex flex-col items-center justify-center gap-0.5 transition-transform duration-150 ${
+              holdingTarget === 'profile' ? 'scale-90 opacity-80' : ''
+            }`}
+          >
+            <span
+              className={`relative w-8 h-6 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 ${
+                holdingTarget === 'profile'
+                  ? 'bg-[#F0EBFF] dark:bg-[#231A45] ring-2 ring-[#5420F5]/45 dark:ring-[#8E72FF]/50 text-[#5420F5] dark:text-[#9B82FF]'
+                  : ''
+              }`}
+            >
+              {isLoggedIn ? (
+                <span
+                  className={`rounded-full p-[1.5px] transition-all ${
+                    isProfileActive
+                      ? 'ring-2 ring-[#5420F5] dark:ring-[#8E72FF]'
+                      : 'ring-1 ring-[#EAE6F0] dark:ring-[#262036]'
+                  }`}
+                >
+                  <CampusCharacterAvatar
+                    value={user.avatarUrl}
+                    seed={user.username}
+                    size={21}
+                    rounded="full"
+                  />
+                </span>
+              ) : (
+                <User
+                  className="w-[22px] h-[22px] shrink-0"
+                  strokeWidth={isProfileActive ? 2.5 : 1.85}
+                  fill={isProfileActive ? 'currentColor' : 'none'}
+                  fillOpacity={isProfileActive ? 0.14 : 0}
                 />
-              </span>
-            ) : (
-              <User
-                className="w-[22px] h-[22px] shrink-0"
-                strokeWidth={isProfileActive ? 2.5 : 1.85}
-                fill={isProfileActive ? 'currentColor' : 'none'}
-                fillOpacity={isProfileActive ? 0.14 : 0}
-              />
-            )}
-            {Boolean(unreadReportsCount > 0) && (
-              <span className="absolute -top-1 -right-1.5 bg-[#F52D85] text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
-                {unreadReportsCount}
-              </span>
-            )}
-          </span>
-          <span className={`text-[10px] leading-none ${isProfileActive ? 'font-black' : 'font-semibold'}`}>
-            Profile
+              )}
+              {Boolean(unreadReportsCount > 0) && (
+                <span className="absolute -top-1 -right-1.5 bg-[#F52D85] text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
+                  {unreadReportsCount}
+                </span>
+              )}
+            </span>
+            <span className={`text-[10px] leading-none ${isProfileActive ? 'font-black' : 'font-semibold'}`}>
+              Profile
+            </span>
           </span>
         </button>
       </div>

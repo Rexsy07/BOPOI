@@ -35,6 +35,7 @@ export const OnboardingView: React.FC = () => {
     rooms,
     toggleJoinRoom,
     completeOnboarding,
+    defaultLoginView,
     showToast,
   } = useBopoi();
 
@@ -137,7 +138,7 @@ export const OnboardingView: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => handleFinish('home')}
+            onClick={() => handleFinish(defaultLoginView)}
             className="min-h-[44px] px-2 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer"
           >
             Skip
@@ -463,10 +464,10 @@ export const OnboardingView: React.FC = () => {
             <div className="space-y-2.5 pt-1">
               <button
                 type="button"
-                onClick={() => handleFinish('home')}
+                onClick={() => handleFinish(defaultLoginView)}
                 className="w-full min-h-[48px] py-3.5 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-sm rounded-2xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>Enter Campus Feed</span>
+                <span>Enter Campus</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2.5">
