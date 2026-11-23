@@ -139,12 +139,12 @@ export const SiteHeader: React.FC = () => {
         )}
 
         {/* Zone 3: Right Actions */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {/* Night Campus 1-Tap Theme Toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+            className="w-11 h-11 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title={theme === 'dark' ? 'Switch to Crisp White mode' : 'Switch to Night Campus dark mode'}
             aria-label={theme === 'dark' ? 'Switch to Crisp White mode' : 'Switch to Night Campus dark mode'}
           >
@@ -159,7 +159,7 @@ export const SiteHeader: React.FC = () => {
             <button
               type="button"
               onClick={handleOpenSearch}
-              className="w-9 h-9 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              className="w-11 h-11 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Search Bopoi"
               aria-label="Search Bopoi"
             >
@@ -175,7 +175,7 @@ export const SiteHeader: React.FC = () => {
                 setNotificationOpen(false);
                 setActiveView('admin');
               }}
-              className={`relative min-h-[34px] px-2.5 rounded-xl border text-xs font-extrabold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
+              className={`relative min-h-[40px] px-2.5 rounded-xl border text-xs font-extrabold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                 activeView === 'admin'
                   ? 'bg-[#5420F5] text-white border-[#5420F5]'
                   : 'bg-[#FAF9FC] dark:bg-[#171322] text-[#5420F5] dark:text-[#9B82FF] border-[#EAE6F0] dark:border-[#262036] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
@@ -206,13 +206,13 @@ export const SiteHeader: React.FC = () => {
                 setNotificationOpen(!notificationOpen);
                 setUserDropdownOpen(false);
               }}
-              className="relative w-9 h-9 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              className="relative w-11 h-11 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
               title="Campus Notifications"
               aria-label="Campus Notifications"
             >
               <Bell className="w-[19px] h-[19px] shrink-0" strokeWidth={2.1} />
               {isLoggedIn && unreadNotificationsCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-[#F52D85] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-[#F52D85] text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-[#0E0C14] tabular-nums">
                   {unreadNotificationsCount}
                 </span>
               )}
@@ -224,7 +224,7 @@ export const SiteHeader: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-1.5 p-1 pr-2 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer border border-[#EAE6F0] dark:border-[#262036]"
+                className="min-h-[40px] flex items-center gap-1.5 p-1 pr-2 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer border border-[#EAE6F0] dark:border-[#262036]"
                 aria-label="Account menu"
               >
                 <CampusCharacterAvatar

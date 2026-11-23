@@ -38,7 +38,7 @@ export const DiscussionsView: React.FC = () => {
   }, [socialPosts, activeCategory, sortOrder]);
 
   return (
-    <div className="w-full flex flex-col bg-white text-[#191525] pb-12">
+    <div className="w-full flex flex-col bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] pb-12">
       {/* 1. Sticky Hairline Header */}
       <div className="sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036]">
         <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3">
@@ -53,15 +53,20 @@ export const DiscussionsView: React.FC = () => {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <CreateDiscussionIcon size={20} />
-            <h1 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight truncate">
-              Discussions
-            </h1>
+            <div className="min-w-0 flex items-baseline gap-2">
+              <h1 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight truncate">
+                Discussions
+              </h1>
+              <span className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] tabular-nums shrink-0">
+                · {filteredDiscussions.length}
+              </span>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => openCreateWithHashtag(undefined, 'discussion')}
-            className="min-h-[38px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+            className="min-h-[40px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
             <span>New Topic</span>
@@ -79,7 +84,7 @@ export const DiscussionsView: React.FC = () => {
                 key={cat}
                 type="button"
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
+                className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
                     : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
@@ -95,7 +100,7 @@ export const DiscussionsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setSortOrder('latest')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+            className={`min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
               sortOrder === 'latest'
                 ? 'bg-white dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] shadow-2xs'
                 : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
@@ -106,7 +111,7 @@ export const DiscussionsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setSortOrder('top')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+            className={`min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
               sortOrder === 'top'
                 ? 'bg-white dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] shadow-2xs'
                 : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
@@ -119,24 +124,24 @@ export const DiscussionsView: React.FC = () => {
 
       {/* 3. Hairline-Divided Stream */}
       {filteredDiscussions.length === 0 ? (
-        <div className="px-6 py-16 text-center space-y-3 border-b border-[#EAE6F0]">
-          <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center mx-auto">
+        <div className="px-6 py-16 text-center space-y-3 border-b border-[#EAE6F0] dark:border-[#262036]">
+          <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto">
             <CreateDiscussionIcon size={26} />
           </div>
           <div>
-            <p className="text-sm font-black text-[#191525]">
+            <p className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
               {activeCategory === 'All'
                 ? 'No discussions started yet'
                 : `No ${activeCategory} discussions yet`}
             </p>
-            <p className="text-xs text-[#706B7D] mt-1">
+            <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-1">
               Start a conversation and see what students across campus think.
             </p>
           </div>
           <button
             type="button"
             onClick={() => openCreateWithHashtag(undefined, 'discussion')}
-            className="mt-2 px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer transition-colors"
+            className="mt-2 min-h-[44px] px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer transition-colors"
           >
             Start a Discussion
           </button>

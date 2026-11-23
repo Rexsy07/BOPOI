@@ -61,6 +61,17 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
     scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [threadMessages.length]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -77,17 +88,19 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[88dvh] flex flex-col shadow-2xl border border-[#EAE6F0] overflow-hidden"
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[88dvh] flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] overflow-hidden"
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Clean Header matching Bopoi Settings & Convo Modals */}
-        <div className="px-5 py-4 border-b border-[#EAE6F0] flex items-center justify-between gap-3 bg-white shrink-0">
+        <div className="px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between gap-3 bg-white dark:bg-[#0E0C14] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
               <SafetyShieldBadgeIcon size={20} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-[#191525] truncate">
+                <h3 className="text-sm sm:text-base font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
                   {getReportTypeLabel(liveReport.targetType)}
                 </h3>
                 <span
@@ -102,7 +115,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                   {liveReport.status === 'pending' ? 'Open' : liveReport.status}
                 </span>
               </div>
-              <p className="text-xs text-[#706B7D] truncate">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                 {viewerRole === 'moderator'
                   ? `With @${liveReport.reporterUsername || 'student'} · ${liveReport.createdAt}`
                   : `Campus Moderation · ${liveReport.createdAt}`}
@@ -113,7 +126,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-black dark:hover:text-white cursor-pointer shrink-0"
+            className="min-w-[44px] min-h-[44px] -mr-2 rounded-full flex items-center justify-center text-slate-400 dark:text-[#9E97B3] hover:text-black dark:hover:text-white hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer shrink-0 transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -122,9 +135,9 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
 
         {/* Reported Item Snippet (only if present and non-support-ticket) */}
         {resolvedPreview && liveReport.targetType !== 'support_ticket' && (
-          <div className="px-5 py-2.5 bg-[#FAF9FC] border-b border-[#EAE6F0] shrink-0">
-            <p className="text-xs text-[#706B7D] line-clamp-2 break-words">
-              <span className="font-bold text-[#191525]">Reported:</span> "{resolvedPreview}"
+          <div className="px-5 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border-b border-[#EAE6F0] dark:border-[#262036] shrink-0">
+            <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-2 break-words">
+              <span className="font-bold text-[#191525] dark:text-[#F4F2FA]">Reported:</span> &ldquo;{resolvedPreview}&rdquo;
             </p>
           </div>
         )}
@@ -135,7 +148,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
             if (msg.senderRole === 'system') {
               return (
                 <div key={msg.id} className="flex justify-center py-1">
-                  <span className="px-3 py-1.5 rounded-xl bg-white border border-[#EAE6F0] text-[11px] font-semibold text-[#706B7D] text-center">
+                  <span className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3] text-center">
                     {msg.text}
                   </span>
                 </div>
@@ -156,7 +169,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                   className={`max-w-[84%] rounded-2xl px-3.5 py-2.5 space-y-1 border ${
                     isOwnBubble
                       ? 'bg-[#5420F5] text-white border-[#5420F5]'
-                      : 'bg-white text-[#191525] border-[#EAE6F0]'
+                      : 'bg-white dark:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] border-[#EAE6F0] dark:border-[#262036]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3 text-[10px]">
@@ -165,8 +178,8 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                         isOwnBubble
                           ? 'text-white/90'
                           : isModMessage
-                          ? 'text-[#5420F5]'
-                          : 'text-[#706B7D]'
+                          ? 'text-[#5420F5] dark:text-[#A78BFA]'
+                          : 'text-[#706B7D] dark:text-[#9E97B3]'
                       }`}
                     >
                       {isOwnBubble
@@ -175,7 +188,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                         ? 'Campus Moderator'
                         : `@${msg.senderUsername || 'student'}`}
                     </span>
-                    <span className={isOwnBubble ? 'text-white/75' : 'text-slate-400'}>
+                    <span className={isOwnBubble ? 'text-white/75' : 'text-slate-400 dark:text-[#7D7594]'}>
                       {msg.createdAt}
                     </span>
                   </div>
@@ -191,14 +204,14 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
 
         {/* Moderator Actions Bar (only visible to Moderators on open tickets) */}
         {viewerRole === 'moderator' && !isClosed && (
-          <div className="px-4 py-2.5 bg-[#FAF9FC] border-t border-[#EAE6F0] space-y-2 shrink-0">
+          <div className="px-4 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border-t border-[#EAE6F0] dark:border-[#262036] space-y-2 shrink-0">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               {MOD_QUICK_REPLIES.map((qr) => (
                 <button
                   key={qr}
                   type="button"
                   onClick={() => setReplyText(qr)}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-[#EAE6F0] hover:border-[#5420F5]/40 text-[11px] font-semibold text-[#191525] whitespace-nowrap cursor-pointer shrink-0"
+                  className="min-h-[34px] px-2.5 py-1 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5]/40 text-[11px] font-semibold text-[#191525] dark:text-[#F4F2FA] whitespace-nowrap cursor-pointer shrink-0"
                 >
                   {qr}
                 </button>
@@ -211,7 +224,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                 value={resolutionNote}
                 onChange={(e) => setResolutionNote(e.target.value)}
                 placeholder="Resolution note (optional)..."
-                className="flex-1 min-w-[140px] px-3 py-1.5 rounded-xl bg-white border border-[#EAE6F0] text-xs text-[#191525] focus:outline-none focus:border-[#5420F5]"
+                className="flex-1 min-w-[140px] min-h-[36px] px-3 py-1.5 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5]"
               />
               <button
                 type="button"
@@ -221,7 +234,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                     adminNotes: resolutionNote.trim() || undefined,
                   })
                 }
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Resolve</span>
@@ -236,7 +249,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                       adminNotes: resolutionNote.trim() || undefined,
                     })
                   }
-                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete &amp; Ban</span>
@@ -249,7 +262,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                     adminNotes: resolutionNote.trim() || undefined,
                   })
                 }
-                className="px-3 py-1.5 rounded-xl bg-white border border-[#EAE6F0] hover:bg-slate-50 dark:hover:bg-[#201A32] text-xs font-bold text-[#706B7D] hover:text-[#191525] inline-flex items-center gap-1 cursor-pointer"
+                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] hover:bg-slate-50 dark:hover:bg-[#201A32] text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] inline-flex items-center gap-1 cursor-pointer"
               >
                 <XCircle className="w-3.5 h-3.5" />
                 <span>Dismiss</span>
@@ -260,8 +273,8 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
 
         {/* Composer / Closed Notice */}
         {isClosed && viewerRole === 'reporter' ? (
-          <div className="p-4 border-t border-[#EAE6F0] bg-white flex items-center justify-between gap-3 shrink-0">
-            <span className="text-xs text-[#706B7D]">
+          <div className="p-4 border-t border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] flex items-center justify-between gap-3 shrink-0">
+            <span className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
               Ticket {liveReport.status}. Need more help?
             </span>
             <button
@@ -275,7 +288,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                   defaultSubject: 'General Question',
                 });
               }}
-              className="px-3.5 py-2 bg-[#F0EBFF] hover:bg-[#5420F5] text-[#5420F5] hover:text-white text-xs font-bold rounded-xl inline-flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+              className="min-h-[40px] px-3.5 py-2 bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-bold rounded-xl inline-flex items-center gap-1 cursor-pointer transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Ticket</span>
@@ -284,7 +297,7 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
         ) : (
           <form
             onSubmit={handleSend}
-            className="p-3.5 sm:p-4 border-t border-[#EAE6F0] bg-white flex items-center gap-2 shrink-0"
+            className="p-3.5 sm:p-4 border-t border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] flex items-center gap-2 shrink-0"
           >
             <input
               type="text"
@@ -295,12 +308,12 @@ export const ReportCaseChatModal: React.FC<ReportCaseChatModalProps> = ({
                   ? `Reply to @${liveReport.reporterUsername || 'student'}...`
                   : 'Write a message to moderators...'
               }
-              className="flex-1 min-w-0 px-4 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-xl text-base sm:text-xs text-[#191525] focus:outline-none focus:border-[#5420F5]"
+              className="flex-1 min-w-0 min-h-[44px] px-4 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5]"
             />
             <button
               type="submit"
               disabled={!replyText.trim()}
-              className={`p-2.5 rounded-xl font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+              className={`min-w-[44px] min-h-[44px] p-2.5 rounded-xl font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                 replyText.trim()
                   ? 'bg-[#5420F5] text-white hover:bg-[#4314E2]'
                   : 'bg-slate-100 dark:bg-[#171322] text-slate-400 dark:text-[#7D7594] cursor-not-allowed'

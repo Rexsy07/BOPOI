@@ -141,22 +141,24 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[82vh] flex flex-col shadow-2xl border border-[#EAE6F0] overflow-hidden"
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[82vh] flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] overflow-hidden"
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-[#EAE6F0] flex items-center justify-between gap-3 bg-white shrink-0">
+        <div className="px-5 py-3.5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between gap-3 bg-white dark:bg-[#0E0C14] shrink-0">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-lg bg-[#F0EBFF] text-[#5420F5] text-[11px] font-black tracking-wide">
+            <span className="px-2 py-0.5 rounded-lg bg-[#F0EBFF] dark:bg-[#231942] text-[#5420F5] dark:text-[#B9A4FF] text-[11px] font-black tracking-wide">
               GIF
             </span>
-            <h3 className="text-sm sm:text-base font-bold text-[#191525]">
+            <h3 className="text-sm sm:text-base font-bold text-[#191525] dark:text-[#F4F2FA]">
               Choose a GIF
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
+            className="min-w-[44px] min-h-[44px] -mr-2 rounded-full flex items-center justify-center text-slate-400 dark:text-[#9E97B3] hover:text-black dark:hover:text-white hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer transition-colors"
             aria-label="Close GIF picker"
           >
             <X className="w-5 h-5" />
@@ -164,21 +166,21 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
         </div>
 
         {/* Search Input + Quick Reaction Chips */}
-        <div className="px-4 pt-3 pb-2.5 border-b border-[#EAE6F0] space-y-2.5 bg-[#FAF9FC] shrink-0">
+        <div className="px-4 pt-3 pb-2.5 border-b border-[#EAE6F0] dark:border-[#262036] space-y-2.5 bg-[#FAF9FC] dark:bg-[#171322] shrink-0">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-[#7D7594] absolute left-3.5 pointer-events-none" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search Klipy GIFs..."
-              className="w-full pl-9 pr-9 py-2 rounded-xl bg-white border border-[#EAE6F0] text-base sm:text-xs text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
+              className="w-full pl-9 pr-9 py-2 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5]"
             />
             {searchInput && (
               <button
                 type="button"
                 onClick={() => setSearchInput('')}
-                className="p-1 text-slate-400 hover:text-[#191525] absolute right-2 cursor-pointer"
+                className="min-w-[34px] min-h-[34px] flex items-center justify-center text-slate-400 dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white absolute right-1.5 cursor-pointer"
                 aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -199,10 +201,10 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
                     setDebouncedQuery(cat.query);
                     setPage(1);
                   }}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 border ${
+                  className={`min-h-[34px] px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 border ${
                     active
                       ? 'bg-[#5420F5] text-white border-[#5420F5]'
-                      : 'bg-white text-[#706B7D] border-[#EAE6F0] hover:text-[#191525]'
+                      : 'bg-white dark:bg-[#0E0C14] text-[#706B7D] dark:text-[#9E97B3] border-[#EAE6F0] dark:border-[#262036] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                   }`}
                 >
                   {cat.label}
@@ -213,25 +215,25 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
         </div>
 
         {/* GIF Grid Body */}
-        <div className="flex-1 overflow-y-auto p-3.5 bg-white min-h-[240px]">
+        <div className="flex-1 overflow-y-auto p-3.5 bg-white dark:bg-[#0E0C14] min-h-[240px]">
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Array.from({ length: 9 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="aspect-[4/3] rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] animate-pulse"
+                  className="aspect-[4/3] rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] animate-pulse"
                 />
               ))}
             </div>
           ) : errorMsg ? (
             <div className="py-10 px-4 text-center space-y-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center mx-auto text-[#5420F5]">
+              <div className="w-10 h-10 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto text-[#5420F5] dark:text-[#8E6BFF]">
                 <Film className="w-5 h-5" />
               </div>
-              <p className="text-xs font-bold text-[#191525]">
+              <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
                 {isUnconfigured ? 'KLIPY API Key Needed' : 'Unable to Load GIFs'}
               </p>
-              <p className="text-xs text-[#706B7D] max-w-xs mx-auto leading-relaxed">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-xs mx-auto leading-relaxed">
                 {isUnconfigured
                   ? 'Add KLIPY_API_KEY to your server environment variables to enable trending and search GIFs.'
                   : errorMsg}
@@ -240,7 +242,7 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
                 <button
                   type="button"
                   onClick={() => fetchGifs(debouncedQuery, 1, false)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:bg-[#5420F5] hover:text-white transition-colors"
+                  className="min-h-[40px] px-4 py-2 rounded-xl bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#A78BFA] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer hover:bg-[#5420F5] hover:text-white transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Retry</span>
@@ -249,9 +251,9 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
             </div>
           ) : items.length === 0 ? (
             <div className="py-12 text-center space-y-1.5">
-              <p className="text-xs font-bold text-[#191525]">No GIFs found</p>
-              <p className="text-xs text-[#706B7D]">
-                Try another reaction keyword like "laugh" or "hype".
+              <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">No GIFs found</p>
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
+                Try another reaction keyword like &ldquo;laugh&rdquo; or &ldquo;hype&rdquo;.
               </p>
             </div>
           ) : (
@@ -307,7 +309,7 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
                       setPage(nextPage);
                       fetchGifs(debouncedQuery, nextPage, true);
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#FAF9FC] hover:bg-[#F0EBFF] border border-[#EAE6F0] text-xs font-bold text-[#5420F5] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231942] border border-[#EAE6F0] dark:border-[#262036] text-xs font-bold text-[#5420F5] dark:text-[#B9A4FF] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                   >
                     {loadingMore ? (
                       <>
@@ -325,9 +327,9 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
         </div>
 
         {/* Footer Attribution */}
-        <div className="px-4 py-2 border-t border-[#EAE6F0] bg-[#FAF9FC] flex items-center justify-between text-[11px] text-[#706B7D] shrink-0">
+        <div className="px-4 py-2 border-t border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex items-center justify-between text-[11px] text-[#706B7D] dark:text-[#9E97B3] shrink-0">
           <span>Tap a GIF to attach</span>
-          <span className="font-bold text-[#191525]">Powered by KLIPY</span>
+          <span className="font-bold text-[#191525] dark:text-[#F4F2FA]">Powered by KLIPY</span>
         </div>
       </div>
     </div>

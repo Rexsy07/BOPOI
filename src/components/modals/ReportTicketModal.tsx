@@ -51,6 +51,18 @@ export const ReportTicketModal: React.FC = () => {
     }
   }, [reportModalTarget]);
 
+  useEffect(() => {
+    if (!reportModalTarget) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && submitStage === 'idle') {
+        e.preventDefault();
+        closeReportModal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [reportModalTarget, submitStage, closeReportModal]);
+
   if (!reportModalTarget) return null;
 
   const reasonOptions = isSupportTicket ? SUPPORT_SUBJECTS : CONTENT_REPORT_REASONS;
@@ -89,28 +101,32 @@ export const ReportTicketModal: React.FC = () => {
 
   return (
     <div
-      onClick={closeReportModal}
+      onClick={() => {
+        if (submitStage !== 'submitting') closeReportModal();
+      }}
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-md space-y-4 shadow-2xl border border-[#EAE6F0] max-h-[90dvh] overflow-y-auto"
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-md space-y-4 shadow-2xl border border-[#EAE6F0] dark:border-[#262036] max-h-[90dvh] overflow-y-auto"
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto -mt-1.5 sm:hidden" />
+
         {/* Simple Header matching ProfileView Settings Modals */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
               <SafetyShieldBadgeIcon size={20} />
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-bold text-[#191525] truncate">
+              <h3 className="text-base font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
                 {createdReport
                   ? 'Ticket Opened'
                   : isSupportTicket
                   ? 'Contact Moderation'
                   : `Report ${reportModalTarget.targetLabel || 'Content'}`}
               </h3>
-              <p className="text-xs text-[#706B7D] truncate">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                 {createdReport
                   ? 'Chat with moderators in Settings → Reports & Support'
                   : 'You can chat with moderators while this is reviewed'}
@@ -120,8 +136,10 @@ export const ReportTicketModal: React.FC = () => {
 
           <button
             type="button"
-            onClick={closeReportModal}
-            className="p-1 text-slate-400 hover:text-black dark:hover:text-white cursor-pointer shrink-0"
+            onClick={() => {
+              if (submitStage !== 'submitting') closeReportModal();
+            }}
+            className="min-w-[44px] min-h-[44px] -mr-2 rounded-full flex items-center justify-center text-slate-400 dark:text-[#9E97B3] hover:text-black dark:hover:text-white hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer shrink-0 transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -130,14 +148,14 @@ export const ReportTicketModal: React.FC = () => {
 
         {createdReport ? (
           <div className="space-y-4 pt-1">
-            <div className="p-4 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] space-y-1.5">
+            <div className="p-4 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] space-y-1.5">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>Sent to Campus Moderation</span>
               </div>
-              <p className="text-xs text-[#706B7D] leading-relaxed">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-relaxed">
                 Your ticket is open. You can reply or ask follow-up questions in{' '}
-                <strong className="text-[#191525]">Settings → Reports &amp; Support</strong> before moderators close it.
+                <strong className="text-[#191525] dark:text-[#F4F2FA]">Settings → Reports &amp; Support</strong> before moderators close it.
               </p>
             </div>
 
@@ -145,7 +163,7 @@ export const ReportTicketModal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => openTicketInSettings(createdReport.id)}
-                className="flex-1 py-3 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className="flex-1 min-h-[44px] py-3 px-4 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <MessageCircle className="w-4 h-4 shrink-0" />
                 <span>Chat with Moderators</span>
@@ -153,7 +171,7 @@ export const ReportTicketModal: React.FC = () => {
               <button
                 type="button"
                 onClick={closeReportModal}
-                className="py-3 px-4 bg-slate-100 dark:bg-[#171322] hover:bg-slate-200 dark:hover:bg-[#201A32] text-slate-700 dark:text-[#D5D0E6] text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                className="min-h-[44px] py-3 px-4 bg-slate-100 dark:bg-[#171322] hover:bg-slate-200 dark:hover:bg-[#201A32] text-slate-700 dark:text-[#D5D0E6] text-xs font-bold rounded-xl cursor-pointer transition-colors"
               >
                 Done
               </button>
@@ -162,15 +180,15 @@ export const ReportTicketModal: React.FC = () => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {reportModalTarget.targetPreview && (
-              <div className="p-3 bg-[#FAF9FC] rounded-2xl border border-[#EAE6F0]">
-                <p className="text-xs text-[#706B7D] line-clamp-2 break-words">
-                  "{reportModalTarget.targetPreview}"
+              <div className="p-3 bg-[#FAF9FC] dark:bg-[#171322] rounded-2xl border border-[#EAE6F0] dark:border-[#262036]">
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-2 break-words">
+                  &ldquo;{reportModalTarget.targetPreview}&rdquo;
                 </p>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#191525]">
+              <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
                 {isSupportTicket ? 'Topic' : 'Reason'}
               </label>
               <div className="space-y-1.5">
@@ -181,10 +199,10 @@ export const ReportTicketModal: React.FC = () => {
                       key={option}
                       type="button"
                       onClick={() => setSelectedReason(option)}
-                      className={`w-full text-left py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex items-center justify-between gap-2 ${
+                      className={`w-full min-h-[44px] text-left py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer flex items-center justify-between gap-2 ${
                         isSelected
                           ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5]/40 text-[#5420F5] dark:text-[#A78BFA] font-bold'
-                          : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#191525] hover:bg-slate-50 dark:hover:bg-[#201A32]'
+                          : 'bg-[#FAF9FC] dark:bg-[#171322] border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] hover:bg-slate-50 dark:hover:bg-[#201A32]'
                       }`}
                     >
                       <span>{option}</span>
@@ -196,9 +214,9 @@ export const ReportTicketModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#191525] mb-1">
+              <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                 Details{' '}
-                <span className="font-normal text-[#706B7D]">
+                <span className="font-normal text-[#706B7D] dark:text-[#9E97B3]">
                   {requiresDetails ? '(required)' : '(optional)'}
                 </span>
               </label>
@@ -207,14 +225,14 @@ export const ReportTicketModal: React.FC = () => {
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="Add any extra context for moderators..."
-                className="w-full p-3 rounded-xl border border-[#EAE6F0] text-base sm:text-xs text-[#191525] bg-[#FAF9FC] focus:outline-none focus:border-[#5420F5] resize-none"
+                className="w-full p-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] bg-[#FAF9FC] dark:bg-[#171322] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] resize-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={submitStage !== 'idle'}
-              className="w-full py-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-75 disabled:cursor-not-allowed"
+              className="w-full min-h-[44px] py-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {submitStage === 'submitting' ? (
                 <>

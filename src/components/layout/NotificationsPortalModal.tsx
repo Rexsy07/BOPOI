@@ -132,17 +132,17 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
     >
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] shadow-2xl p-4 sm:p-6 text-xs select-none z-10 overflow-hidden flex flex-col max-h-[85dvh]">
-        <div className="w-10 h-1 bg-[#EAE6F0] rounded-full mx-auto mb-3 sm:hidden" />
+      <div className="relative w-full sm:max-w-lg bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] shadow-2xl p-4 sm:p-6 text-xs select-none z-10 overflow-hidden flex flex-col max-h-[85dvh]">
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mb-3 sm:hidden" />
 
-        <div className="flex items-center justify-between pb-3.5 border-b border-[#EAE6F0] shrink-0">
+        <div className="flex items-center justify-between pb-3.5 border-b border-[#EAE6F0] dark:border-[#262036] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
               <NotificationsBellIcon size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-[#191525] text-base leading-none">
+                <h3 className="font-black text-[#191525] dark:text-[#F4F2FA] text-base leading-none">
                   Notifications
                 </h3>
                 {unreadNotificationsCount > 0 && (
@@ -151,13 +151,13 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#706B7D] mt-1">
+              <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] mt-1">
                 Activity across your posts, rooms, and anonymous link
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {unreadNotificationsCount > 0 && (
               <button
                 type="button"
@@ -165,7 +165,7 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
                   markNotificationsRead();
                   showToast('Notifications marked as read!', 'success');
                 }}
-                className="text-[11px] font-bold text-[#5420F5] hover:bg-[#F0EBFF] px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                className="min-h-[40px] text-[11px] font-bold text-[#5420F5] dark:text-[#9B82FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Mark read</span>
@@ -174,8 +174,9 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-slate-100 text-[#706B7D] hover:text-[#191525] transition-colors cursor-pointer"
+              className="w-11 h-11 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
               title="Close notifications"
+              aria-label="Close notifications"
             >
               <X className="w-5 h-5" />
             </button>
@@ -184,14 +185,14 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
 
         {/* All / Unread Quick Filter */}
         {notifications.length > 0 && (
-          <div className="flex items-center gap-1.5 py-2 border-b border-[#EAE6F0] shrink-0">
+          <div className="flex items-center gap-1.5 py-2.5 border-b border-[#EAE6F0] dark:border-[#262036] shrink-0">
             <button
               type="button"
               onClick={() => setFilterTab('all')}
-              className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-colors cursor-pointer tabular-nums ${
+              className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer tabular-nums ${
                 filterTab === 'all'
-                  ? 'bg-[#191525] text-white'
-                  : 'bg-[#FAF9FC] text-[#706B7D] hover:text-[#191525] border border-[#EAE6F0]'
+                  ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                  : 'bg-[#FAF9FC] dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white border border-[#EAE6F0] dark:border-[#262036]'
               }`}
             >
               All ({notifications.length})
@@ -199,10 +200,10 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
             <button
               type="button"
               onClick={() => setFilterTab('unread')}
-              className={`px-3 py-1 rounded-xl text-[11px] font-bold transition-colors cursor-pointer tabular-nums ${
+              className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer tabular-nums ${
                 filterTab === 'unread'
-                  ? 'bg-[#191525] text-white'
-                  : 'bg-[#FAF9FC] text-[#706B7D] hover:text-[#191525] border border-[#EAE6F0]'
+                  ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                  : 'bg-[#FAF9FC] dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white border border-[#EAE6F0] dark:border-[#262036]'
               }`}
             >
               Unread ({unreadNotificationsCount})
@@ -210,16 +211,16 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
           </div>
         )}
 
-        <div className="py-1 overflow-y-auto flex-1 divide-y divide-[#EAE6F0] pr-0.5">
+        <div className="py-1 overflow-y-auto flex-1 divide-y divide-[#EAE6F0] dark:divide-[#262036] pr-0.5">
           {visibleNotifications.length === 0 ? (
             <div className="py-12 text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center mx-auto">
                 <NotificationsBellIcon size={24} />
               </div>
-              <p className="text-sm font-black text-[#191525]">
+              <p className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
                 {filterTab === 'unread' ? 'All caught up!' : 'No notifications yet'}
               </p>
-              <p className="text-xs text-[#706B7D] max-w-xs mx-auto">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-xs mx-auto">
                 {filterTab === 'unread'
                   ? 'You have read all your campus notifications.'
                   : 'When students send you anonymous messages, react to your posts, or follow you, updates appear here.'}
@@ -228,7 +229,7 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
                 <button
                   type="button"
                   onClick={() => setFilterTab('all')}
-                  className="mt-1 px-3.5 py-1.5 rounded-xl bg-[#FAF9FC] hover:bg-[#F0EBFF] border border-[#EAE6F0] text-xs font-bold text-[#5420F5] cursor-pointer"
+                  className="mt-1 px-4 py-2 min-h-[40px] rounded-xl bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] border border-[#EAE6F0] dark:border-[#262036] text-xs font-bold text-[#5420F5] dark:text-[#9B82FF] cursor-pointer"
                 >
                   Show all notifications
                 </button>
@@ -284,26 +285,26 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
                   }
                   setActiveView(resolvedView);
                 }}
-                className={`py-3 px-2.5 hover:bg-[#FAF9FC] transition-colors cursor-pointer flex items-start gap-3 group ${
-                  notif.isRead ? 'opacity-75' : 'bg-[#F7F4FF]/70'
+                className={`py-3 px-2.5 hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer flex items-start gap-3 group ${
+                  notif.isRead ? 'opacity-75' : 'bg-[#F7F4FF]/70 dark:bg-[#231A45]/45'
                 }`}
               >
-                <div className="w-9 h-9 rounded-xl bg-white border border-[#EAE6F0] flex items-center justify-center p-1 shrink-0 mt-0.5">
+                <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center p-1 shrink-0 mt-0.5">
                   {getNotificationIcon(notif.type)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-[#191525] group-hover:text-[#5420F5] transition-colors truncate flex items-center gap-1.5">
+                    <span className="font-bold text-[#191525] dark:text-[#F4F2FA] group-hover:text-[#5420F5] dark:group-hover:text-[#9B82FF] transition-colors truncate flex items-center gap-1.5">
                       {!notif.isRead && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#F52D85] shrink-0" />
                       )}
                       <span className="truncate">{notif.title}</span>
                     </span>
-                    <span className="text-[10px] text-[#706B7D] shrink-0">
+                    <span className="text-[10px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums shrink-0">
                       {notif.createdAt}
                     </span>
                   </div>
-                  <p className="text-xs text-[#706B7D] leading-snug mt-0.5">
+                  <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-snug mt-0.5">
                     {notif.body}
                   </p>
                 </div>
@@ -312,14 +313,14 @@ export const NotificationsPortalModal: React.FC<NotificationsPortalModalProps> =
           )}
         </div>
 
-        <div className="pt-3 border-t border-[#EAE6F0] flex items-center justify-between text-xs shrink-0 bg-white">
-          <span className="text-[11px] text-[#706B7D] font-medium">
+        <div className="pt-3 border-t border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between text-xs shrink-0 bg-white dark:bg-[#0E0C14]">
+          <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-medium">
             Campus updates &amp; alerts
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white font-black rounded-xl text-xs transition-colors cursor-pointer"
+            className="min-h-[40px] px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white font-black rounded-xl text-xs transition-colors cursor-pointer"
           >
             Close
           </button>

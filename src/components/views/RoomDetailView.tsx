@@ -274,13 +274,13 @@ export const RoomDetailView: React.FC = () => {
 
   if (!activeRoom) {
     return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-[#F0EBFF] text-[#5420F5] flex items-center justify-center mx-auto">
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4 bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-3xl">
+        <div className="w-12 h-12 rounded-2xl bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] flex items-center justify-center mx-auto">
           <Users2 className="w-5 h-5" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-sm font-black text-[#191525]">Room not available</h2>
-          <p className="text-xs text-[#706B7D]">
+          <h2 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">Room not available</h2>
+          <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
             This room may still be loading or may have been removed.
           </p>
         </div>
@@ -288,14 +288,14 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveView('rooms')}
-            className="px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl cursor-pointer transition-colors"
+            className="min-h-[44px] px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl cursor-pointer transition-colors"
           >
             Browse All Rooms
           </button>
           <button
             type="button"
             onClick={() => goBack('home')}
-            className="px-4 py-2 bg-[#FAF9FC] border border-[#EAE6F0] text-[#191525] text-xs font-bold rounded-xl cursor-pointer hover:bg-[#F0EBFF] transition-colors"
+            className="min-h-[44px] px-4 py-2 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl cursor-pointer hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors"
           >
             Go Back
           </button>
@@ -594,8 +594,9 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={handleShareRoom}
-            className="p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:bg-purple-50 dark:hover:bg-[#231A45] text-slate-600 dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] transition-colors cursor-pointer"
+            className="min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] transition-colors cursor-pointer flex items-center justify-center"
             title="Share Room link"
+            aria-label="Share Room link"
           >
             <Share2 className="w-3.5 h-3.5" />
           </button>
@@ -604,22 +605,24 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowRoomInfo(!showRoomInfo)}
-            className={`p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] transition-colors cursor-pointer ${
+            className={`min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] transition-colors cursor-pointer flex items-center justify-center ${
               showRoomInfo
                 ? 'bg-[#5420F5] text-white'
-                : 'bg-white dark:bg-[#171322] text-slate-600 dark:text-[#9E97B3] hover:bg-slate-100 dark:hover:bg-[#231A45]'
+                : 'bg-white dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45]'
             }`}
             title="Room Details"
+            aria-label="Room Details"
           >
             <Info className="w-3.5 h-3.5" />
           </button>
 
           {/* Join / Leave Room Button */}
           <button
+            type="button"
             onClick={() => toggleJoinRoom(activeRoom.id)}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer shrink-0 ${
+            className={`min-h-[40px] sm:min-h-[36px] px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer shrink-0 ${
               activeRoom.isJoined
-                ? 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-slate-700 dark:text-[#F4F2FA] hover:bg-slate-100 dark:hover:bg-[#231A45]'
+                ? 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45]'
                 : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-xs'
             }`}
           >
@@ -808,11 +811,11 @@ export const RoomDetailView: React.FC = () => {
               <React.Fragment key={msg.id}>
                 {showDayDivider && msgDate && (
                   <div className="flex items-center gap-3 py-1.5 select-none">
-                    <div className="flex-1 h-px bg-[#EAE6F0]" />
-                    <span className="text-[10px] font-bold text-[#706B7D] tabular-nums">
+                    <div className="flex-1 h-px bg-[#EAE6F0] dark:bg-[#262036]" />
+                    <span className="text-[10px] font-bold text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
                       {formatDayLabel(msgDate)}
                     </span>
-                    <div className="flex-1 h-px bg-[#EAE6F0]" />
+                    <div className="flex-1 h-px bg-[#EAE6F0] dark:bg-[#262036]" />
                   </div>
                 )}
 
@@ -821,7 +824,9 @@ export const RoomDetailView: React.FC = () => {
                     messageRefs.current[msg.id] = el;
                   }}
                   className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''} group min-w-0 rounded-2xl transition-colors duration-300 ${
-                    highlightedMessageId === msg.id ? 'bg-[#F0EBFF]/75 p-1 -m-1' : ''
+                    highlightedMessageId === msg.id
+                      ? 'animate-reply-flash bg-[#F0EBFF]/75 dark:bg-[#231A45]/75 p-1.5 -m-1.5'
+                      : ''
                   }`}
                 >
                   {/* Author Avatar */}
@@ -843,7 +848,7 @@ export const RoomDetailView: React.FC = () => {
                     }
                   >
                     {msg.isAnonymous ? (
-                      <div className="w-8 h-8 rounded-xl bg-white border border-[#5420F5]/25 flex items-center justify-center shadow-2xs select-none p-0.5 hover:scale-105 transition-transform">
+                      <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#171322] border border-[#5420F5]/25 flex items-center justify-center shadow-2xs select-none p-0.5 hover:scale-105 transition-transform">
                         <PersonaMaskIcon mask={msg.authorMaskEmoji || msg.authorName || 'masked-student'} size={24} />
                       </div>
                     ) : (
@@ -852,7 +857,7 @@ export const RoomDetailView: React.FC = () => {
                         seed={msg.authorUsername}
                         size={32}
                         rounded="full"
-                        className="ring-1 ring-slate-200"
+                        className="ring-1 ring-[#EAE6F0] dark:ring-[#262036]"
                       />
                     )}
                   </div>
@@ -988,7 +993,7 @@ export const RoomDetailView: React.FC = () => {
                   {/* Message Action Toolbar (Reactions, Like, Reply) */}
                   <div
                     className={`flex items-center justify-between pt-1.5 gap-2 border-t flex-wrap ${
-                      isMe ? 'border-white/15 text-white/85' : 'border-slate-100 dark:border-[#262036] text-slate-400 dark:text-[#9E97B3]'
+                      isMe ? 'border-white/15 text-white/85' : 'border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3]'
                     }`}
                   >
                     {/* Quick emoji reactions */}
@@ -1000,7 +1005,7 @@ export const RoomDetailView: React.FC = () => {
                           onClick={() =>
                             addRoomMessageReaction(activeRoom.id, msg.id, emoji)
                           }
-                          className="hover:scale-125 transition-transform p-0.5 text-xs cursor-pointer"
+                          className="hover:scale-125 transition-transform px-1 py-1 text-xs cursor-pointer rounded-md"
                           title={`React ${emoji}`}
                         >
                           {emoji}
@@ -1008,7 +1013,7 @@ export const RoomDetailView: React.FC = () => {
                       ))}
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       {/* Reply button */}
                       <button
                         type="button"
@@ -1021,7 +1026,7 @@ export const RoomDetailView: React.FC = () => {
                           setReplyingTo(msg);
                           inputRef.current?.focus();
                         }}
-                        className="text-[10px] font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                        className="text-[11px] font-bold hover:underline cursor-pointer flex items-center gap-1 px-1.5 py-1 rounded-md"
                         title="Reply to message"
                       >
                         <CornerDownRight className="w-3 h-3" />
@@ -1034,10 +1039,10 @@ export const RoomDetailView: React.FC = () => {
                         onClick={() =>
                           toggleRoomMessageLike(activeRoom.id, msg.id)
                         }
-                        className="flex items-center gap-1 text-[10px] font-bold hover:scale-110 transition-transform cursor-pointer"
+                        className="flex items-center gap-1 text-[11px] font-bold hover:scale-110 transition-transform cursor-pointer px-1.5 py-1 rounded-md"
                       >
                         <Heart
-                          className={`w-3 h-3 ${
+                          className={`w-3.5 h-3.5 ${
                             msg.hasLiked
                               ? isMe
                                 ? 'fill-white text-white'
@@ -1045,7 +1050,7 @@ export const RoomDetailView: React.FC = () => {
                               : ''
                           }`}
                         />
-                        {msg.likes > 0 && <span>{msg.likes}</span>}
+                        {msg.likes > 0 && <span className="tabular-nums">{msg.likes}</span>}
                       </button>
                     </div>
                   </div>
@@ -1112,9 +1117,9 @@ export const RoomDetailView: React.FC = () => {
 
       {isLoggedIn ? (
         activeRoom.isLocked && !isAdminUnlocked ? (
-          <div className="shrink-0 bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-rose-800 shadow-xs">
+          <div className="shrink-0 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-rose-800 dark:text-rose-200 shadow-xs">
             <div className="flex items-center gap-2 min-w-0">
-              <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+              <Lock className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
               <span className="font-bold truncate">
                 This room is currently locked by Campus Moderators. Only admins can post right now.
               </span>
@@ -1195,9 +1200,9 @@ export const RoomDetailView: React.FC = () => {
 
             {/* Pending Image / Video Attachment Preview Bar */}
             {(pendingMedia || isUploadingMedia) && (
-              <div className="shrink-0 mb-1.5 p-2 px-3 rounded-2xl bg-white border border-[#5420F5]/30 shadow-xs flex items-center justify-between gap-2.5 animate-in fade-in duration-150">
+              <div className="shrink-0 mb-1.5 p-2 px-3 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/30 shadow-xs flex items-center justify-between gap-2.5 animate-in fade-in duration-150">
                 {isUploadingMedia ? (
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#5420F5]">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#5420F5] dark:text-[#B9A7FF]">
                     <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                     <span>Uploading media to room...</span>
                   </div>
@@ -1205,7 +1210,7 @@ export const RoomDetailView: React.FC = () => {
                   <>
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       {pendingMedia.mediaType === 'video' ? (
-                        <div className="w-12 h-12 rounded-xl bg-slate-900 overflow-hidden shrink-0 relative flex items-center justify-center border border-slate-200">
+                        <div className="w-12 h-12 rounded-xl bg-slate-900 overflow-hidden shrink-0 relative flex items-center justify-center border border-[#EAE6F0] dark:border-[#262036]">
                           <video
                             src={pendingMedia.mediaUrl}
                             muted
@@ -1221,18 +1226,18 @@ export const RoomDetailView: React.FC = () => {
                           src={pendingMedia.mediaUrl}
                           alt="Upload preview"
                           referrerPolicy="no-referrer"
-                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EAE6F0]"
+                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EAE6F0] dark:border-[#262036]"
                         />
                       )}
                       <div className="min-w-0 flex-1">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#5420F5] bg-[#F0EBFF] px-2 py-0.5 rounded-md">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#5420F5] dark:text-[#B9A7FF] bg-[#F0EBFF] dark:bg-[#231A45] px-2 py-0.5 rounded-md">
                           {pendingMedia.mediaType === 'video'
                             ? '🎬 Video Ready'
                             : pendingMedia.mediaType === 'gif'
                             ? '🎞️ GIF Ready'
                             : '📷 Photo Ready'}
                         </span>
-                        <p className="text-[11px] font-semibold text-[#706B7D] truncate mt-0.5">
+                        <p className="text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3] truncate mt-0.5">
                           Add a caption below or hit send
                         </p>
                       </div>
@@ -1240,8 +1245,9 @@ export const RoomDetailView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPendingMedia(null)}
-                      className="p-1.5 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                      className="min-w-[36px] min-h-[36px] p-1.5 rounded-full bg-[#FAF9FC] dark:bg-[#262036] hover:bg-rose-50 dark:hover:bg-rose-950/50 text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
                       title="Remove attachment"
+                      aria-label="Remove attachment"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1263,13 +1269,14 @@ export const RoomDetailView: React.FC = () => {
 
               <form
                 onSubmit={handleSend}
-                className="bg-white border border-[#EAE6F0] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
+                className="bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
               >
                 <button
                   type="button"
                   onClick={() => setShowRosterModal(true)}
-                  className="shrink-0 w-8 h-8 rounded-xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center hover:bg-purple-50 transition-colors cursor-pointer"
+                  className="shrink-0 w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer"
                   title="View your persona badge & room roster"
+                  aria-label="View room persona"
                 >
                   <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={22} />
                 </button>
@@ -1288,12 +1295,13 @@ export const RoomDetailView: React.FC = () => {
                   type="button"
                   disabled={isUploadingMedia}
                   onClick={() => mediaInputRef.current?.click()}
-                  className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                     pendingMedia && pendingMedia.mediaType !== 'gif'
-                      ? 'bg-[#F0EBFF] border-[#5420F5]/40 text-[#5420F5]'
-                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                      ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5]/40 text-[#5420F5] dark:text-[#B9A7FF]'
+                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
                   } disabled:opacity-50`}
                   title="Upload photo or video"
+                  aria-label="Upload photo or video"
                 >
                   {isUploadingMedia ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1313,10 +1321,10 @@ export const RoomDetailView: React.FC = () => {
                     roomMention.dismiss();
                     setShowGifPicker(true);
                   }}
-                  className={`shrink-0 h-8 px-2 rounded-xl border text-[10px] font-black tracking-wide flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 h-9 px-2.5 rounded-xl border text-[10px] font-black tracking-wide flex items-center justify-center transition-all cursor-pointer ${
                     pendingMedia?.mediaType === 'gif'
                       ? 'bg-[#5420F5] border-[#5420F5] text-white'
-                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
                   }`}
                   title="Attach a GIF from Klipy"
                 >
@@ -1328,10 +1336,10 @@ export const RoomDetailView: React.FC = () => {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={roomMention.togglePicker}
-                  className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
                     roomMention.isOpen
                       ? 'bg-[#5420F5] border-[#5420F5] text-white'
-                      : 'bg-[#FAF9FC] border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
                   }`}
                   title="Mention a student (@)"
                   aria-label="Mention a student"
@@ -1355,14 +1363,15 @@ export const RoomDetailView: React.FC = () => {
                       ? `Message locked room as Admin (${effectiveAlias})...`
                       : `Message as ${effectiveAlias}...`
                   }
-                  className="flex-1 min-w-0 px-1.5 py-1.5 bg-transparent text-base sm:text-sm text-[#191525] placeholder:text-slate-400 focus:outline-none"
+                  className="flex-1 min-w-0 px-1.5 py-1.5 bg-transparent text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none"
                 />
 
                 <button
                   type="submit"
                   disabled={(!messageText.trim() && !pendingMedia) || isUploadingMedia}
-                  className="p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0"
+                  className="min-w-[40px] min-h-[40px] p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0 flex items-center justify-center"
                   title="Send to anonymous room"
+                  aria-label="Send message"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -1376,9 +1385,9 @@ export const RoomDetailView: React.FC = () => {
             showToast('Please sign in to join & chat in rooms.', 'info');
             setActiveView('profile');
           }}
-          className="shrink-0 bg-white border border-[#5420F5]/25 rounded-2xl p-2 pl-3.5 shadow-md flex items-center justify-between gap-2 min-w-0 cursor-pointer hover:border-[#5420F5]/50 transition-all"
+          className="shrink-0 bg-white dark:bg-[#171322] border border-[#5420F5]/25 dark:border-[#7C5CFF]/35 rounded-2xl p-2 pl-3.5 shadow-md flex items-center justify-between gap-2 min-w-0 cursor-pointer hover:border-[#5420F5]/50 transition-all"
         >
-          <span className="text-xs font-bold text-[#706B7D] truncate min-w-0 flex-1">
+          <span className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] truncate min-w-0 flex-1">
             Sign in to join &amp; chat anonymously in this room
           </span>
           <button
@@ -1387,7 +1396,7 @@ export const RoomDetailView: React.FC = () => {
               e.stopPropagation();
               setActiveView('profile');
             }}
-            className="px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
+            className="min-h-[44px] px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
           >
             Sign In
           </button>
@@ -1421,8 +1430,16 @@ export const RoomDetailView: React.FC = () => {
 
       {/* 9. Room Aliases & Personas Directory Modal */}
       {showRosterModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200">
+        <div
+          onClick={() => setShowRosterModal(false)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200"
+          >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between shrink-0 bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14]">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -1441,7 +1458,8 @@ export const RoomDetailView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 hover:text-black dark:hover:text-white cursor-pointer shrink-0"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer shrink-0"
+                aria-label="Close room aliases"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1607,8 +1625,9 @@ export const RoomDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => setLightboxImageUrl(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-colors"
+            className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-colors"
             title="Close image preview"
+            aria-label="Close image preview"
           >
             <X className="w-5 h-5" />
           </button>

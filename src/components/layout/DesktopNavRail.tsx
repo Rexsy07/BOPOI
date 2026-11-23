@@ -84,15 +84,12 @@ export const DesktopNavRail: React.FC = () => {
       view: 'rooms',
       label: 'Rooms',
       renderIcon: (isActive) => (
-        <span className="relative flex items-center justify-center">
-          <MessagesSquare
-            className="w-[20px] h-[20px] shrink-0"
-            strokeWidth={isActive ? 2.4 : 1.85}
-            fill={isActive ? 'currentColor' : 'none'}
-            fillOpacity={isActive ? 0.14 : 0}
-          />
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#FAF9FC] dark:ring-[#09070D]" />
-        </span>
+        <MessagesSquare
+          className="w-[20px] h-[20px] shrink-0"
+          strokeWidth={isActive ? 2.4 : 1.85}
+          fill={isActive ? 'currentColor' : 'none'}
+          fillOpacity={isActive ? 0.14 : 0}
+        />
       ),
       activeMatch: ['rooms', 'room-detail'],
     },
@@ -197,7 +194,7 @@ export const DesktopNavRail: React.FC = () => {
                     setActiveView(item.view);
                   }
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-colors cursor-pointer whitespace-nowrap ${
+                className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm transition-colors cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-white dark:bg-[#171322] text-[#5420F5] dark:text-[#9B82FF] font-black border border-[#EAE6F0] dark:border-[#262036] shadow-2xs'
                     : 'text-[#191525]/85 dark:text-[#D9D3EB] hover:bg-white/80 dark:hover:bg-[#171322]/70 hover:text-[#191525] dark:hover:text-white font-semibold border border-transparent'

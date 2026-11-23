@@ -141,26 +141,30 @@ export const SharePostModal: React.FC = () => {
       onClick={() => setSharingPost(null)}
     >
       <div
-        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden" />
+
         {/* Top Modal Header */}
-        <div className="px-5 py-4 border-b border-[#EAE6F0] flex items-center justify-between bg-[#FAF9FC]">
+        <div className="px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between bg-[#FAF9FC] dark:bg-[#171322]">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white border border-[#EAE6F0] shadow-2xs flex items-center justify-center p-1">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] shadow-2xs flex items-center justify-center p-1">
               <ShareOnCampusIcon size={24} />
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#191525]">Share {postTypeLabel}</h3>
-              <p className="text-[11px] text-[#706B7D]">
+              <h3 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">Share {postTypeLabel}</h3>
+              <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3]">
                 Anyone with this link opens this exact post
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => setSharingPost(null)}
-            className="p-1.5 rounded-full hover:bg-slate-200/70 dark:hover:bg-[#171322] text-slate-500 dark:text-[#9E97B3] transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] -mr-2 rounded-full hover:bg-slate-200/70 dark:hover:bg-[#231942] text-slate-500 dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+            aria-label="Close share dialog"
           >
             <X className="w-4 h-4" />
           </button>
@@ -168,7 +172,7 @@ export const SharePostModal: React.FC = () => {
 
         <div className="p-5 space-y-5">
           {/* Post Preview Card */}
-          <div className="bg-[#FAF9FC] rounded-2xl p-4 border border-[#EAE6F0] space-y-2.5">
+          <div className="bg-[#FAF9FC] dark:bg-[#171322] rounded-2xl p-4 border border-[#EAE6F0] dark:border-[#262036] space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 {sharingPost.isAnonymous ? (
@@ -182,7 +186,7 @@ export const SharePostModal: React.FC = () => {
                   />
                 )}
                 <div className="min-w-0">
-                  <span className="text-xs font-extrabold text-[#191525] inline-flex items-center gap-1 truncate max-w-full">
+                  <span className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] inline-flex items-center gap-1 truncate max-w-full">
                     <span className="truncate">
                       {sharingPost.isAnonymous ? 'Anonymous Student' : sharingPost.authorName}
                     </span>
@@ -193,36 +197,36 @@ export const SharePostModal: React.FC = () => {
                       size={13}
                     />
                   </span>
-                  <span className="text-[10px] text-[#706B7D] block truncate">
+                  <span className="text-[10px] text-[#706B7D] dark:text-[#9E97B3] block truncate">
                     {sharingPost.authorCampus || 'Campus Feed'} · {sharingPost.createdAt}
                   </span>
                 </div>
               </div>
 
-              <span className="text-[11px] font-bold capitalize text-[#5420F5] shrink-0">
+              <span className="text-[11px] font-bold capitalize text-[#5420F5] dark:text-[#8E6BFF] shrink-0">
                 {sharingPost.category || sharingPost.type}
               </span>
             </div>
 
             {sharingPost.title && (
-              <h4 className="text-xs sm:text-sm font-black text-[#191525] line-clamp-1">
+              <h4 className="text-xs sm:text-sm font-black text-[#191525] dark:text-[#F4F2FA] line-clamp-1">
                 {sharingPost.title}
               </h4>
             )}
 
-            <p className="text-xs text-[#706B7D] line-clamp-2 leading-relaxed">
+            <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-2 leading-relaxed">
               {sharingPost.content}
             </p>
 
-            <div className="pt-1 flex items-center justify-between text-[11px] text-[#706B7D] tabular-nums">
+            <div className="pt-1 flex items-center justify-between text-[11px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
               <span className="flex items-center gap-1 font-semibold">
-                <MessageCircle className="w-3 h-3 text-[#5420F5]" />
+                <MessageCircle className="w-3 h-3 text-[#5420F5] dark:text-[#8E6BFF]" />
                 {sharingPost.commentsCount} comments · {sharingPost.likes} likes
               </span>
               <button
                 type="button"
                 onClick={handleOpenPostDirectly}
-                className="text-[#5420F5] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                className="min-h-[32px] text-[#5420F5] dark:text-[#8E6BFF] font-bold hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Open thread</span>
                 <ExternalLink className="w-3 h-3" />
@@ -232,11 +236,11 @@ export const SharePostModal: React.FC = () => {
 
           {/* Direct Shareable Link Box */}
           <div className="space-y-1.5">
-            <label className="text-xs font-extrabold text-[#191525] flex items-center gap-1">
-              <Link2 className="w-3.5 h-3.5 text-[#5420F5]" />
+            <label className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] flex items-center gap-1">
+              <Link2 className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#8E6BFF]" />
               <span>Direct Post Link</span>
             </label>
-            <div className="flex items-center gap-2 bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-1.5 pl-3.5">
+            <div className="flex items-center gap-2 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-1.5 pl-3.5">
               <input
                 type="text"
                 readOnly
@@ -247,7 +251,7 @@ export const SharePostModal: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className={`px-3.5 min-h-[38px] rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                className={`px-3.5 min-h-[42px] rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   copied
                     ? 'bg-emerald-600 text-white'
                     : 'bg-[#5420F5] hover:bg-[#4314E2] text-white'
@@ -261,7 +265,7 @@ export const SharePostModal: React.FC = () => {
 
           {/* Quick Share Platforms (iframe-safe anchor links) */}
           <div className="space-y-2">
-            <span className="text-xs font-extrabold text-[#191525] block">
+            <span className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] block">
               Share directly to
             </span>
             <div className="grid grid-cols-3 gap-2.5">
@@ -275,9 +279,9 @@ export const SharePostModal: React.FC = () => {
                     incrementPostShare(sharingPost.id);
                     showToast(`Sharing to ${plat.name}...`, 'success');
                   }}
-                  className={`py-2.5 px-3 rounded-2xl border text-xs font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${plat.bg}`}
+                  className={`min-h-[44px] py-2.5 px-3 rounded-2xl border text-xs font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${plat.bg}`}
                 >
-                  <span className="w-8 h-8 rounded-xl bg-white shadow-2xs flex items-center justify-center p-1">
+                  <span className="w-8 h-8 rounded-xl bg-white dark:bg-[#0E0C14] shadow-2xs flex items-center justify-center p-1">
                     {plat.icon}
                   </span>
                   <span>{plat.name}</span>
@@ -290,7 +294,7 @@ export const SharePostModal: React.FC = () => {
           <button
             type="button"
             onClick={handleNativeShare}
-            className="w-full py-3 rounded-2xl bg-[#191525] dark:bg-[#5420F5] hover:bg-[#2A253B] dark:hover:bg-[#4314E2] text-white text-xs font-black flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            className="w-full min-h-[44px] py-3 rounded-2xl bg-[#191525] dark:bg-[#5420F5] hover:bg-[#2A253B] dark:hover:bg-[#4314E2] text-white text-xs font-black flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <Share2 className="w-4 h-4 text-[#FFC928]" />
             <span>More Share Options / Copy Caption</span>

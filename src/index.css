@@ -175,6 +175,15 @@
   }
 }
 
+@keyframes bopoi-reply-flash {
+  0% {
+    background-color: rgba(84, 32, 245, 0.22);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 .animate-heart-pop {
   animation: bopoi-heart-pop 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
@@ -183,9 +192,15 @@
   animation: bopoi-double-tap-burst 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.animate-reply-flash {
+  animation: bopoi-reply-flash 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-heart-pop,
-  .animate-double-tap-heart {
+  .animate-double-tap-heart,
+  .animate-reply-flash {
     animation: none;
   }
 }
+

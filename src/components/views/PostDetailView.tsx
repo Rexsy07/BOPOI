@@ -110,14 +110,31 @@ export const PostDetailView: React.FC = () => {
     });
   }, [activePost, socialPosts, user?.campus]);
 
+  const liveRepostsCount = useMemo(() => {
+    if (!activePost) return 0;
+    const derived = socialPosts.filter((p) => p.quotedPostId === activePost.id).length;
+    return Math.max(activePost.repostsCount || 0, derived);
+  }, [socialPosts, activePost]);
+
+  const hasRepostedByMe = useMemo(() => {
+    if (!activePost) return false;
+    const myLower = (user.username || '').toLowerCase();
+    return socialPosts.some(
+      (p) =>
+        p.quotedPostId === activePost.id &&
+        ((user.id && p.authorUserId === user.id) ||
+          (!p.isAnonymous && myLower && (p.authorUsername || '').toLowerCase() === myLower))
+    );
+  }, [socialPosts, activePost, user.id, user.username]);
+
   if (!activePost) {
     return (
-      <div className="w-full px-6 py-16 text-center space-y-3 bg-white">
-        <p className="text-sm font-black text-[#191525]">No active post selected.</p>
+      <div className="w-full px-6 py-16 text-center space-y-3 bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]">
+        <p className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">No active post selected.</p>
         <button
           type="button"
           onClick={() => setActiveView('home')}
-          className="px-4 py-2 bg-[#5420F5] text-white text-xs font-extrabold rounded-xl cursor-pointer"
+          className="min-h-[44px] px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer transition-colors"
         >
           Return to Home
         </button>
@@ -142,21 +159,6 @@ export const PostDetailView: React.FC = () => {
     ? isFollowingUser(activePost.authorUsername)
     : false;
 
-  const liveRepostsCount = useMemo(() => {
-    const derived = socialPosts.filter((p) => p.quotedPostId === activePost.id).length;
-    return Math.max(activePost.repostsCount || 0, derived);
-  }, [socialPosts, activePost.id, activePost.repostsCount]);
-
-  const hasRepostedByMe = useMemo(() => {
-    const myLower = (user.username || '').toLowerCase();
-    return socialPosts.some(
-      (p) =>
-        p.quotedPostId === activePost.id &&
-        ((user.id && p.authorUserId === user.id) ||
-          (!p.isAnonymous && myLower && (p.authorUsername || '').toLowerCase() === myLower))
-    );
-  }, [socialPosts, activePost.id, user.id, user.username]);
-
   const handleShare = () => {
     openPostShare(activePost);
   };
@@ -171,7 +173,7 @@ export const PostDetailView: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col bg-white text-[#191525]">
+    <div className="w-full flex flex-col bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]">
       {/* 1. Sticky Top Bar */}
       <div className="sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036] px-4 sm:px-5 h-[52px] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -213,13 +215,13 @@ export const PostDetailView: React.FC = () => {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-11 w-48 bg-white dark:bg-[#171322] rounded-2xl border border-[#EAE6F0] dark:border-[#262036] shadow-xl py-1.5 z-40">
+              <div className="absolute right-0 top-11 w-52 bg-white dark:bg-[#171322] rounded-2xl border border-[#EAE6F0] dark:border-[#262036] shadow-xl py-1.5 z-40">
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] flex items-center gap-2.5 cursor-pointer"
+                  className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] flex items-center gap-2.5 cursor-pointer"
                 >
-                  <Copy className="w-3.5 h-3.5 text-[#5420F5]" />
+                  <Copy className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF]" />
                   <span>Copy Post Link</span>
                 </button>
                 <button
@@ -228,9 +230,9 @@ export const PostDetailView: React.FC = () => {
                     setMenuOpen(false);
                     handleShare();
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] flex items-center gap-2.5 cursor-pointer"
+                  className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] flex items-center gap-2.5 cursor-pointer"
                 >
-                  <Share2 className="w-3.5 h-3.5 text-[#5420F5]" />
+                  <Share2 className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF]" />
                   <span>Share Post Card</span>
                 </button>
                 <button
@@ -239,9 +241,9 @@ export const PostDetailView: React.FC = () => {
                     togglePostBookmark(activePost.id);
                     setMenuOpen(false);
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] flex items-center gap-2.5 cursor-pointer"
+                  className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] flex items-center gap-2.5 cursor-pointer"
                 >
-                  <Bookmark className="w-3.5 h-3.5 text-[#5420F5]" />
+                  <Bookmark className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF]" />
                   <span>{activePost.isBookmarked ? 'Remove Bookmark' : 'Bookmark Post'}</span>
                 </button>
                 {canFollowAuthor && (
@@ -252,12 +254,12 @@ export const PostDetailView: React.FC = () => {
                         toggleFollowCreator(activePost.authorUsername);
                         setMenuOpen(false);
                       }}
-                      className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] flex items-center gap-2.5 cursor-pointer"
+                      className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] flex items-center gap-2.5 cursor-pointer"
                     >
                       {followingAuthor ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <UserPlus className="w-3.5 h-3.5 text-[#5420F5]" />
+                        <UserPlus className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF]" />
                       )}
                       <span className="truncate">
                         {followingAuthor
@@ -271,14 +273,14 @@ export const PostDetailView: React.FC = () => {
                         setMenuOpen(false);
                         openPublicAskFor(activePost.authorUsername);
                       }}
-                      className="w-full px-3.5 py-2 text-left text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] flex items-center gap-2.5 cursor-pointer"
+                      className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] flex items-center gap-2.5 cursor-pointer"
                     >
-                      <Send className="w-3.5 h-3.5 text-[#5420F5]" />
+                      <Send className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF]" />
                       <span className="truncate">Ask @{activePost.authorUsername}</span>
                     </button>
                   </>
                 )}
-                <div className="my-1 border-t border-[#EAE6F0]" />
+                <div className="my-1 border-t border-[#EAE6F0] dark:border-[#262036]" />
                 <button
                   type="button"
                   onClick={() => {
@@ -293,7 +295,7 @@ export const PostDetailView: React.FC = () => {
                         .slice(0, 140),
                     });
                   }}
-                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2.5 cursor-pointer"
+                  className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2.5 cursor-pointer"
                 >
                   <Flag className="w-3.5 h-3.5" />
                   <span>Report Post</span>
@@ -305,7 +307,7 @@ export const PostDetailView: React.FC = () => {
                       setMenuOpen(false);
                       deleteSocialPost(activePost.id);
                     }}
-                    className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 cursor-pointer"
+                    className="w-full min-h-[40px] px-3.5 py-2 text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete Post</span>
@@ -317,8 +319,8 @@ export const PostDetailView: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Focal Post (Flush White Hairline Surface) */}
-      <article className="px-4 sm:px-5 py-4 border-b border-[#EAE6F0] space-y-3.5">
+      {/* 2. Focal Post (Flush Hairline Surface) */}
+      <article className="px-4 sm:px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] space-y-3.5">
         <div className="flex items-start justify-between gap-2">
           <div
             onClick={() =>
@@ -335,12 +337,12 @@ export const PostDetailView: React.FC = () => {
                 seed={activePost.authorUsername}
                 size={42}
                 rounded="full"
-                className="ring-1 ring-[#EAE6F0] shrink-0"
+                className="ring-1 ring-[#EAE6F0] dark:ring-[#262036] shrink-0"
               />
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-sm font-black text-[#191525] group-hover:underline truncate">
+                <span className="text-sm font-black text-[#191525] dark:text-[#F4F2FA] group-hover:underline truncate">
                   {activePost.authorName}
                 </span>
                 <VerifiedCreatorBadge
@@ -350,7 +352,7 @@ export const PostDetailView: React.FC = () => {
                   size={15}
                 />
               </div>
-              <p className="text-xs text-[#706B7D] truncate">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                 {!activePost.isAnonymous && activePost.authorUsername
                   ? `@${activePost.authorUsername} · `
                   : ''}
@@ -365,7 +367,7 @@ export const PostDetailView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleFollowCreator(activePost.authorUsername)}
-                className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1 ${
+                className={`min-h-[36px] px-3 py-1 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1 ${
                   followingAuthor
                     ? 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] hover:bg-slate-100 dark:hover:bg-[#231A45]'
                     : 'bg-[#191525] dark:bg-[#F4F2FA] hover:bg-[#5420F5] dark:hover:bg-[#7C5CFF] text-white dark:text-[#191525] dark:hover:text-white'
@@ -392,13 +394,13 @@ export const PostDetailView: React.FC = () => {
         </div>
 
         {activePost.title && (
-          <h2 className="text-base sm:text-lg font-black text-[#191525] leading-snug">
+          <h2 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] leading-snug">
             <MentionText text={activePost.title} />
           </h2>
         )}
 
         {activePost.content && (
-          <p className="text-[15px] sm:text-base text-[#191525] font-normal leading-[1.58] whitespace-pre-wrap break-words">
+          <p className="text-[15px] sm:text-base text-[#191525] dark:text-[#F4F2FA] font-normal leading-[1.58] whitespace-pre-wrap break-words">
             <MentionText text={activePost.content} />
           </p>
         )}

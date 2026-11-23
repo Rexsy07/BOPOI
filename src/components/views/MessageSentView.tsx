@@ -50,8 +50,8 @@ export const MessageSentView: React.FC = () => {
     : 0;
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-10 px-4 sm:px-6 flex items-center justify-center">
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] shadow-xl space-y-6 text-center">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] py-10 px-4 sm:px-6 flex items-center justify-center">
+      <div className="w-full max-w-md bg-white dark:bg-[#171322] rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] dark:border-[#262036] shadow-xl space-y-6 text-center">
         {/* Celebratory 3D Mascot */}
         <div className="flex justify-center mb-1">
           <BopoiInteractiveMascot
@@ -62,12 +62,12 @@ export const MessageSentView: React.FC = () => {
         </div>
 
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#191525] flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#191525] dark:text-[#F4F2FA] flex items-center justify-center gap-2">
             <span>Message sent!</span>
             <ReceiveMessagesIcon size={28} />
           </h1>
-          <p className="text-sm text-[#706B7D] mt-1.5 leading-relaxed">
-            <span className="font-bold text-[#191525] inline-flex items-center gap-1 align-middle">
+          <p className="text-sm text-[#706B7D] dark:text-[#9E97B3] mt-1.5 leading-relaxed">
+            <span className="font-bold text-[#191525] dark:text-[#F4F2FA] inline-flex items-center gap-1 align-middle">
               <span>{recipientDisplayName}</span>
               <VerifiedCreatorBadge
                 isVerified={'isVerified' in recipient ? Boolean(recipient.isVerified) : false}
@@ -81,9 +81,9 @@ export const MessageSentView: React.FC = () => {
 
         {/* 1-on-1 Private Follow-up Convo Option */}
         {lastMessage && (
-          <div className="bg-[#FAF9FC] border border-[#5420F5]/20 rounded-2xl p-4 text-left space-y-3 shadow-2xs">
+          <div className="bg-[#FAF9FC] dark:bg-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 rounded-2xl p-4 text-left space-y-3 shadow-2xs">
             <div className="flex items-center justify-between text-xs gap-2">
-              <span className="font-extrabold text-[#5420F5] flex items-center gap-1.5 truncate">
+              <span className="font-extrabold text-[#5420F5] dark:text-[#B9A7FF] flex items-center gap-1.5 truncate">
                 <SafetyShieldBadgeIcon size={16} />
                 <span>Private 1-on-1 Convo</span>
               </span>
@@ -96,22 +96,23 @@ export const MessageSentView: React.FC = () => {
             </div>
 
             {/* Sent message quote */}
-            <div className="bg-white border border-[#EAE6F0] rounded-xl p-3 shadow-2xs">
-              <p className="text-xs font-semibold text-[#191525] line-clamp-2 italic">
+            <div className="bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl p-3 shadow-2xs">
+              <p className="text-xs font-semibold text-[#191525] dark:text-[#F4F2FA] line-clamp-2 italic">
                 "{lastMessage.text}"
               </p>
             </div>
 
-            <p className="text-xs text-slate-700 leading-snug font-medium">
+            <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-snug font-medium">
               Want to add a follow-up or check if {recipientDisplayName} replied? Only you and {recipientDisplayName} can see this conversation.
             </p>
 
             <button
+              type="button"
               onClick={() => {
                 markConvoAsRead(lastMessage.id, 'sender');
                 setShowThreadModal(true);
               }}
-              className="w-full py-2.5 px-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+              className="w-full min-h-[44px] py-2.5 px-3 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
             >
               <ReceiveMessagesIcon size={16} />
               <span>
@@ -125,27 +126,29 @@ export const MessageSentView: React.FC = () => {
         {/* Action Buttons */}
         <div className="space-y-2.5">
           <button
+            type="button"
             onClick={() => setActiveView('public-ask')}
-            className="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-[#EAE6F0] text-[#191525] font-extrabold text-xs sm:text-sm rounded-xl transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-2"
+            className="w-full min-h-[44px] py-3 px-4 bg-white dark:bg-[#0E0C14] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] font-extrabold text-xs sm:text-sm rounded-xl transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-2"
           >
-            <Send className="w-4 h-4 text-[#5420F5]" />
+            <Send className="w-4 h-4 text-[#5420F5] dark:text-[#B9A7FF]" />
             <span>Send another message to {recipientDisplayName}</span>
           </button>
         </div>
 
         {/* Context-Aware Bottom Card */}
-        <div className="bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center">
+        <div className="bg-[#FAF9FC] dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center">
           {isLoggedIn ? (
             <>
-              <h3 className="text-sm font-black text-[#191525]">
+              <h3 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
                 Continue exploring campus
               </h3>
-              <p className="text-xs text-[#706B7D] mt-1">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-1">
                 Jump back to the live campus feed or check your own anonymous inbox.
               </p>
               <button
+                type="button"
                 onClick={() => setActiveView('home')}
-                className="mt-3.5 px-6 py-2.5 bg-white border border-[#5420F5] text-[#5420F5] hover:bg-[#F0EBFF] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                className="mt-3.5 min-h-[44px] px-6 py-2.5 bg-white dark:bg-[#171322] border border-[#5420F5] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
               >
                 <span>Back to Campus Feed</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -153,15 +156,16 @@ export const MessageSentView: React.FC = () => {
             </>
           ) : (
             <>
-              <h3 className="text-sm font-black text-[#191525]">
+              <h3 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
                 Want your own anonymous link?
               </h3>
-              <p className="text-xs text-[#706B7D] mt-1">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-1">
                 Let your classmates and friends ask you anything. Free in 30 seconds.
               </p>
               <button
+                type="button"
                 onClick={() => setActiveView('register')}
-                className="mt-3.5 px-6 py-2.5 bg-white border border-[#5420F5] text-[#5420F5] hover:bg-[#F0EBFF] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                className="mt-3.5 min-h-[44px] px-6 py-2.5 bg-white dark:bg-[#171322] border border-[#5420F5] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
               >
                 <span>Create my link</span>
                 <ArrowRight className="w-3.5 h-3.5" />

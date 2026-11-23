@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import {
   X,
@@ -72,18 +72,39 @@ export const CreateRoomModal: React.FC = () => {
     [socialPosts, rooms]
   );
 
-  if (!isCreateRoomModalOpen) return null;
-
-  const parsedIcon = parseRoomIcon(iconEmoji, iconBg, category, name);
-  const hasUploadedPhoto =
-    parsedIcon.mode === 'image' && Boolean(parsedIcon.value);
-
   const handleClose = () => {
     if (roomStage === 'creating') return;
     setRoomStage('idle');
     setRoomTags([]);
     setIsCreateRoomModalOpen(false);
   };
+
+  useEffect(() => {
+    if (!isCreateRoomModalOpen) return;
+    try {
+      const prefill = sessionStorage.getItem('bopoi_prefill_room_name');
+      if (prefill) {
+        setName(prefill.slice(0, 45));
+        sessionStorage.removeItem('bopoi_prefill_room_name');
+      }
+    } catch {
+      // ignore
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isCreateRoomModalOpen, roomStage]);
+
+  if (!isCreateRoomModalOpen) return null;
+
+  const parsedIcon = parseRoomIcon(iconEmoji, iconBg, category, name);
+  const hasUploadedPhoto =
+    parsedIcon.mode === 'image' && Boolean(parsedIcon.value);
 
   const handleSelectCategory = (cat: string) => {
     setCategory(cat);
@@ -127,6 +148,9 @@ export const CreateRoomModal: React.FC = () => {
           tags: Array.from(new Set([category, ...roomTags, 'AnonymousRoom'])),
         });
         setRoomStage('idle');
+        setName('');
+        setDescription('');
+        setStarterMessage('');
         setRoomTags([]);
         setIsCreateRoomModalOpen(false);
       }, 480);
@@ -134,19 +158,27 @@ export const CreateRoomModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[92dvh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
+    <div
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[92dvh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200"
+      >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EAE6F0] bg-white sticky top-0 z-10 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-11 h-11 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] flex items-center justify-center shadow-2xs shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] sticky top-0 z-10 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shadow-2xs shrink-0">
               <CreateRoomIcon size={32} />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-[#191525]">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                 Create Anonymous Room
               </h2>
-              <p className="text-xs text-[#706B7D]">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                 Anyone on campus can join and chat anonymously
               </p>
             </div>
@@ -154,8 +186,9 @@ export const CreateRoomModal: React.FC = () => {
           <button
             type="button"
             onClick={handleClose}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-500 dark:text-[#9E97B3] hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors cursor-pointer shrink-0"
             title="Close"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -165,11 +198,11 @@ export const CreateRoomModal: React.FC = () => {
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
           {/* Room Name */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-[#191525]">
-              Room Name <span className="text-[#5420F5]">*</span>
+            <label className="block text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
+              Room Name <span className="text-[#5420F5] dark:text-[#B9A7FF]">*</span>
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#706B7D] dark:text-[#9E97B3] font-bold text-sm">
                 #
               </span>
               <input
@@ -179,15 +212,15 @@ export const CreateRoomModal: React.FC = () => {
                 placeholder="e.g. Midnight Confessions & Gist"
                 maxLength={45}
                 required
-                className="w-full pl-8 pr-4 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl text-base sm:text-sm font-bold text-[#191525] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] focus:bg-white dark:focus:bg-[#0E0C14] transition-all"
+                className="w-full pl-8 pr-4 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl text-base sm:text-sm font-bold text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] focus:bg-white dark:focus:bg-[#0E0C14] transition-all"
               />
             </div>
           </div>
 
           {/* Room Description / Topic */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-[#191525]">
-              Topic &amp; Rules <span className="text-[#5420F5]">*</span>
+            <label className="block text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
+              Topic &amp; Rules <span className="text-[#5420F5] dark:text-[#B9A7FF]">*</span>
             </label>
             <textarea
               value={description}
@@ -196,13 +229,13 @@ export const CreateRoomModal: React.FC = () => {
               rows={2}
               maxLength={150}
               required
-              className="w-full px-3.5 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl text-base sm:text-xs text-[#191525] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] focus:bg-white dark:focus:bg-[#0E0C14] transition-all resize-none"
+              className="w-full px-3.5 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] focus:bg-white dark:focus:bg-[#0E0C14] transition-all resize-none"
             />
           </div>
 
           {/* Category Selection */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-[#191525]">
+            <label className="block text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
               Category
             </label>
             <div className="flex flex-wrap gap-2">
@@ -213,15 +246,15 @@ export const CreateRoomModal: React.FC = () => {
                     key={cat}
                     type="button"
                     onClick={() => handleSelectCategory(cat)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-[#5420F5] text-white shadow-sm'
-                        : 'bg-[#FAF9FC] border border-[#EAE6F0] text-slate-600 dark:text-[#C5BFDB] hover:bg-slate-100 dark:hover:bg-[#201A32]'
+                        : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#C5BFDB] hover:bg-[#F0EBFF] dark:hover:bg-[#201A32]'
                     }`}
                   >
                     <span
                       className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                        isSelected ? 'bg-white shadow-2xs' : 'bg-purple-50 dark:bg-[#231A45]'
+                        isSelected ? 'bg-white shadow-2xs' : 'bg-[#F0EBFF] dark:bg-[#231A45]'
                       }`}
                     >
                       <BopoiIcon name={cat} size={13} />
@@ -278,16 +311,16 @@ export const CreateRoomModal: React.FC = () => {
               value={creatorAlias}
               onChange={(e) => setCreatorAlias(e.target.value)}
               placeholder="e.g. Night Owl"
-              className="w-full px-3 py-2 bg-white border border-[#EAE6F0] rounded-xl text-base sm:text-xs font-bold text-[#191525] focus:outline-none focus:border-[#5420F5]"
+              className="w-full px-3 py-2 bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-xs font-bold text-[#191525] dark:text-[#F4F2FA] focus:outline-none focus:border-[#5420F5]"
             />
-            <p className="text-[10px] text-slate-500 dark:text-[#9E97B3]">
+            <p className="text-[10px] text-[#706B7D] dark:text-[#9E97B3]">
               Your real account name will NOT be revealed. Members will only see this mask.
             </p>
           </div>
 
           {/* First Starter Message (Optional) */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-[#191525]">
+            <label className="block text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
               Conversation Starter Prompt (Optional)
             </label>
             <input
@@ -296,16 +329,16 @@ export const CreateRoomModal: React.FC = () => {
               onChange={(e) => setStarterMessage(e.target.value)}
               placeholder="e.g. Welcome everyone! Drop your hottest campus takes"
               maxLength={120}
-              className="w-full px-3.5 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl text-base sm:text-xs text-[#191525] placeholder:text-slate-400 focus:outline-none focus:border-[#5420F5]"
+              className="w-full px-3.5 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl text-base sm:text-xs text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5]"
             />
           </div>
 
           {/* Live Preview Card */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-black text-slate-400">
+            <span className="text-[10px] font-black text-[#706B7D] dark:text-[#9E97B3]">
               Live Room Directory Preview
             </span>
-            <div className="p-3.5 rounded-2xl border border-[#EAE6F0] bg-white flex items-center justify-between gap-3 shadow-xs">
+            <div className="p-3.5 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] flex items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
                 <RoomBadgeIcon
                   iconEmoji={iconEmoji}
@@ -316,17 +349,17 @@ export const CreateRoomModal: React.FC = () => {
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs font-black text-[#191525] truncate">
+                    <h4 className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                       #{name.trim() || 'Untitled Room'}
                     </h4>
-                    <span className="text-[9px] font-bold text-[#5420F5]">
+                    <span className="text-[9px] font-bold text-[#5420F5] dark:text-[#B9A7FF]">
                       · New
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#706B7D] truncate">
+                  <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate">
                     {description.trim() || 'No description yet.'}
                   </p>
-                  <div className="flex items-center gap-2 mt-1 text-[11px] text-[#706B7D] font-bold">
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-bold">
                     <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
                       1 online
                     </span>
@@ -343,12 +376,12 @@ export const CreateRoomModal: React.FC = () => {
         </form>
 
         {/* Footer Actions */}
-        <div className="p-4 sm:p-5 border-t border-[#EAE6F0] bg-[#FAF9FC] flex items-center justify-end gap-2.5 shrink-0">
+        <div className="p-4 sm:p-5 border-t border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex items-center justify-end gap-2.5 shrink-0">
           <button
             type="button"
             disabled={roomStage !== 'idle'}
             onClick={handleClose}
-            className="px-4 min-h-[40px] rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 dark:hover:bg-[#171322] text-xs font-bold text-[#191525] transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 min-h-[44px] rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] hover:bg-slate-100 dark:hover:bg-[#231A45] text-xs font-bold text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -356,7 +389,7 @@ export const CreateRoomModal: React.FC = () => {
             type="button"
             disabled={roomStage !== 'idle'}
             onClick={handleSubmit}
-            className={`px-5 min-h-[40px] rounded-xl text-white text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 disabled:cursor-not-allowed ${
+            className={`px-5 min-h-[44px] rounded-xl text-white text-xs font-black transition-all duration-200 cursor-pointer flex items-center gap-1.5 disabled:cursor-not-allowed ${
               roomStage === 'confirmed'
                 ? 'bg-emerald-600 shadow-emerald-600/25 scale-[0.99]'
                 : roomStage === 'creating'

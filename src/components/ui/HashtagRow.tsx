@@ -56,8 +56,8 @@ export const HashtagRow: React.FC<HashtagRowProps> = ({
               size === 'md' ? 'text-xs' : 'text-[11px]'
             } ${
               isCurrent
-                ? 'text-[#191525] underline'
-                : 'text-[#5420F5] hover:text-[#3810BC]'
+                ? 'text-[#191525] dark:text-[#F4F2FA] underline'
+                : 'text-[#5420F5] dark:text-[#B9A7FF] hover:text-[#3810BC] dark:hover:text-[#D1C4FF]'
             }`}
             title={`Explore posts & rooms tagged ${tag}`}
           >

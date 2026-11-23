@@ -100,10 +100,10 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="block text-xs font-black text-[#191525]">
-          Room Profile Photo <span className="text-[#5420F5]">*</span>
+        <label className="block text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
+          Room Profile Photo <span className="text-[#5420F5] dark:text-[#B9A7FF]">*</span>
         </label>
-        <span className="text-[10px] font-bold text-[#706B7D]">
+        <span className="text-[10px] font-bold text-[#706B7D] dark:text-[#9E97B3]">
           Required · Upload from Gallery
         </span>
       </div>
@@ -126,10 +126,10 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
         onDrop={handleDrop}
         className={`rounded-2xl border-2 border-dashed p-4 transition-all ${
           isDragging
-            ? 'border-[#5420F5] bg-[#F0EBFF]/60'
+            ? 'border-[#5420F5] bg-[#F0EBFF]/60 dark:bg-[#231A45]/70'
             : hasUploadedImage
-            ? 'border-[#5420F5]/30 bg-gradient-to-r from-[#F0EBFF]/40 via-white to-[#FAF9FC]'
-            : 'border-[#5420F5]/40 hover:border-[#5420F5] bg-[#FAF9FC]'
+            ? 'border-[#5420F5]/30 bg-gradient-to-r from-[#F0EBFF]/40 via-white to-[#FAF9FC] dark:from-[#231A45]/60 dark:via-[#171322] dark:to-[#0E0C14]'
+            : 'border-[#5420F5]/40 hover:border-[#5420F5] bg-[#FAF9FC] dark:bg-[#171322]'
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
@@ -150,34 +150,34 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
                   className="shrink-0"
                 />
               ) : (
-                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border-2 border-dashed border-[#5420F5]/50 flex items-center justify-center text-[#5420F5] group-hover:bg-[#5420F5]/15 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] dark:bg-[#231A45] border-2 border-dashed border-[#5420F5]/50 flex items-center justify-center text-[#5420F5] dark:text-[#B9A7FF] group-hover:bg-[#5420F5]/15 transition-colors">
                   <ImagePlus className="w-6 h-6" />
                 </div>
               )}
-              <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#5420F5] text-white border-2 border-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+              <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#5420F5] text-white border-2 border-white dark:border-[#0E0C14] flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
                 <ImagePlus className="w-3 h-3" />
               </span>
             </button>
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-black text-[#191525]">
+                <span className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
                   {hasUploadedImage
                     ? 'Gallery Profile Photo Uploaded'
                     : 'Upload Room Photo from Gallery'}
                 </span>
                 {hasUploadedImage ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                     <CheckCircle2 className="w-3 h-3" />
                     <span>Ready</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
                     Required
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#706B7D] leading-snug mt-0.5">
+              <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] leading-snug mt-0.5">
                 {hasUploadedImage
                   ? 'Your uploaded gallery photo will be shown as this room’s profile picture across Bopoi.'
                   : 'Select an image from your device gallery (JPG, PNG, WebP). Required to create or save a room.'}
@@ -190,7 +190,7 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
               type="button"
               onClick={handleOpenGalleryPicker}
               disabled={isUploadingImage}
-              className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm shadow-[#5420F5]/20 active:scale-95"
+              className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm shadow-[#5420F5]/20 active:scale-95"
             >
               <Upload className="w-3.5 h-3.5" />
               <span className="whitespace-nowrap">
@@ -206,8 +206,9 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 transition-colors cursor-pointer"
+                className="min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/60 transition-colors cursor-pointer flex items-center justify-center"
                 title="Remove uploaded photo"
+                aria-label="Remove uploaded photo"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -217,12 +218,12 @@ export const RoomIconStudioPicker: React.FC<RoomIconStudioPickerProps> = ({
       </div>
 
       {uploadError && (
-        <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold flex items-center justify-between">
+        <div className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] font-bold flex items-center justify-between">
           <span>{uploadError}</span>
           <button
             type="button"
             onClick={() => setUploadError(null)}
-            className="text-rose-500 hover:text-rose-800 cursor-pointer"
+            className="text-rose-500 hover:text-rose-800 dark:hover:text-rose-200 cursor-pointer p-1"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -263,6 +264,18 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
     }
   }, [isOpen, currentIconEmoji, currentIconBg]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const parsedDraft = parseRoomIcon(draftEmoji, draftBg, category, roomName);
@@ -280,10 +293,18 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200"
+      >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EAE6F0] bg-gradient-to-r from-[#FAF9FC] to-white shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <RoomBadgeIcon
               iconEmoji={draftEmoji}
@@ -293,10 +314,10 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
               size="sm"
             />
             <div className="min-w-0">
-              <h2 className="text-base font-black text-[#191525] truncate">
+              <h2 className="text-base font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                 Room Profile Photo
               </h2>
-              <p className="text-xs text-[#706B7D] truncate">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
                 #{roomName} · Upload from gallery
               </p>
             </div>
@@ -304,8 +325,9 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white transition-colors cursor-pointer shrink-0"
             title="Close"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -326,23 +348,23 @@ export const EditRoomIconModal: React.FC<EditRoomIconModalProps> = ({
           />
 
           {saveError && (
-            <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold">
+            <div className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] font-bold">
               {saveError}
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EAE6F0]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#EAE6F0] dark:border-[#262036]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+              className="min-h-[44px] px-4 py-2.5 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45] text-xs font-bold text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!hasUploadedPhoto}
-              className="px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 active:scale-95"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-[#5420F5]/25 active:scale-95"
             >
               Save Profile Photo
             </button>

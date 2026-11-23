@@ -70,6 +70,17 @@ export const CommentsThreadModal: React.FC<CommentsThreadModalProps> = ({
     markConvoAsRead(liveMessage.id, replyRole);
   }, [liveMessage.id, comments.length, replyRole]);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !showGifPicker && !mention.isOpen) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, showGifPicker, mention.isOpen]);
+
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() && !pendingGif?.mediaUrl) return;
@@ -129,7 +140,7 @@ export const CommentsThreadModal: React.FC<CommentsThreadModalProps> = ({
                   onClose();
                   setActiveView('answer-studio');
                 }}
-                className="min-h-[36px] px-2.5 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] text-[#5420F5] dark:text-[#B9A4FF] text-[11px] font-extrabold inline-flex items-center gap-1 hover:bg-[#5420F5] hover:text-white transition-colors cursor-pointer"
+                className="min-h-[40px] px-3 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] text-[#5420F5] dark:text-[#B9A4FF] text-[11px] font-extrabold inline-flex items-center gap-1 hover:bg-[#5420F5] hover:text-white transition-colors cursor-pointer"
                 title="Turn into Story Card"
               >
                 <Sparkles className="w-3 h-3" />
@@ -140,7 +151,7 @@ export const CommentsThreadModal: React.FC<CommentsThreadModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-5 h-5" />

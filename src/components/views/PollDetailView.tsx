@@ -80,23 +80,23 @@ export const PollDetailView: React.FC = () => {
 
   if (!post) {
     return (
-      <div className="w-full px-6 py-16 text-center space-y-3 bg-white">
-        <p className="text-sm font-black text-[#191525]">No active poll selected</p>
-        <p className="text-xs text-[#706B7D]">
+      <div className="w-full px-6 py-16 text-center space-y-3 bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]">
+        <p className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">No active poll selected</p>
+        <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
           Launch a campus poll to let students vote and discuss.
         </p>
         <div className="flex items-center justify-center gap-2 pt-2">
           <button
             type="button"
             onClick={() => goBack('polls')}
-            className="px-4 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] text-[#191525] text-xs font-bold rounded-xl cursor-pointer"
+            className="min-h-[44px] px-4 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl cursor-pointer"
           >
             Back
           </button>
           <button
             type="button"
             onClick={() => openCreateWithHashtag(undefined, 'poll')}
-            className="px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer"
+            className="min-h-[44px] px-5 py-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-extrabold rounded-xl cursor-pointer"
           >
             New Poll
           </button>
@@ -134,7 +134,7 @@ export const PollDetailView: React.FC = () => {
   const followingAuthor = canFollowAuthor ? isFollowingUser(post.authorUsername) : false;
 
   return (
-    <div className="w-full flex flex-col bg-white text-[#191525]">
+    <div className="w-full flex flex-col bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]">
       {/* 1. Sticky Top Header */}
       <div className="sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036] px-4 sm:px-5 h-[52px] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -164,7 +164,7 @@ export const PollDetailView: React.FC = () => {
                 targetPreview: (post.title || post.content).slice(0, 140),
               })
             }
-            className="min-w-[38px] min-h-[38px] rounded-full hover:bg-amber-50 dark:hover:bg-amber-950/30 text-[#706B7D] dark:text-[#9E97B3] hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer flex items-center justify-center"
+            className="min-w-[44px] min-h-[44px] sm:min-w-[38px] sm:min-h-[38px] rounded-full hover:bg-amber-50 dark:hover:bg-amber-950/30 text-[#706B7D] dark:text-[#9E97B3] hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer flex items-center justify-center"
             aria-label="Report poll"
             title="Report poll to moderators"
           >
@@ -174,7 +174,7 @@ export const PollDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => togglePostBookmark(post.id)}
-            className={`min-w-[38px] min-h-[38px] rounded-full hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer flex items-center justify-center ${
+            className={`min-w-[44px] min-h-[44px] sm:min-w-[38px] sm:min-h-[38px] rounded-full hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer flex items-center justify-center ${
               post.isBookmarked ? 'text-[#5420F5] dark:text-[#B9A7FF]' : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF]'
             }`}
             aria-label="Bookmark poll"
@@ -189,7 +189,7 @@ export const PollDetailView: React.FC = () => {
           <button
             type="button"
             onClick={() => openPostShare(post)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+            className="min-h-[38px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
           >
             <Share2 className="w-3.5 h-3.5" />
             <span>Share</span>
@@ -198,7 +198,7 @@ export const PollDetailView: React.FC = () => {
       </div>
 
       {/* 2. Focal Poll Content */}
-      <article className="px-4 sm:px-5 py-4 border-b border-[#EAE6F0] space-y-4">
+      <article className="px-4 sm:px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div
             onClick={() =>
@@ -211,7 +211,7 @@ export const PollDetailView: React.FC = () => {
             className="flex items-center gap-3 cursor-pointer group min-w-0"
           >
             {post.isAnonymous ? (
-              <div className="w-10 h-10 rounded-full bg-[#191525] flex items-center justify-center text-white shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#191525] dark:bg-[#231A45] border border-[#EAE6F0] dark:border-[#342954] flex items-center justify-center text-white shrink-0">
                 <PersonaMaskIcon mask="campus-pollster" size={22} />
               </div>
             ) : (
@@ -220,12 +220,12 @@ export const PollDetailView: React.FC = () => {
                 seed={post.authorUsername || post.authorName}
                 size={42}
                 rounded="full"
-                className="ring-1 ring-[#EAE6F0] shrink-0"
+                className="ring-1 ring-[#EAE6F0] dark:ring-[#262036] shrink-0"
               />
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-black text-[#191525] text-sm group-hover:underline truncate">
+                <span className="font-black text-[#191525] dark:text-[#F4F2FA] text-sm group-hover:underline truncate">
                   {post.isAnonymous ? 'Anonymous Pollster' : post.authorName}
                 </span>
                 <VerifiedCreatorBadge
@@ -235,7 +235,7 @@ export const PollDetailView: React.FC = () => {
                   size={15}
                 />
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-[#706B7D] mt-0.5 truncate">
+              <div className="flex items-center gap-1.5 text-xs text-[#706B7D] dark:text-[#9E97B3] mt-0.5 truncate">
                 <span className="truncate">{post.authorCampus || 'Campus Wide'}</span>
                 <span>·</span>
                 <span>{post.createdAt}</span>
@@ -245,7 +245,7 @@ export const PollDetailView: React.FC = () => {
 
           <div className="flex items-center gap-2 shrink-0">
             {post.pollExpiresIn && (
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#706B7D] shrink-0 tabular-nums">
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] shrink-0 tabular-nums">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{post.pollExpiresIn}</span>
               </span>
@@ -254,7 +254,7 @@ export const PollDetailView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleFollowCreator(post.authorUsername)}
-                className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1 ${
+                className={`min-h-[36px] px-3 py-1 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1 ${
                   followingAuthor
                     ? 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] hover:bg-slate-100 dark:hover:bg-[#231A45]'
                     : 'bg-[#191525] dark:bg-[#F4F2FA] hover:bg-[#5420F5] dark:hover:bg-[#7C5CFF] text-white dark:text-[#191525] dark:hover:text-white'
@@ -278,12 +278,12 @@ export const PollDetailView: React.FC = () => {
 
         <div className="space-y-1.5">
           {post.title && (
-            <span className="text-xs font-extrabold text-[#5420F5] block">
+            <span className="text-xs font-extrabold text-[#5420F5] dark:text-[#B9A7FF] block">
               <MentionText text={post.title} />
             </span>
           )}
           {post.content && (
-            <h2 className="text-base sm:text-lg font-black text-[#191525] leading-snug break-words">
+            <h2 className="text-base sm:text-lg font-black text-[#191525] dark:text-[#F4F2FA] leading-snug break-words">
               <MentionText text={post.content} />
             </h2>
           )}
@@ -312,7 +312,7 @@ export const PollDetailView: React.FC = () => {
                   key={opt.id}
                   type="button"
                   onClick={() => votePoll(post.id, opt.id)}
-                  className={`relative w-full text-left p-3.5 rounded-2xl border transition-colors cursor-pointer overflow-hidden ${
+                  className={`relative w-full min-h-[48px] text-left p-3.5 rounded-2xl border transition-colors cursor-pointer overflow-hidden ${
                     isSelected
                       ? 'border-[#5420F5] dark:border-[#7C5CFF] bg-[#FAF8FF] dark:bg-[#18132B]'
                       : 'border-[#EAE6F0] dark:border-[#262036] hover:border-[#C7B8FA] dark:hover:border-[#5420F5] bg-[#FAF9FC] dark:bg-[#171322]'
@@ -355,6 +355,11 @@ export const PollDetailView: React.FC = () => {
 
                     {showPercentages && (
                       <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                        {isSelected && (
+                          <span className="text-[10px] font-extrabold text-[#5420F5] dark:text-[#B9A7FF]">
+                            Your vote
+                          </span>
+                        )}
                         {hasVoted && (
                           <span className="text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3]">
                             {(opt.votes || 0).toLocaleString()}

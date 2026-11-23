@@ -499,7 +499,7 @@ export const HomeView: React.FC = () => {
                 key={c.value}
                 type="button"
                 onClick={() => setFeedCategory(c.value)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   isActive
                     ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
                     : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
@@ -517,7 +517,7 @@ export const HomeView: React.FC = () => {
               onClick={() =>
                 setCampusScope((prev) => (prev === 'all' ? 'my-campus' : 'all'))
               }
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
                 campusScope === 'my-campus'
                   ? 'bg-[#5420F5] text-white'
                   : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#9B82FF]'
@@ -534,25 +534,25 @@ export const HomeView: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 pl-2 border-l border-[#EAE6F0] dark:border-[#262036] shrink-0 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3]">
+        <div className="flex items-center gap-3 pl-2.5 border-l border-[#EAE6F0] dark:border-[#262036] shrink-0 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3]">
           <button
             type="button"
             onClick={() => setActiveView('confessions')}
-            className="hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
+            className="min-h-[36px] px-1 hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
           >
             Confessions
           </button>
           <button
             type="button"
             onClick={() => setActiveView('polls')}
-            className="hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
+            className="min-h-[36px] px-1 hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
           >
             Polls
           </button>
           <button
             type="button"
             onClick={() => setActiveView('discussions')}
-            className="hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
+            className="min-h-[36px] px-1 hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer whitespace-nowrap"
           >
             Topics
           </button>

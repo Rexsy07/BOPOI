@@ -98,11 +98,13 @@ export const ConfirmActionModal: React.FC = () => {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] animate-in zoom-in-95 duration-200"
+        className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl max-w-md w-full overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200"
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Structured Platform Header (Matches CreateRoomModal & RequiredCustomPersonaModal) */}
         <div
-          className={`p-4 sm:p-5 border-b border-[#EAE6F0] flex items-start justify-between gap-3 shrink-0 ${
+          className={`p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-start justify-between gap-3 shrink-0 ${
             isDanger
               ? 'bg-gradient-to-r from-rose-50/70 via-[#FAF9FC] to-white dark:from-rose-950/35 dark:via-[#141020] dark:to-[#0E0C14]'
               : isWarning
@@ -112,7 +114,7 @@ export const ConfirmActionModal: React.FC = () => {
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className={`w-11 h-11 rounded-2xl bg-white flex items-center justify-center p-1.5 shadow-2xs shrink-0 border ${
+              className={`w-11 h-11 rounded-2xl bg-white dark:bg-[#171322] flex items-center justify-center p-1.5 shadow-2xs shrink-0 border ${
                 isDanger
                   ? 'border-rose-200/90 dark:border-rose-900/60'
                   : isWarning
@@ -138,14 +140,14 @@ export const ConfirmActionModal: React.FC = () => {
                     {confirmDialog.badge}
                   </span>
                 )}
-                <span className="text-[10px] font-bold text-[#706B7D]">
+                <span className="text-[10px] font-bold text-[#706B7D] dark:text-[#9E97B3]">
                   {roomPreview ? 'Campus Group Room' : 'Bopoi Safety Check'}
                 </span>
               </div>
 
               <h2
                 id="bopoi-confirm-title"
-                className="text-sm sm:text-base font-black text-[#191525] leading-snug"
+                className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA] leading-snug"
               >
                 {confirmDialog.title}
               </h2>
@@ -155,7 +157,7 @@ export const ConfirmActionModal: React.FC = () => {
           <button
             type="button"
             onClick={closeConfirmDialog}
-            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer shrink-0"
+            className="min-w-[44px] min-h-[44px] -mr-2 -mt-1 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-400 dark:text-[#9E97B3] hover:text-black dark:hover:text-white transition-colors cursor-pointer shrink-0 flex items-center justify-center"
             aria-label="Cancel"
             title="Close"
           >
@@ -168,7 +170,7 @@ export const ConfirmActionModal: React.FC = () => {
           {roomPreview ? (
             <>
               {/* Campus Group Preview Card (Matches RoomsView & CreateRoomModal Directory Card) */}
-              <div className="p-3.5 rounded-2xl border border-[#EAE6F0] bg-[#FAF9FC] flex items-start gap-3 shadow-2xs">
+              <div className="p-3.5 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex items-start gap-3 shadow-2xs">
                 <RoomBadgeIcon
                   iconEmoji={roomPreview.iconEmoji}
                   iconBg={roomPreview.iconBg}
@@ -179,11 +181,11 @@ export const ConfirmActionModal: React.FC = () => {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h4 className="text-xs sm:text-sm font-black text-[#191525] truncate">
+                    <h4 className="text-xs sm:text-sm font-black text-[#191525] dark:text-[#F4F2FA] truncate">
                       #{roomPreview.name}
                     </h4>
 
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-[#EAE6F0] text-[#5420F5] inline-flex items-center gap-1">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#A78BFA] inline-flex items-center gap-1">
                       <BopoiIcon name={roomPreview.category} size={11} />
                       <span>{roomPreview.category}</span>
                     </span>
@@ -200,14 +202,14 @@ export const ConfirmActionModal: React.FC = () => {
                   </div>
 
                   {roomPreview.description && (
-                    <p className="text-xs text-[#706B7D] line-clamp-2 leading-snug mt-1">
+                    <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-2 leading-snug mt-1">
                       {roomPreview.description}
                     </p>
                   )}
 
                   <div className="flex items-center gap-2 mt-2 text-[11px] font-bold text-slate-500 dark:text-[#9E97B3]">
-                    <span className="flex items-center gap-1 text-[#191525]">
-                      <Users2 className="w-3.5 h-3.5 text-[#5420F5]" />
+                    <span className="flex items-center gap-1 text-[#191525] dark:text-[#F4F2FA]">
+                      <Users2 className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#8E6BFF]" />
                       <span>
                         {roomPreview.membersCount}{' '}
                         {roomPreview.membersCount === 1 ? 'member' : 'members'}
@@ -224,15 +226,15 @@ export const ConfirmActionModal: React.FC = () => {
               {/* Anonymous Persona Assurance Banner or Leave/Delete Notice */}
               {isRoomJoinAction ? (
                 <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] via-purple-50 to-white dark:from-[#231A45] dark:via-[#171322] dark:to-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white border border-[#5420F5]/20 flex items-center justify-center p-1 shrink-0 shadow-2xs">
+                  <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center justify-center p-1 shrink-0 shadow-2xs">
                     <PersonaMaskIcon mask="masked-student" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[#191525] flex items-center gap-1">
-                      <Shield className="w-3 h-3 text-[#5420F5] shrink-0" />
+                    <p className="text-[11px] font-black text-[#191525] dark:text-[#F4F2FA] flex items-center gap-1">
+                      <Shield className="w-3 h-3 text-[#5420F5] dark:text-[#8E6BFF] shrink-0" />
                       <span>100% Anonymous Campus Mask</span>
                     </p>
-                    <p className="text-[11px] text-[#706B7D] leading-snug mt-0.5">
+                    <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] leading-snug mt-0.5">
                       {confirmDialog.description}
                     </p>
                   </div>
@@ -245,7 +247,7 @@ export const ConfirmActionModal: React.FC = () => {
                       : 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-900/60'
                   }`}
                 >
-                  <p className="text-xs text-[#191525] font-medium leading-relaxed">
+                  <p className="text-xs text-[#191525] dark:text-[#F4F2FA] font-medium leading-relaxed">
                     {confirmDialog.description}
                   </p>
                 </div>
@@ -262,17 +264,17 @@ export const ConfirmActionModal: React.FC = () => {
                   : 'bg-gradient-to-r from-[#F0EBFF]/60 via-[#FAF9FC] to-white dark:from-[#231A45]/70 dark:via-[#171322] dark:to-[#0E0C14] border-[#5420F5]/20 dark:border-[#7C5CFF]/30'
               }`}
             >
-              <p className="text-xs sm:text-sm text-[#191525] font-semibold leading-relaxed break-words">
+              <p className="text-xs sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-semibold leading-relaxed break-words">
                 {confirmDialog.description}
               </p>
-              <p className="text-[11px] text-[#706B7D] flex items-center gap-1.5">
+              <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1.5">
                 <Shield
                   className={`w-3.5 h-3.5 shrink-0 ${
                     isDanger
                       ? 'text-rose-500'
                       : isWarning
                       ? 'text-amber-600'
-                      : 'text-[#5420F5]'
+                      : 'text-[#5420F5] dark:text-[#8E6BFF]'
                   }`}
                 />
                 <span>
@@ -286,11 +288,11 @@ export const ConfirmActionModal: React.FC = () => {
         </div>
 
         {/* Platform Footer Action Bar (Matches CreateRoomModal & RequiredCustomPersonaModal) */}
-        <div className="p-4 sm:p-5 border-t border-[#EAE6F0] bg-[#FAF9FC] flex items-center justify-between gap-2.5 shrink-0">
+        <div className="p-4 sm:p-5 border-t border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex items-center justify-between gap-2.5 shrink-0">
           <button
             type="button"
             onClick={closeConfirmDialog}
-            className="px-4 py-2.5 rounded-xl border border-[#EAE6F0] bg-white hover:bg-slate-100 dark:hover:bg-[#171322] text-xs font-bold text-slate-700 dark:text-[#D5D0E6] transition-colors cursor-pointer active:scale-95"
+            className="min-h-[44px] px-4 py-2.5 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] hover:bg-slate-100 dark:hover:bg-[#231942] text-xs font-bold text-slate-700 dark:text-[#D5D0E6] transition-colors cursor-pointer active:scale-95"
           >
             {confirmDialog.cancelLabel || 'Cancel'}
           </button>
@@ -298,7 +300,7 @@ export const ConfirmActionModal: React.FC = () => {
           <button
             type="button"
             onClick={handleConfirm}
-            className={`px-5 py-2.5 rounded-xl text-white text-xs font-black transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`min-h-[44px] px-5 py-2.5 rounded-xl text-white text-xs font-black transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-95 ${
               isDanger
                 ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
                 : isWarning

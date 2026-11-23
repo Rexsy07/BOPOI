@@ -211,14 +211,14 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-white">
+    <div className="flex flex-col bg-white dark:bg-[#0E0C14]">
       {/* 1. Replies Header Strip */}
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[#EAE6F0] gap-2 flex-wrap">
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-[#EAE6F0] dark:border-[#262036] gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs sm:text-sm font-black text-[#191525] tracking-tight">
+          <h3 className="text-xs sm:text-sm font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight">
             Replies
           </h3>
-          <span className="text-xs font-bold text-[#706B7D] tabular-nums">
+          <span className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
             · {comments.length}
           </span>
         </div>
@@ -267,16 +267,16 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
       {/* 2. Threads-Style Hairline Replies Stream with Vertical Connectors */}
       {comments.length === 0 ? (
         <div className="px-6 py-12 text-center space-y-2">
-          <div className="w-10 h-10 mx-auto rounded-full bg-[#FAF9FC] border border-[#EAE6F0] text-[#5420F5] flex items-center justify-center">
+          <div className="w-10 h-10 mx-auto rounded-full bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] flex items-center justify-center">
             <MessageSquare className="w-4 h-4" />
           </div>
-          <p className="text-xs font-black text-[#191525]">No replies yet</p>
-          <p className="text-xs text-[#706B7D]">
+          <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">No replies yet</p>
+          <p className="text-xs text-[#706B7D] dark:text-[#9E97B3]">
             Be the first to share your thoughts or @mention classmates below.
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-[#EAE6F0]">
+        <div className="divide-y divide-[#EAE6F0] dark:divide-[#262036]">
           {sortedRootComments.map((comment) => {
             const replies = repliesByParent[comment.id] || [];
             const isCollapsed = collapsedThreads[comment.id] || false;
@@ -314,14 +314,14 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                           seed={comment.authorUsername}
                           size={32}
                           rounded="full"
-                          className="ring-1 ring-[#EAE6F0]"
+                          className="ring-1 ring-[#EAE6F0] dark:ring-[#262036]"
                         />
                       )}
                     </div>
 
                     {showReplies && (
                       <div
-                        className="w-[1.5px] flex-1 bg-[#EAE6F0] mt-2 rounded-full min-h-[16px]"
+                        className="w-[1.5px] flex-1 bg-[#EAE6F0] dark:bg-[#262036] mt-2 rounded-full min-h-[16px]"
                         aria-hidden="true"
                       />
                     )}
@@ -339,7 +339,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                         }
                         className="flex items-center gap-1.5 flex-wrap min-w-0 cursor-pointer group"
                       >
-                        <span className="text-xs font-black text-[#191525] group-hover:underline truncate">
+                        <span className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] group-hover:underline truncate">
                           {comment.authorName}
                         </span>
                         <VerifiedCreatorBadge
@@ -355,16 +355,16 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                           post?.authorUsername &&
                           comment.authorUsername?.toLowerCase() ===
                             post.authorUsername.toLowerCase() && (
-                            <span className="text-[11px] font-black text-[#5420F5] shrink-0">
+                            <span className="text-[11px] font-black text-[#5420F5] dark:text-[#B9A7FF] shrink-0">
                               · Author
                             </span>
                           )}
                         {comment.authorCampus && (
-                          <span className="text-[11px] text-[#706B7D] truncate">
+                          <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate">
                             · {comment.authorCampus}
                           </span>
                         )}
-                        <span className="text-[11px] text-[#706B7D] shrink-0">
+                        <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] shrink-0">
                           · {comment.createdAt}
                         </span>
                       </div>
@@ -381,18 +381,18 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                     )}
 
                     {comment.text && (
-                      <p className="text-[13px] sm:text-sm text-[#191525] font-normal leading-relaxed break-words">
+                      <p className="text-[13px] sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-normal leading-relaxed break-words">
                         <MentionText text={comment.text} />
                       </p>
                     )}
 
                     {/* Root Comment Actions */}
-                    <div className="flex items-center justify-between text-xs text-[#706B7D] pt-0.5 -ml-2 tabular-nums">
+                    <div className="flex items-center justify-between text-xs text-[#706B7D] dark:text-[#9E97B3] pt-0.5 -ml-2 tabular-nums">
                       <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                         <button
                           type="button"
                           onClick={() => toggleCommentLike(postId, comment.id)}
-                          className={`min-h-[34px] px-2 rounded-full flex items-center gap-1 transition-colors cursor-pointer hover:bg-pink-50 dark:hover:bg-pink-950/30 ${
+                          className={`min-h-[38px] px-2.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer hover:bg-pink-50 dark:hover:bg-pink-950/30 ${
                             comment.hasLiked ? 'text-[#F52D85] font-bold' : 'hover:text-[#F52D85]'
                           }`}
                         >
@@ -411,7 +411,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                               comment.authorUsername
                             )
                           }
-                          className="min-h-[34px] px-2 rounded-full flex items-center gap-1 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer font-bold text-[11px]"
+                          className="min-h-[38px] px-2.5 rounded-full flex items-center gap-1 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer font-bold text-[11px]"
                         >
                           <CornerDownRight className="w-3.5 h-3.5" />
                           <span>Reply</span>
@@ -420,7 +420,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                         <button
                           type="button"
                           onClick={() => shareCommentLink(postId, comment.id, comment.authorName)}
-                          className="min-h-[34px] px-2 rounded-full flex items-center gap-1 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer font-bold text-[11px]"
+                          className="min-h-[38px] px-2.5 rounded-full flex items-center gap-1 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer font-bold text-[11px]"
                           title="Share direct link to this comment"
                         >
                           <Share2 className="w-3 h-3" />
@@ -438,7 +438,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                               );
                               bottomMention.insertMention(comment.authorUsername);
                             }}
-                            className="hidden sm:inline-flex min-h-[34px] px-2 rounded-full items-center gap-0.5 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer text-[11px] font-semibold"
+                            className="hidden sm:inline-flex min-h-[38px] px-2.5 rounded-full items-center gap-0.5 hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer text-[11px] font-semibold"
                             title={`Reply and mention @${comment.authorUsername}`}
                           >
                             <AtSign className="w-3 h-3 text-[#5420F5] dark:text-[#B9A7FF]" />
@@ -451,7 +451,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleThreadCollapse(comment.id)}
-                          className="flex items-center gap-1 text-[11px] font-bold text-[#5420F5] hover:underline cursor-pointer px-2 py-1"
+                          className="flex items-center gap-1 text-[11px] font-bold text-[#5420F5] dark:text-[#B9A7FF] hover:underline cursor-pointer px-2 py-1 min-h-[36px]"
                         >
                           <span>
                             {isCollapsed
@@ -496,14 +496,14 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                                   seed={reply.authorUsername}
                                   size={26}
                                   rounded="full"
-                                  className="ring-1 ring-[#EAE6F0]"
+                                  className="ring-1 ring-[#EAE6F0] dark:ring-[#262036]"
                                 />
                               )}
                             </div>
 
                             {hasNextReply && (
                               <div
-                                className="w-[1.5px] flex-1 bg-[#EAE6F0] mt-1.5 rounded-full min-h-[12px]"
+                                className="w-[1.5px] flex-1 bg-[#EAE6F0] dark:bg-[#262036] mt-1.5 rounded-full min-h-[12px]"
                                 aria-hidden="true"
                               />
                             )}
@@ -521,7 +521,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                                 }
                                 className="flex items-center gap-1.5 flex-wrap cursor-pointer group min-w-0"
                               >
-                                <span className="text-xs font-extrabold text-[#191525] group-hover:underline truncate">
+                                <span className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] group-hover:underline truncate">
                                   {reply.authorName}
                                 </span>
                                 <VerifiedCreatorBadge
@@ -537,17 +537,17 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                                   post?.authorUsername &&
                                   reply.authorUsername?.toLowerCase() ===
                                     post.authorUsername.toLowerCase() && (
-                                    <span className="text-[10px] font-black text-[#5420F5] shrink-0">
+                                    <span className="text-[10px] font-black text-[#5420F5] dark:text-[#B9A7FF] shrink-0">
                                       · Author
                                     </span>
                                   )}
-                                <span className="text-[11px] text-[#706B7D]">
+                                <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3]">
                                   · {reply.createdAt}
                                 </span>
                               </div>
 
                               {reply.replyToAuthor && (
-                                <span className="text-[10px] font-bold text-[#5420F5] shrink-0">
+                                <span className="text-[10px] font-bold text-[#5420F5] dark:text-[#B9A7FF] shrink-0">
                                   ↳ @{reply.replyToAuthor}
                                 </span>
                               )}
@@ -564,7 +564,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                             )}
 
                             {reply.text && (
-                              <p className="text-[13px] text-[#191525] font-normal leading-relaxed break-words">
+                              <p className="text-[13px] text-[#191525] dark:text-[#F4F2FA] font-normal leading-relaxed break-words">
                                 <MentionText text={reply.text} />
                               </p>
                             )}
@@ -573,7 +573,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                               <button
                                 type="button"
                                 onClick={() => toggleCommentLike(postId, reply.id)}
-                                className={`min-h-[32px] px-2 rounded-full flex items-center gap-1 hover:bg-pink-50 dark:hover:bg-pink-950/30 hover:text-[#F52D85] cursor-pointer ${
+                                className={`min-h-[36px] px-2 rounded-full flex items-center gap-1 hover:bg-pink-50 dark:hover:bg-pink-950/30 hover:text-[#F52D85] cursor-pointer ${
                                   reply.hasLiked ? 'text-[#F52D85] font-bold' : ''
                                 }`}
                               >
@@ -592,7 +592,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                                     reply.authorUsername
                                   )
                                 }
-                                className="min-h-[32px] px-2 rounded-full hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] cursor-pointer flex items-center gap-1 font-bold"
+                                className="min-h-[36px] px-2 rounded-full hover:text-[#5420F5] dark:hover:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] cursor-pointer flex items-center gap-1 font-bold"
                               >
                                 <CornerDownRight className="w-3 h-3" />
                                 <span>Reply</span>
@@ -634,7 +634,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
           />
 
           {replyingTo && (
-            <div className="w-full bg-[#191525] text-white px-3 py-1.5 rounded-xl text-xs flex items-center justify-between gap-2">
+            <div className="w-full bg-[#191525] dark:bg-[#231A45] text-white px-3 py-1.5 rounded-xl text-xs flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 font-bold truncate min-w-0 flex-1">
                 <CornerDownRight className="w-3.5 h-3.5 text-[#FFC928] shrink-0" />
                 <span className="truncate">
@@ -663,18 +663,18 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
           )}
 
           {pendingGif && (
-            <div className="bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-2 px-3 flex items-center justify-between gap-2.5">
+            <div className="bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-2 px-3 flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
                 <img
                   src={pendingGif.mediaUrl}
                   alt={pendingGif.title}
-                  className="w-10 h-10 rounded-xl object-cover border border-[#EAE6F0] shrink-0"
+                  className="w-10 h-10 rounded-xl object-cover border border-[#EAE6F0] dark:border-[#262036] shrink-0"
                 />
                 <div className="min-w-0">
-                  <span className="text-[11px] font-black text-[#5420F5]">
+                  <span className="text-[11px] font-black text-[#5420F5] dark:text-[#B9A7FF]">
                     GIF Attached
                   </span>
-                  <p className="text-[11px] text-[#706B7D] truncate">
+                  <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate">
                     Add a comment or send GIF now
                   </p>
                 </div>
@@ -682,7 +682,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
               <button
                 type="button"
                 onClick={() => setPendingGif(null)}
-                className="p-1.5 rounded-full hover:bg-rose-50 text-[#706B7D] hover:text-rose-600 cursor-pointer shrink-0"
+                className="p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 cursor-pointer shrink-0"
                 title="Remove GIF"
               >
                 <X className="w-3.5 h-3.5" />
@@ -693,12 +693,12 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
           {isLoggedIn ? (
             <form
               onSubmit={handleBottomSubmit}
-              className="w-full bg-[#FAF9FC] border border-[#EAE6F0] focus-within:border-[#5420F5] rounded-2xl p-1.5 pl-2 flex items-center gap-1.5 transition-colors"
+              className="w-full bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] focus-within:border-[#5420F5] dark:focus-within:border-[#7C5CFF] rounded-2xl p-1.5 pl-2 flex items-center gap-1.5 transition-colors"
             >
               <button
                 type="button"
                 onClick={() => setIsBottomAnonymous(!isBottomAnonymous)}
-                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shrink-0 border inline-flex items-center gap-1 ${
+                className={`min-h-[36px] px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors cursor-pointer shrink-0 border inline-flex items-center gap-1 ${
                   isBottomAnonymous
                     ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525] border-[#191525] dark:border-[#F4F2FA]'
                     : 'bg-white dark:bg-[#0E0C14] text-[#706B7D] dark:text-[#9E97B3] border-[#EAE6F0] dark:border-[#262036] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
@@ -713,7 +713,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={bottomMention.togglePicker}
-                className={`p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 flex items-center gap-0.5 text-xs font-bold ${
+                className={`min-h-[36px] min-w-[36px] p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 flex items-center justify-center text-xs font-bold ${
                   bottomMention.isOpen
                     ? 'bg-[#5420F5] text-white'
                     : 'text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
@@ -733,7 +733,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                   bottomMention.dismiss();
                   setShowGifPicker(true);
                 }}
-                className={`px-2 py-1.5 rounded-xl text-[10px] font-black tracking-wide transition-colors cursor-pointer shrink-0 border ${
+                className={`min-h-[36px] px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-wide transition-colors cursor-pointer shrink-0 border ${
                   pendingGif
                     ? 'bg-[#5420F5] text-white border-[#5420F5]'
                     : 'bg-white dark:bg-[#0E0C14] text-[#5420F5] dark:text-[#B9A7FF] border-[#EAE6F0] dark:border-[#262036] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
@@ -765,13 +765,13 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                     ? `Reply to @${replyingTo.authorName}...`
                     : 'Write a reply or @mention...'
                 }
-                className="w-0 min-w-0 flex-1 bg-transparent text-base sm:text-sm text-[#191525] placeholder:text-[#706B7D] focus:outline-none px-1"
+                className="w-0 min-w-0 flex-1 bg-transparent text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none px-1"
               />
 
               <button
                 type="submit"
                 disabled={!bottomCommentText.trim() && !pendingGif}
-                className="w-9 h-9 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-colors cursor-pointer disabled:opacity-35 shrink-0 flex items-center justify-center"
+                className="w-10 h-10 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-colors cursor-pointer disabled:opacity-35 shrink-0 flex items-center justify-center"
                 title={replyingTo ? 'Send reply' : 'Send reply'}
               >
                 <Send className="w-4 h-4 shrink-0" />
@@ -783,9 +783,9 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                 showToast('Please sign in to comment or reply.', 'info');
                 setActiveView('profile');
               }}
-              className="w-full bg-[#FAF9FC] border border-[#EAE6F0] rounded-2xl p-2 pl-3.5 flex items-center justify-between gap-2 cursor-pointer hover:border-[#5420F5]/40 transition-colors"
+              className="w-full bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-2 pl-3.5 flex items-center justify-between gap-2 cursor-pointer hover:border-[#5420F5]/40 transition-colors"
             >
-              <span className="text-xs font-bold text-[#706B7D] truncate min-w-0 flex-1">
+              <span className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] truncate min-w-0 flex-1">
                 Sign in to reply, vote, or like
               </span>
               <button
@@ -794,7 +794,7 @@ export const SocialCommentsThread: React.FC<SocialCommentsThreadProps> = ({
                   e.stopPropagation();
                   setActiveView('profile');
                 }}
-                className="px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-colors cursor-pointer shrink-0"
+                className="min-h-[38px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-colors cursor-pointer shrink-0"
               >
                 Sign In
               </button>

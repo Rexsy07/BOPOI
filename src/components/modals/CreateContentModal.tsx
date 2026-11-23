@@ -405,9 +405,11 @@ export const CreateContentModal: React.FC = () => {
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-lg bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#EAE6F0] dark:border-[#262036] overflow-hidden flex flex-col max-h-[92dvh] animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-lg bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#EAE6F0] dark:border-[#262036] overflow-hidden flex flex-col max-h-[92dvh] animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between bg-white dark:bg-[#0E0C14] sticky top-0 z-10">
           <div className="flex items-center gap-3">
@@ -432,7 +434,7 @@ export const CreateContentModal: React.FC = () => {
           <button
             type="button"
             onClick={handleClose}
-            className="min-w-[40px] min-h-[40px] p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-500 dark:text-[#9E97B3] hover:text-black dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+            className="min-w-[44px] min-h-[44px] -mr-2 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-slate-500 dark:text-[#9E97B3] hover:text-black dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -449,29 +451,29 @@ export const CreateContentModal: React.FC = () => {
                   key={item.type}
                   type="button"
                   onClick={() => handleSelectType(item.type)}
-                  className={`w-full p-3.5 sm:p-4 rounded-2xl border border-[#EAE6F0] flex items-center justify-between text-left transition-colors cursor-pointer group active:scale-[0.99] ${item.cardStyle}`}
+                  className={`w-full p-3.5 sm:p-4 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between text-left transition-colors cursor-pointer group active:scale-[0.99] ${item.cardStyle}`}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl bg-white border border-[#EAE6F0] flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 rounded-2xl bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center shrink-0">
                       {item.icon}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <h4
-                          className={`text-sm font-black text-[#191525] transition-colors ${item.accentColor}`}
+                          className={`text-sm font-black text-[#191525] dark:text-[#F4F2FA] transition-colors ${item.accentColor}`}
                         >
                           {item.title}
                         </h4>
                         {item.note && (
-                          <span className="text-[11px] font-semibold text-[#5420F5]">
+                          <span className="text-[11px] font-semibold text-[#5420F5] dark:text-[#B9A7FF]">
                             · {item.note}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#706B7D] mt-0.5 leading-snug">{item.desc}</p>
+                      <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-0.5 leading-snug">{item.desc}</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#706B7D] group-hover:text-[#191525] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                  <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] group-hover:text-[#191525] dark:group-hover:text-[#F4F2FA] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
                 </button>
               ))}
 
@@ -643,10 +645,10 @@ export const CreateContentModal: React.FC = () => {
                         mention.dismiss();
                         setShowGifPicker(true);
                       }}
-                      className={`min-h-[28px] px-2 py-0.5 rounded-lg text-[11px] font-black transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                      className={`min-h-[34px] px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors cursor-pointer inline-flex items-center gap-1 ${
                         pendingGif
                           ? 'bg-[#5420F5] text-white'
-                          : 'bg-[#FAF9FC] border border-[#EAE6F0] text-[#5420F5] hover:bg-[#F0EBFF]'
+                          : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
                       }`}
                       title="Attach a GIF"
                     >
@@ -657,10 +659,10 @@ export const CreateContentModal: React.FC = () => {
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={mention.togglePicker}
-                      className={`min-h-[28px] px-2 py-0.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                      className={`min-h-[34px] px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1 ${
                         mention.isOpen
                           ? 'bg-[#5420F5] text-white'
-                          : 'bg-[#FAF9FC] border border-[#EAE6F0] text-[#706B7D] hover:text-[#5420F5]'
+                          : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF]'
                       }`}
                       title="Mention a student (@)"
                     >
@@ -695,7 +697,7 @@ export const CreateContentModal: React.FC = () => {
                         ? 'Add some thoughts to kick off the conversation... Use @ to tag students'
                         : 'Tell the campus what is on your mind today... Use @ to mention or # for tags'
                     }
-                    className="w-full px-3.5 py-2.5 bg-[#FAF9FC] border border-[#EAE6F0] rounded-xl text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] resize-none"
+                    className="w-full px-3.5 py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5] resize-none"
                     required={selectedType !== 'poll' && !pendingGif && !quotedPost}
                   />
 
@@ -709,7 +711,7 @@ export const CreateContentModal: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-[#706B7D] tabular-nums">
+                <div className="flex items-center justify-between text-[11px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
                   <span>Tip: Ctrl/⌘ + Enter to publish</span>
                   <div className="flex items-center gap-2">
                     <span>{480 - content.length} left</span>
@@ -732,7 +734,7 @@ export const CreateContentModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPendingGif(null)}
-                      className="p-1.5 rounded-full bg-[#FAF9FC] border border-[#EAE6F0] text-[#706B7D] hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                      className="min-w-[36px] min-h-[36px] p-1.5 rounded-full bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
                       title="Remove GIF"
                       aria-label="Remove GIF"
                     >
@@ -744,7 +746,7 @@ export const CreateContentModal: React.FC = () => {
                 {/* Embedded Quote Post Preview */}
                 {quotedPost && (
                   <div className="pt-1 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5420F5]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5420F5] dark:text-[#B9A7FF]">
                       <Repeat2 className="w-3.5 h-3.5" />
                       <span>Quoting post</span>
                     </div>
@@ -786,7 +788,7 @@ export const CreateContentModal: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleAddPollOption}
-                        className="text-xs font-bold text-[#5420F5] flex items-center gap-1 cursor-pointer"
+                        className="min-h-[36px] px-2 text-xs font-bold text-[#5420F5] dark:text-[#B9A7FF] flex items-center gap-1 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Option</span>
@@ -803,14 +805,15 @@ export const CreateContentModal: React.FC = () => {
                         placeholder={`Option ${idx + 1} (e.g. ${
                           idx === 0 ? 'Indomie' : idx === 1 ? 'Jollof Rice' : 'Spaghetti'
                         })`}
-                        className="flex-1 px-3 py-2 bg-[#FAF9FC] border border-[#EAE6F0] rounded-xl text-base sm:text-sm font-semibold text-[#191525] focus:outline-none focus:border-[#5420F5]"
+                        className="flex-1 min-h-[40px] px-3 py-2 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-base sm:text-sm font-semibold text-[#191525] dark:text-[#F4F2FA] placeholder:text-slate-400 dark:placeholder:text-[#7D7594] focus:outline-none focus:border-[#5420F5]"
                         required
                       />
                       {pollOptions.length > 2 && (
                         <button
                           type="button"
                           onClick={() => handleRemovePollOption(idx)}
-                          className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                          className="min-w-[40px] min-h-[40px] p-2 text-slate-400 dark:text-[#9E97B3] hover:text-red-500 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                          aria-label={`Remove option ${idx + 1}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -839,7 +842,7 @@ export const CreateContentModal: React.FC = () => {
                   type="button"
                   disabled={publishStage !== 'idle'}
                   onClick={handleClose}
-                  className="w-1/3 min-h-[44px] border border-[#EAE6F0] rounded-xl text-xs font-bold text-[#191525] hover:bg-[#FAF9FC] transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-1/3 min-h-[44px] border border-[#EAE6F0] dark:border-[#262036] rounded-xl text-xs font-bold text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>

@@ -172,6 +172,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
     setActiveReportTicketId(null);
   }, [activeReportTicketId, userModerationReports, setActiveReportTicketId]);
 
+  useEffect(() => {
+    if (!settingsDrawerOpen && !activeModal) return;
+    if (activeChatTicket || activeModal === 'character-studio' || followModalTab) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (activeModal) {
+        if (activeModal === 'edit-profile' && saveProfileStage !== 'idle') return;
+        if (activeModal === 'help' && supportStage !== 'idle') return;
+        e.preventDefault();
+        setActiveModal(null);
+      } else if (settingsDrawerOpen) {
+        e.preventDefault();
+        setSettingsDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    settingsDrawerOpen,
+    activeModal,
+    activeChatTicket,
+    followModalTab,
+    saveProfileStage,
+    supportStage,
+  ]);
+
   if (!isAuthenticated || !user.username || user.username === 'student') {
     return <RegisterView initialMode="login" />;
   }
@@ -656,7 +682,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                       key={f.id}
                       type="button"
                       onClick={() => setPostFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 tabular-nums whitespace-nowrap ${
+                      className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 tabular-nums whitespace-nowrap ${
                         isActive
                           ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
                           : 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
@@ -914,7 +940,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                     key={f.id}
                     type="button"
                     onClick={() => setSavedFilter(f.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 tabular-nums whitespace-nowrap ${
+                    className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 tabular-nums whitespace-nowrap ${
                       isActive
                         ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
                         : 'bg-white dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] border border-[#EAE6F0] dark:border-[#262036]'
@@ -1019,7 +1045,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               <button
                 type="button"
                 onClick={() => setSettingsDrawerOpen(false)}
-                className="min-h-[40px] min-w-[40px] rounded-full flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                className="min-h-[44px] min-w-[44px] -mr-1.5 rounded-full flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
                 aria-label="Close settings"
               >
                 <X className="w-5 h-5" />
@@ -1364,14 +1390,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
       {/* 1. Edit Profile Modal */}
       {activeModal === 'edit-profile' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
+        <div
+          onClick={() => {
+            if (saveProfileStage === 'idle') setActiveModal(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[90dvh] overflow-y-auto"
+          >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto -mt-2 mb-1 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">Edit Profile</h3>
               <button
                 type="button"
-                onClick={() => setActiveModal(null)}
-                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                onClick={() => {
+                  if (saveProfileStage === 'idle') setActiveModal(null);
+                }}
+                className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                aria-label="Close edit profile"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1487,8 +1525,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
       {/* 2. Safety & Privacy Modal */}
       {activeModal === 'safety' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar">
+        <div
+          onClick={() => setActiveModal(null)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar"
+          >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto -mt-2 mb-1 sm:hidden" />
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
@@ -1501,7 +1546,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
+                className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                aria-label="Close safety modal"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1593,7 +1639,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="w-full min-h-[42px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer"
+              className="w-full min-h-[44px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer"
             >
               Done
             </button>
@@ -1603,16 +1649,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
 
       {/* 3. Help & Support Modal */}
       {activeModal === 'help' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[88dvh] overflow-y-auto">
+        <div
+          onClick={() => {
+            if (supportStage === 'idle') setActiveModal(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] p-6 w-full max-w-md space-y-4 shadow-2xl max-h-[88dvh] overflow-y-auto"
+          >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto -mt-2 mb-1 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
                 Help, Privacy &amp; Support
               </h3>
               <button
                 type="button"
-                onClick={() => setActiveModal(null)}
-                className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
+                onClick={() => {
+                  if (supportStage === 'idle') setActiveModal(null);
+                }}
+                className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
+                aria-label="Close help modal"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1726,6 +1784,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             onClick={(e) => e.stopPropagation()}
             className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md space-y-4 shadow-2xl border border-[#EAE6F0] dark:border-[#262036] max-h-[85dvh] flex flex-col"
           >
+            <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto -mt-2 mb-1 sm:hidden shrink-0" />
             <div className="flex items-center justify-between gap-2 shrink-0">
               <div>
                 <h3 className="text-base font-black text-[#191525] dark:text-[#F4F2FA]">
@@ -1747,7 +1806,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                       defaultSubject: 'General Question',
                     });
                   }}
-                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>New</span>
@@ -1755,7 +1814,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer"
+                  className="min-h-[44px] min-w-[44px] -mr-2 flex items-center justify-center rounded-full text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#171322] cursor-pointer"
                   aria-label="Close"
                 >
                   <X className="w-5 h-5" />
@@ -1872,7 +1931,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
             <button
               type="button"
               onClick={() => setActiveModal(null)}
-              className="w-full min-h-[42px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer shrink-0"
+              className="w-full min-h-[44px] py-2.5 bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-xs font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-[#231942] cursor-pointer shrink-0"
             >
               Done
             </button>

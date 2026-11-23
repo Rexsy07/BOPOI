@@ -280,14 +280,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
   // Dedicated University Picker Page when user taps the university field during sign up
   if (authMode === 'signup' && showCampusPickerPage) {
     return (
-      <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-8 px-4 sm:px-6 flex items-center justify-center">
-        <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] shadow-xl space-y-6 animate-in fade-in duration-150">
+      <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] dark:bg-[#09070D] py-8 px-4 sm:px-6 flex items-center justify-center">
+        <div className="w-full max-w-lg bg-white dark:bg-[#0E0C14] rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] dark:border-[#262036] shadow-xl space-y-6 animate-in fade-in duration-150">
           {/* Top Navigation Bar */}
           <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={() => setShowCampusPickerPage(false)}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-black cursor-pointer"
+              className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Sign Up</span>
@@ -297,14 +297,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
           {/* Page Header */}
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#5420F5] mb-1">
+            <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#5420F5] dark:text-[#9B82FF] mb-1">
               <School className="w-4 h-4" />
               <span>Select University</span>
             </div>
-            <h1 className="text-2xl font-black text-[#191525] tracking-tight">
+            <h1 className="text-2xl font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight">
               Choose your university
             </h1>
-            <p className="text-xs sm:text-sm text-[#706B7D] mt-1">
+            <p className="text-xs sm:text-sm text-[#706B7D] dark:text-[#9E97B3] mt-1">
               Tap your university below to connect with students on your campus
             </p>
           </div>
@@ -319,8 +319,18 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               value={campusSearchQuery}
               onChange={(e) => setCampusSearchQuery(e.target.value)}
               placeholder="Search university..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 bg-[#FAF9FC]"
+              className="w-full pl-10 pr-10 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 bg-[#FAF9FC] dark:bg-[#171322]"
             />
+            {campusSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setCampusSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-[#706B7D] hover:text-[#191525] dark:hover:text-white cursor-pointer"
+                aria-label="Clear university search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* University List */}
@@ -338,8 +348,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     }}
                     className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#F0EBFF] border-[#5420F5] ring-2 ring-[#5420F5]/15'
-                        : 'bg-[#FAF9FC] hover:bg-white border-[#EAE6F0] hover:border-[#5420F5]/50'
+                        ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5] ring-2 ring-[#5420F5]/15'
+                        : 'bg-[#FAF9FC] dark:bg-[#171322] hover:bg-white dark:hover:bg-[#1D182B] border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5]/50'
                     }`}
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
@@ -347,17 +357,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                         className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
                           isSelected
                             ? 'bg-[#5420F5] text-white'
-                            : 'bg-white border border-[#EAE6F0] text-[#5420F5]'
+                            : 'bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#9B82FF]'
                         }`}
                       >
                         <School className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-sm font-black text-[#191525] block truncate">
+                        <span className="text-sm font-black text-[#191525] dark:text-[#F4F2FA] block truncate">
                           {uni.name}
                         </span>
-                        <span className="text-xs text-[#706B7D] flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-[#5420F5] shrink-0" />
+                        <span className="text-xs text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-[#5420F5] dark:text-[#9B82FF] shrink-0" />
                           <span className="truncate">
                             {uni.location} · {uni.description}
                           </span>
@@ -369,7 +379,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                       className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                         isSelected
                           ? 'bg-[#5420F5] text-white'
-                          : 'border border-slate-300 bg-white text-transparent'
+                          : 'border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#0E0C14] text-transparent'
                       }`}
                     >
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -378,13 +388,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                 );
               })
             ) : (
-              <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-[#EAE6F0] bg-[#FAF9FC] flex flex-col items-center justify-center space-y-2.5">
-                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] border border-[#5420F5]/15 flex items-center justify-center mx-auto p-2 shadow-2xs">
+              <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex flex-col items-center justify-center space-y-2.5">
+                <div className="w-14 h-14 rounded-2xl bg-[#F0EBFF] dark:bg-[#231A45] border border-[#5420F5]/15 flex items-center justify-center mx-auto p-2 shadow-2xs">
                   <SearchEmptyIcon size={36} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-[#191525]">No matching university found</p>
-                  <p className="text-[11px] text-[#706B7D] mt-1">
+                  <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                    No matching university found
+                  </p>
+                  <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] mt-1">
                     Only Chrisland University is currently available.
                   </p>
                 </div>
@@ -396,14 +408,24 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
     );
   }
 
+  const passwordStrength =
+    password.length === 0
+      ? 0
+      : password.length < 8
+      ? 1
+      : /[A-Z]/.test(password) && /[0-9]/.test(password) && password.length >= 10
+      ? 3
+      : 2;
+
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] py-8 px-4 sm:px-6 flex items-center justify-center">
-      <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] shadow-xl space-y-6">
+    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#FAF9FC] dark:bg-[#09070D] py-8 px-4 sm:px-6 flex items-center justify-center">
+      <div className="w-full max-w-lg bg-white dark:bg-[#0E0C14] rounded-3xl p-6 sm:p-8 border border-[#EAE6F0] dark:border-[#262036] shadow-xl space-y-6">
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={() => setActiveView('home')}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-black cursor-pointer"
+            className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Feed</span>
@@ -412,17 +434,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
         </div>
 
         {/* Mode Switcher Tabs: Create Account vs Log In */}
-        <div className="grid grid-cols-2 gap-1.5 bg-[#FAF9FC] p-1.5 rounded-2xl border border-[#EAE6F0]">
+        <div className="grid grid-cols-2 gap-1.5 bg-[#FAF9FC] dark:bg-[#171322] p-1.5 rounded-2xl border border-[#EAE6F0] dark:border-[#262036]">
           <button
             type="button"
             onClick={() => {
               setAuthMode('signup');
               setLoginError(null);
             }}
-            className={`py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               authMode === 'signup'
                 ? 'bg-[#5420F5] text-white shadow-xs'
-                : 'text-[#706B7D] hover:text-[#191525]'
+                : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -434,10 +456,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               setAuthMode('login');
               setLoginError(null);
             }}
-            className={`py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`min-h-[44px] py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               authMode === 'login'
                 ? 'bg-[#5420F5] text-white shadow-xs'
-                : 'text-[#706B7D] hover:text-[#191525]'
+                : 'text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
             }`}
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -448,10 +470,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
         {authMode === 'signup' ? (
           <>
             <div>
-              <h1 className="text-2xl font-black text-[#191525] tracking-tight">
+              <h1 className="text-2xl font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight">
                 Create your student account
               </h1>
-              <p className="text-xs sm:text-sm text-[#706B7D] mt-1">
+              <p className="text-xs sm:text-sm text-[#706B7D] dark:text-[#9E97B3] mt-1">
                 Design your 3D campus character and get your anonymous link in seconds
               </p>
             </div>
@@ -547,7 +569,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
                 {/* Expandable Full Trait Customizer */}
                 {showBuilder && (
-                  <div className="bg-white text-[#191525] rounded-2xl p-3.5 shadow-inner animate-in fade-in duration-150">
+                  <div className="bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-2xl p-3.5 shadow-inner animate-in fade-in duration-150">
                     <CharacterBuilderPanel
                       initialValue={characterUri}
                       fallbackSeed={username || 'new_student'}
@@ -562,8 +584,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               {/* Display Name */}
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold text-[#191525]">Display name</label>
-                  <span className="text-[10px] text-[#706B7D]">{displayName.length}/30</span>
+                  <label className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                    Display name
+                  </label>
+                  <span className="text-[10px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
+                    {displayName.length}/30
+                  </span>
                 </div>
                 <input
                   type="text"
@@ -571,32 +597,34 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Enter your display name"
-                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC]"
+                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] dark:bg-[#171322]"
                   required
                 />
               </div>
 
               {/* Username */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-[#191525]">Username</label>
+                <div className="flex items-center justify-between mb-1 min-h-[18px]">
+                  <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                    Username
+                  </label>
                   {usernameStatus === 'available' && (
-                    <span className="text-[10px] font-extrabold text-emerald-600">
+                    <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400">
                       @{username} is available
                     </span>
                   )}
                   {usernameStatus === 'taken' && (
-                    <span className="text-[10px] font-extrabold text-rose-600">
+                    <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">
                       @{username} is already taken
                     </span>
                   )}
                   {usernameStatus === 'too-short' && (
-                    <span className="text-[10px] font-bold text-amber-600">
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
                       At least 3 characters
                     </span>
                   )}
                   {usernameStatus === 'checking' && (
-                    <span className="text-[10px] font-bold text-[#5420F5]">
+                    <span className="text-[10px] font-bold text-[#5420F5] dark:text-[#9B82FF]">
                       Checking availability...
                     </span>
                   )}
@@ -609,12 +637,12 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                       setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))
                     }
                     placeholder="your_username"
-                    className={`w-full pl-4 pr-10 py-3 rounded-xl border text-base sm:text-sm text-[#191525] focus:outline-none transition-all bg-[#FAF9FC] ${
+                    className={`w-full pl-4 pr-10 py-3 rounded-xl border text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none transition-all bg-[#FAF9FC] dark:bg-[#171322] ${
                       usernameStatus === 'available'
                         ? 'border-emerald-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10'
                         : usernameStatus === 'taken'
                         ? 'border-rose-500 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10'
-                        : 'border-[#EAE6F0] focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10'
+                        : 'border-[#EAE6F0] dark:border-[#262036] focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10'
                     }`}
                     required
                   />
@@ -640,47 +668,49 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     </div>
                   )}
                 </div>
-                <span className="text-[11px] text-[#706B7D] mt-1 block">
+                <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] mt-1 block">
                   Your link will be: bopoi.com/@{username || 'username'}/ask
                 </span>
               </div>
 
-              {/* Campus / University Selection (Starts empty, opens University Page on tap) */}
+              {/* Campus / University Selection */}
               <div>
-                <label className="text-xs font-bold text-[#191525] mb-1 flex items-center gap-1.5">
-                  <School className="w-3.5 h-3.5 text-[#5420F5]" />
+                <label className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1 flex items-center gap-1.5">
+                  <School className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#9B82FF]" />
                   <span>Your University</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowCampusPickerPage(true)}
-                  className={`w-full px-4 py-3 rounded-xl border text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                  className={`w-full min-h-[48px] px-4 py-3 rounded-xl border text-left flex items-center justify-between gap-2 transition-all cursor-pointer ${
                     campus
-                      ? 'border-[#5420F5]/40 bg-[#FAF9FC] text-[#191525]'
-                      : 'border-[#EAE6F0] bg-[#FAF9FC] text-[#706B7D] hover:border-[#5420F5]/40'
+                      ? 'border-[#5420F5]/40 bg-[#FAF9FC] dark:bg-[#171322] text-[#191525] dark:text-[#F4F2FA]'
+                      : 'border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:border-[#5420F5]/40'
                   }`}
                 >
                   <span
                     className={`text-base sm:text-sm truncate ${
-                      campus ? 'font-bold text-[#191525]' : 'text-[#706B7D]'
+                      campus ? 'font-bold text-[#191525] dark:text-[#F4F2FA]' : 'text-[#706B7D] dark:text-[#9E97B3]'
                     }`}
                   >
                     {campus || 'Tap to choose your university'}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {campus && (
-                      <span className="text-[11px] font-bold text-[#5420F5]">Change</span>
+                      <span className="text-[11px] font-bold text-[#5420F5] dark:text-[#9B82FF]">
+                        Change
+                      </span>
                     )}
-                    <ChevronRight className="w-4 h-4 text-[#706B7D]" />
+                    <ChevronRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3]" />
                   </div>
                 </button>
               </div>
 
-              {/* Campus Interests (Lookalike Cold-Start Activation Signals) */}
+              {/* Campus Interests */}
               <div>
-                <label className="text-xs font-bold text-[#191525] mb-1.5 flex items-center justify-between">
+                <label className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1.5 flex items-center justify-between">
                   <span>Pick your campus vibes (personalizes your feed &amp; rooms)</span>
-                  <span className="text-[11px] font-bold text-[#5420F5]">
+                  <span className="text-[11px] font-bold text-[#5420F5] dark:text-[#9B82FF] tabular-nums">
                     {selectedTags.length} selected
                   </span>
                 </label>
@@ -701,10 +731,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                         key={tag}
                         type="button"
                         onClick={() => toggleInterestTag(tag)}
-                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        className={`min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           active
                             ? 'bg-[#5420F5] text-white shadow-2xs'
-                            : 'bg-[#FAF9FC] border border-[#EAE6F0] text-[#706B7D] hover:text-[#191525]'
+                            : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white'
                         }`}
                       >
                         {tag}
@@ -716,20 +746,39 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-bold text-[#191525] mb-1">Email</label>
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="student@campus.edu.ng"
-                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC]"
+                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] dark:bg-[#171322]"
                   required
                 />
               </div>
 
-              {/* Password */}
+              {/* Password + Micro Strength Bar */}
               <div>
-                <label className="block text-xs font-bold text-[#191525] mb-1">Password</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                    Password
+                  </label>
+                  {password.length > 0 && (
+                    <span
+                      className={`text-[10px] font-extrabold ${
+                        passwordStrength === 3
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : passwordStrength === 2
+                          ? 'text-[#5420F5] dark:text-[#9B82FF]'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }`}
+                    >
+                      {passwordStrength === 3 ? 'Strong' : passwordStrength === 2 ? 'Good' : 'Min 8 chars'}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -737,29 +786,48 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 8 characters"
                     minLength={8}
-                    className="w-full pl-4 pr-11 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC]"
+                    className="w-full pl-4 pr-11 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] dark:bg-[#171322]"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {password.length > 0 && (
+                  <div className="grid grid-cols-3 gap-1 mt-1.5">
+                    {[1, 2, 3].map((lvl) => (
+                      <div
+                        key={lvl}
+                        className={`h-1 rounded-full transition-colors ${
+                          passwordStrength >= lvl
+                            ? passwordStrength === 3
+                              ? 'bg-emerald-500'
+                              : passwordStrength === 2
+                              ? 'bg-[#5420F5]'
+                              : 'bg-amber-500'
+                            : 'bg-[#EAE6F0] dark:bg-[#262036]'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Terms Agreement with interactive Legal Modal triggers */}
+              {/* Terms Agreement */}
               <div className="flex items-start gap-2.5 pt-1">
                 <input
                   type="checkbox"
                   id="terms"
                   checked={agreeTerms}
                   onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="mt-1 rounded border-slate-300 text-[#5420F5] focus:ring-[#5420F5] cursor-pointer"
+                  className="mt-1 rounded border-[#EAE6F0] dark:border-[#262036] accent-[#5420F5] cursor-pointer"
                 />
-                <label htmlFor="terms" className="text-xs text-[#706B7D] leading-relaxed">
+                <label htmlFor="terms" className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-relaxed">
                   I agree to the{' '}
                   <button
                     type="button"
@@ -856,17 +924,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
           /* LOG IN VIEW */
           <div className="space-y-5 animate-in fade-in duration-200">
             <div>
-              <h1 className="text-2xl font-black text-[#191525] tracking-tight">
+              <h1 className="text-2xl font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight">
                 Welcome back
               </h1>
-              <p className="text-xs sm:text-sm text-[#706B7D] mt-1">
+              <p className="text-xs sm:text-sm text-[#706B7D] dark:text-[#9E97B3] mt-1">
                 Log in with your username or email to access your campus account
               </p>
             </div>
 
             <form onSubmit={handleLoginSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[#191525] mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Username or Email
                 </label>
                 <input
@@ -878,13 +946,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     setLoginError(null);
                   }}
                   placeholder="Enter your username or email"
-                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] disabled:opacity-60"
+                  className="w-full px-4 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] dark:bg-[#171322] disabled:opacity-60"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#191525] mb-1">
+                <label className="block text-xs font-bold text-[#191525] dark:text-[#F4F2FA] mb-1">
                   Password
                 </label>
                 <div className="relative">
@@ -897,14 +965,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                       setLoginError(null);
                     }}
                     placeholder="••••••••••••"
-                    className="w-full pl-4 pr-11 py-3 rounded-xl border border-[#EAE6F0] text-base sm:text-sm text-[#191525] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] disabled:opacity-60"
+                    className="w-full pl-4 pr-11 py-3 rounded-xl border border-[#EAE6F0] dark:border-[#262036] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] focus:outline-none focus:border-[#5420F5] focus:ring-2 focus:ring-[#5420F5]/10 transition-all bg-[#FAF9FC] dark:bg-[#171322] disabled:opacity-60"
                     required
                   />
                   <button
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer"
                     title={showLoginPassword ? 'Hide password' : 'Show password'}
                   >
                     {showLoginPassword ? (
@@ -917,7 +985,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               </div>
 
               {loginError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                   <span className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
                     <X className="w-2.5 h-2.5 stroke-[3]" />
                   </span>
@@ -926,7 +994,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               )}
 
               {loginStage === 'confirmed' && confirmedLoginUser && (
-                <div className="p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="p-3 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
                   <CampusCharacterAvatar
                     value={confirmedLoginUser.avatarUrl}
                     seed={confirmedLoginUser.username}
@@ -935,10 +1003,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                     className="ring-2 ring-emerald-500/40 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black text-emerald-950 truncate">
+                    <p className="text-xs font-black text-emerald-950 dark:text-emerald-200 truncate">
                       Signed in as {confirmedLoginUser.displayName}
                     </p>
-                    <p className="text-[11px] font-semibold text-emerald-700 truncate">
+                    <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 truncate">
                       @{confirmedLoginUser.username} · {confirmedLoginUser.campus || 'Campus'}
                     </p>
                   </div>
@@ -951,7 +1019,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
               <button
                 type="submit"
                 disabled={loginStage !== 'idle'}
-                className={`w-full py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden ${
+                className={`w-full min-h-[48px] py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative overflow-hidden ${
                   loginStage === 'confirmed'
                     ? 'bg-emerald-600 text-white shadow-emerald-600/25 scale-[0.99]'
                     : loginStage === 'verifying'

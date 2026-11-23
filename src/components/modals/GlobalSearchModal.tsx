@@ -189,16 +189,20 @@ export const GlobalSearchModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[115] flex items-end sm:items-start justify-center sm:pt-14 px-0 sm:px-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[115] flex items-end sm:items-start justify-center sm:pt-14 px-0 sm:px-6 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={() => setIsSearchModalOpen(false)}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] shadow-2xl overflow-hidden flex flex-col max-h-[88dvh]"
+        className="w-full max-w-2xl bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] shadow-2xl overflow-hidden flex flex-col max-h-[88dvh]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sm:hidden pt-2.5 pb-0.5 flex justify-center shrink-0">
+          <span className="w-10 h-1 rounded-full bg-[#EAE6F0] dark:bg-[#2E2744]" />
+        </div>
+
         {/* Top Search Input Bar */}
-        <div className="p-3.5 sm:p-4 bg-white text-[#191525] flex items-center gap-3 border-b border-[#EAE6F0]">
-          <div className="w-9 h-9 rounded-xl bg-[#F0EBFF] border border-[#5420F5]/20 flex items-center justify-center shrink-0">
+        <div className="p-3.5 sm:p-4 bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] flex items-center gap-3 border-b border-[#EAE6F0] dark:border-[#262036]">
+          <div className="w-9 h-9 rounded-xl bg-[#F0EBFF] dark:bg-[#231A45] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center justify-center shrink-0">
             <BopoiSearchIcon size={18} />
           </div>
           <input
@@ -215,13 +219,13 @@ export const GlobalSearchModal: React.FC = () => {
               }
             }}
             placeholder="Search confessions, polls, rooms (#gist), or @students..."
-            className="flex-1 bg-transparent text-[#191525] placeholder:text-[#706B7D] text-base sm:text-sm font-semibold focus:outline-none min-w-0"
+            className="flex-1 bg-transparent text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#9E97B3] text-base sm:text-sm font-semibold focus:outline-none min-w-0"
           />
           {globalSearchQuery && (
             <button
               type="button"
               onClick={() => setGlobalSearchQuery('')}
-              className="px-2.5 min-h-[34px] rounded-xl bg-[#FAF9FC] hover:bg-[#EAE6F0]/60 border border-[#EAE6F0] text-[11px] font-bold text-[#706B7D] hover:text-[#191525] transition-colors shrink-0 cursor-pointer"
+              className="px-2.5 min-h-[36px] rounded-xl bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#EAE6F0]/60 dark:hover:bg-[#231A45] border border-[#EAE6F0] dark:border-[#262036] text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors shrink-0 cursor-pointer"
             >
               Clear
             </button>
@@ -229,7 +233,7 @@ export const GlobalSearchModal: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsSearchModalOpen(false)}
-            className="w-9 h-9 rounded-full bg-[#FAF9FC] hover:bg-[#EAE6F0]/70 flex items-center justify-center text-[#706B7D] hover:text-[#191525] transition-colors shrink-0 cursor-pointer"
+            className="min-w-[44px] min-h-[44px] sm:min-w-[38px] sm:min-h-[38px] rounded-full bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#EAE6F0]/70 dark:hover:bg-[#231A45] flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors shrink-0 cursor-pointer"
             aria-label="Close search"
           >
             <X className="w-4 h-4" />
@@ -252,7 +256,7 @@ export const GlobalSearchModal: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-3 min-h-[36px] rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3 min-h-[38px] rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
                   activeFilter === tab.id
                     ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
                     : 'bg-white dark:bg-[#0E0C14] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] border border-[#EAE6F0] dark:border-[#262036]'
@@ -266,9 +270,9 @@ export const GlobalSearchModal: React.FC = () => {
 
         {/* Quick Recent Searches (when input empty) & Trending Hashtags */}
         {!query && recentSearches.length > 0 && (
-          <div className="px-4 py-2 bg-[#FAF9FC]/70 border-b border-[#EAE6F0] flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
+          <div className="px-4 py-2 bg-[#FAF9FC]/70 dark:bg-[#141020] border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <span className="text-[11px] font-extrabold text-[#706B7D] flex items-center gap-1 mr-1 shrink-0">
+              <span className="text-[11px] font-extrabold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1 mr-1 shrink-0">
                 <Clock className="w-3 h-3" /> Recent:
               </span>
               {recentSearches.map((term) => (
@@ -276,7 +280,7 @@ export const GlobalSearchModal: React.FC = () => {
                   key={term}
                   type="button"
                   onClick={() => setGlobalSearchQuery(term)}
-                  className="px-2.5 min-h-[28px] rounded-lg bg-white hover:bg-[#F0EBFF] hover:text-[#5420F5] border border-[#EAE6F0] text-[#191525] text-[11px] font-bold transition-colors shrink-0 cursor-pointer"
+                  className="px-2.5 min-h-[30px] rounded-lg bg-white dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-[11px] font-bold transition-colors shrink-0 cursor-pointer"
                 >
                   {term}
                 </button>
@@ -285,7 +289,7 @@ export const GlobalSearchModal: React.FC = () => {
             <button
               type="button"
               onClick={clearRecentSearches}
-              className="text-[10px] font-bold text-[#706B7D] hover:text-rose-600 shrink-0 cursor-pointer"
+              className="text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 dark:hover:text-rose-400 shrink-0 cursor-pointer"
             >
               Clear
             </button>
@@ -293,8 +297,8 @@ export const GlobalSearchModal: React.FC = () => {
         )}
 
         {dynamicTags.length > 0 && (
-          <div className="px-4 py-2.5 bg-white border-b border-[#EAE6F0] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-            <span className="text-[11px] font-extrabold text-[#706B7D] flex items-center gap-1 mr-1 shrink-0">
+          <div className="px-4 py-2.5 bg-white dark:bg-[#0E0C14] border-b border-[#EAE6F0] dark:border-[#262036] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+            <span className="text-[11px] font-extrabold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1 mr-1 shrink-0">
               <LaunchTrendingIcon size={14} /> Trending:
             </span>
             {dynamicTags.map((item) => (
@@ -306,7 +310,7 @@ export const GlobalSearchModal: React.FC = () => {
                   saveRecentSearch(item.tag);
                   setGlobalSearchQuery(tagText);
                 }}
-                className="px-2.5 min-h-[30px] rounded-lg bg-[#FAF9FC] hover:bg-[#F0EBFF] hover:text-[#5420F5] border border-[#EAE6F0] text-[#191525] text-[11px] font-bold transition-colors flex items-center gap-0.5 shrink-0 cursor-pointer"
+                className="px-2.5 min-h-[32px] rounded-lg bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] text-[11px] font-bold transition-colors flex items-center gap-0.5 shrink-0 cursor-pointer"
               >
                 <Hash className="w-2.5 h-2.5 opacity-60" />
                 <span>{item.tag.replace(/^#/, '')}</span>
@@ -316,12 +320,12 @@ export const GlobalSearchModal: React.FC = () => {
         )}
 
         {/* Results Container */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-6 flex-1 bg-white">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-6 flex-1 bg-white dark:bg-[#0E0C14]">
           {/* Rooms Section */}
           {(activeFilter === 'all' || activeFilter === 'rooms') && matchedRooms.length > 0 && (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold text-[#706B7D] flex items-center gap-1.5 tabular-nums">
+                <h3 className="text-xs font-extrabold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1.5 tabular-nums">
                   <CreateRoomIcon size={16} />
                   Anonymous Campus Rooms ({matchedRooms.length})
                 </h3>
@@ -331,7 +335,7 @@ export const GlobalSearchModal: React.FC = () => {
                     setIsSearchModalOpen(false);
                     setActiveView('rooms');
                   }}
-                  className="text-[11px] font-extrabold text-[#5420F5] hover:underline cursor-pointer"
+                  className="text-[11px] font-extrabold text-[#5420F5] dark:text-[#B9A7FF] hover:underline cursor-pointer"
                 >
                   View all rooms →
                 </button>
@@ -346,7 +350,7 @@ export const GlobalSearchModal: React.FC = () => {
                       setIsSearchModalOpen(false);
                       enterRoom(room.id);
                     }}
-                      className="p-3 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5]/40 bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#F7F4FF] dark:hover:bg-[#231A45] text-left transition-all flex items-center gap-3 group cursor-pointer"
+                    className="p-3 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5]/40 bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#F7F4FF] dark:hover:bg-[#231A45] text-left transition-all flex items-center gap-3 group cursor-pointer"
                   >
                     <RoomBadgeIcon
                       iconEmoji={room.iconEmoji}
@@ -366,7 +370,7 @@ export const GlobalSearchModal: React.FC = () => {
                       </div>
                       <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate mt-0.5">{room.description}</p>
                     </div>
-                    <ArrowUpRight className="w-4 h-4 text-[#706B7D] group-hover:text-[#5420F5] shrink-0" />
+                    <ArrowUpRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] group-hover:text-[#5420F5] dark:group-hover:text-[#B9A7FF] shrink-0" />
                   </button>
                 ))}
               </div>
@@ -376,7 +380,7 @@ export const GlobalSearchModal: React.FC = () => {
           {/* Students / Creators Section */}
           {(activeFilter === 'all' || activeFilter === 'people') && matchedPeople.length > 0 && (
             <div className="space-y-2.5">
-              <h3 className="text-xs font-extrabold text-[#706B7D] flex items-center gap-1.5 tabular-nums">
+              <h3 className="text-xs font-extrabold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1.5 tabular-nums">
                 <RealPeopleIcon size={16} />
                 Campus Students &amp; Profiles ({matchedPeople.length})
               </h3>
@@ -384,7 +388,7 @@ export const GlobalSearchModal: React.FC = () => {
                 {matchedPeople.map((person) => (
                   <div
                     key={person.username}
-                    className="p-3 rounded-2xl border border-[#EAE6F0] bg-white hover:border-[#5420F5]/40 transition-all flex items-center justify-between gap-2.5"
+                    className="p-3 rounded-2xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:border-[#5420F5]/40 transition-all flex items-center justify-between gap-2.5"
                   >
                     <button
                       type="button"
@@ -400,14 +404,14 @@ export const GlobalSearchModal: React.FC = () => {
                         seed={person.username}
                         size={38}
                         rounded="full"
-                        className="shrink-0"
+                        className="shrink-0 ring-1 ring-[#EAE6F0] dark:ring-[#262036]"
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1 min-w-0">
-                          <p className="text-xs font-black text-[#191525] truncate">{person.name}</p>
+                          <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">{person.name}</p>
                           <VerifiedCreatorBadge isVerified={Boolean(person.isCreator)} username={person.username} size={14} />
                         </div>
-                        <p className="text-[11px] text-[#706B7D] font-semibold truncate">
+                        <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-semibold truncate">
                           @{person.username} · {person.campus}
                         </p>
                       </div>
@@ -418,7 +422,7 @@ export const GlobalSearchModal: React.FC = () => {
                         setIsSearchModalOpen(false);
                         openPublicAskFor(person.username);
                       }}
-                      className="px-3 min-h-[34px] rounded-xl bg-[#F0EBFF] hover:bg-[#5420F5] text-[#5420F5] hover:text-white text-[11px] font-black transition-colors shrink-0 cursor-pointer"
+                      className="px-3 min-h-[36px] rounded-xl bg-[#F0EBFF] dark:bg-[#231A45] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A7FF] hover:text-white text-[11px] font-black transition-colors shrink-0 cursor-pointer"
                     >
                       Ask Anon
                     </button>
@@ -432,7 +436,7 @@ export const GlobalSearchModal: React.FC = () => {
           {(activeFilter === 'all' || activeFilter === 'posts' || activeFilter === 'polls') &&
             matchedPosts.length > 0 && (
               <div className="space-y-2.5">
-                <h3 className="text-xs font-extrabold text-[#706B7D] flex items-center gap-1.5 tabular-nums">
+                <h3 className="text-xs font-extrabold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1.5 tabular-nums">
                   {activeFilter === 'polls' ? (
                     <CreatePollIcon size={16} />
                   ) : (
@@ -441,7 +445,7 @@ export const GlobalSearchModal: React.FC = () => {
                   {activeFilter === 'polls' ? 'Campus Polls' : 'Confessions, Discussions & Polls'} (
                   {matchedPosts.length})
                 </h3>
-                <div className="divide-y divide-[#EAE6F0] border border-[#EAE6F0] rounded-2xl overflow-hidden">
+                <div className="divide-y divide-[#EAE6F0] dark:divide-[#262036] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl overflow-hidden">
                   {matchedPosts.map((post) => (
                     <button
                       key={post.id}
@@ -452,15 +456,15 @@ export const GlobalSearchModal: React.FC = () => {
                         setSelectedPost(post);
                         setActiveView(post.type === 'poll' ? 'poll-detail' : 'post-detail');
                       }}
-                      className="w-full p-3.5 hover:bg-[#FAF9FC] bg-white text-left transition-colors flex items-start justify-between gap-3 group cursor-pointer"
+                      className="w-full p-3.5 hover:bg-[#FAF9FC] dark:hover:bg-[#171322] bg-white dark:bg-[#0E0C14] text-left transition-colors flex items-start justify-between gap-3 group cursor-pointer"
                     >
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                          <span className="font-bold capitalize text-[#5420F5]">
+                          <span className="font-bold capitalize text-[#5420F5] dark:text-[#B9A7FF]">
                             {post.type}
                           </span>
-                          <span className="text-[#706B7D]">·</span>
-                          <span className="font-bold text-[#191525] truncate inline-flex items-center gap-1">
+                          <span className="text-[#706B7D] dark:text-[#9E97B3]">·</span>
+                          <span className="font-bold text-[#191525] dark:text-[#F4F2FA] truncate inline-flex items-center gap-1">
                             {post.isAnonymous ? (
                               <>
                                 <PersonaMaskIcon mask="masked-student" size={14} />
@@ -471,21 +475,21 @@ export const GlobalSearchModal: React.FC = () => {
                             )}
                           </span>
                           {post.authorCampus && (
-                            <span className="text-[11px] text-[#706B7D] font-medium truncate">
+                            <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-medium truncate">
                               · {post.authorCampus}
                             </span>
                           )}
                         </div>
                         {post.title && (
-                          <p className="text-xs font-black text-[#191525] line-clamp-1">{post.title}</p>
+                          <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] line-clamp-1">{post.title}</p>
                         )}
-                        <p className="text-xs text-[#706B7D] line-clamp-2 leading-relaxed">{post.content}</p>
-                        <div className="flex items-center gap-3 pt-1 text-[11px] font-bold text-[#706B7D] tabular-nums">
+                        <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] line-clamp-2 leading-relaxed">{post.content}</p>
+                        <div className="flex items-center gap-3 pt-1 text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
                           <span className="inline-flex items-center gap-1">
                             <Heart className="w-3 h-3 text-rose-500" /> {post.likes}
                           </span>
                           <span className="inline-flex items-center gap-1">
-                            <MessageCircle className="w-3 h-3 text-[#5420F5]" /> {post.commentsCount}
+                            <MessageCircle className="w-3 h-3 text-[#5420F5] dark:text-[#B9A7FF]" /> {post.commentsCount}
                           </span>
                           {post.type === 'poll' && (
                             <span className="inline-flex items-center gap-1">
@@ -494,7 +498,7 @@ export const GlobalSearchModal: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-[#706B7D] group-hover:text-[#5420F5] shrink-0 mt-1" />
+                      <ArrowUpRight className="w-4 h-4 text-[#706B7D] dark:text-[#9E97B3] group-hover:text-[#5420F5] dark:group-hover:text-[#B9A7FF] shrink-0 mt-1" />
                     </button>
                   ))}
                 </div>
@@ -506,10 +510,10 @@ export const GlobalSearchModal: React.FC = () => {
               <div className="flex justify-center">
                 <SparklePolishIcon size={32} />
               </div>
-              <p className="text-sm font-black text-[#191525]">
+              <p className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
                 No campus matches for &ldquo;{globalSearchQuery}&rdquo;
               </p>
-              <p className="text-xs text-[#706B7D] max-w-sm mx-auto">
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-sm mx-auto">
                 Try searching for a university name (like UNILAG, UI, OAU), a room topic (#gist, #confessions), or a student handle.
               </p>
             </div>

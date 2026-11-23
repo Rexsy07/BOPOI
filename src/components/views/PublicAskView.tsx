@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Shield, Sparkles, Lock, AlertCircle, ArrowLeft, Users, Loader2, Check } from 'lucide-react';
+import { Send, AlertCircle, ArrowLeft, Loader2, Check, Dices } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
 import { BopoiInteractiveMascot } from '../brand/BopoiInteractiveMascot.tsx';
@@ -17,6 +17,8 @@ const ICEBREAKER_PROMPTS = [
   'Rate my vibe from 1 to 10!',
   'What is one thing you admire about me?',
   'Drop an anonymous confession or question 🔥',
+  'Where did we first cross paths on campus?',
+  'Do you think we would survive a group project together?',
 ];
 
 export const PublicAskView: React.FC = () => {
@@ -55,6 +57,14 @@ export const PublicAskView: React.FC = () => {
     setErrorMsg(null);
   };
 
+  const handleRollDice = () => {
+    const candidates = ICEBREAKER_PROMPTS.filter((p) => p !== messageText);
+    const next =
+      candidates[Math.floor(Math.random() * candidates.length)] || ICEBREAKER_PROMPTS[0];
+    setMessageText(next);
+    setErrorMsg(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (sending || sendStage !== 'idle') return;
@@ -89,29 +99,29 @@ export const PublicAskView: React.FC = () => {
 
   return (
     <div
-      className={`w-full overflow-x-hidden ${
+      className={`w-full overflow-x-hidden text-[#191525] dark:text-[#F4F2FA] ${
         isLoggedIn
-          ? 'bg-white min-h-[calc(100dvh-112px)] lg:min-h-dvh flex flex-col'
-          : 'min-h-[calc(100dvh-4rem)] bg-[#FAF9FC] py-6 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-start sm:justify-center'
+          ? 'bg-white dark:bg-[#0E0C14] min-h-[calc(100dvh-112px)] lg:min-h-dvh flex flex-col'
+          : 'min-h-[calc(100dvh-4rem)] bg-[#FAF9FC] dark:bg-[#0E0C14] py-6 sm:py-10 px-3 sm:px-6 flex flex-col items-center justify-start sm:justify-center'
       }`}
     >
       {/* Top Navigation Bar */}
       <div
         className={
           isLoggedIn
-            ? 'sticky top-[52px] lg:top-0 z-20 bg-white/95 backdrop-blur-md border-b border-[#EAE6F0] px-4 py-3 flex items-center justify-between gap-2'
-            : 'w-full max-w-md mb-4 flex items-center justify-between gap-2 bg-white border border-[#EAE6F0] rounded-2xl px-4 py-2.5 min-w-0'
+            ? 'sticky top-[52px] lg:top-0 z-20 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md border-b border-[#EAE6F0] dark:border-[#262036] px-4 py-3 flex items-center justify-between gap-2'
+            : 'w-full max-w-md mb-4 flex items-center justify-between gap-2 bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl px-4 py-2.5 min-w-0'
         }
       >
         <button
           type="button"
           onClick={() => viewUserProfile(recipient)}
-          className="flex items-center gap-1.5 text-xs font-bold text-[#706B7D] hover:text-[#191525] cursor-pointer min-w-0 truncate min-h-[32px]"
+          className="flex items-center gap-1.5 text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] cursor-pointer min-w-0 truncate min-h-[40px]"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" />
           <span className="truncate">View @{recipientUsername}&apos;s profile</span>
         </button>
-        <span className="text-[11px] font-bold text-[#5420F5] shrink-0">
+        <span className="text-[11px] font-bold text-[#5420F5] dark:text-[#B9A7FF] shrink-0">
           Anonymous Q&amp;A
         </span>
       </div>
@@ -124,7 +134,7 @@ export const PublicAskView: React.FC = () => {
         }
       >
         {/* Main Public Submission Card */}
-        <div className="w-full bg-white rounded-3xl border border-[#EAE6F0] shadow-xs overflow-hidden min-w-0">
+        <div className="w-full bg-white dark:bg-[#171322] rounded-3xl border border-[#EAE6F0] dark:border-[#262036] shadow-xs overflow-hidden min-w-0">
           {/* Top Purple Header Strip */}
           <div className="bg-gradient-to-r from-[#5420F5] to-[#3A10B5] p-4 sm:p-6 text-white relative overflow-hidden">
             <div className="flex items-center justify-between gap-3 relative z-10 min-w-0">
@@ -170,12 +180,12 @@ export const PublicAskView: React.FC = () => {
           {/* Form Body */}
           <div className="p-5 sm:p-6 space-y-5">
             {!recipientLinkActive ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-2">
+              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-5 text-center space-y-2">
                 <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-                <h3 className="text-base font-extrabold text-amber-950">
+                <h3 className="text-base font-extrabold text-amber-950 dark:text-amber-200">
                   {recipientDisplayName}&apos;s link is taking a break
                 </h3>
-                <p className="text-xs text-amber-800 leading-relaxed">
+                <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                   This student has temporarily paused incoming anonymous messages. Check back later!
                 </p>
               </div>
@@ -183,13 +193,13 @@ export const PublicAskView: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-extrabold text-[#191525] flex items-center gap-1.5">
+                    <label className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] flex items-center gap-1.5">
                       <CreateConfessionIcon size={16} />
                       <span>100% Anonymous</span>
                     </label>
                     <span
                       className={`text-[11px] font-bold tabular-nums ${
-                        messageText.length > 450 ? 'text-rose-500' : 'text-[#706B7D]'
+                        messageText.length > 450 ? 'text-rose-500' : 'text-[#706B7D] dark:text-[#9E97B3]'
                       }`}
                     >
                       {messageText.length}/500
@@ -205,30 +215,41 @@ export const PublicAskView: React.FC = () => {
                       if (errorMsg) setErrorMsg(null);
                     }}
                     placeholder={`Write something secret to ${recipientDisplayName}...`}
-                    className="w-full p-4 rounded-2xl bg-[#FAF9FC] border border-[#EAE6F0] focus:border-[#5420F5] focus:bg-white text-base sm:text-sm text-[#191525] placeholder:text-slate-400 focus:outline-none transition-all resize-none font-medium"
+                    className="w-full p-4 rounded-2xl bg-[#FAF9FC] dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] focus:border-[#5420F5] focus:bg-white dark:focus:bg-[#0E0C14] text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none transition-all resize-none font-medium"
                   />
                 </div>
 
                 {errorMsg && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{errorMsg}</span>
                   </div>
                 )}
 
-                {/* Icebreaker Chips */}
+                {/* Icebreaker Chips + NGL Shuffle Dice */}
                 <div>
-                  <span className="text-[11px] font-bold text-[#706B7D] flex items-center gap-1 mb-2">
-                    <SparklePolishIcon size={14} />
-                    <span>Need inspiration? Tap a prompt:</span>
-                  </span>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3] flex items-center gap-1">
+                      <SparklePolishIcon size={14} />
+                      <span>Need inspiration? Tap a prompt:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRollDice}
+                      className="min-h-[32px] px-2.5 py-1 rounded-xl bg-[#F0EBFF] dark:bg-[#231A45] text-[#5420F5] dark:text-[#B9A7FF] text-[11px] font-extrabold inline-flex items-center gap-1 hover:bg-[#5420F5] hover:text-white transition-colors cursor-pointer shrink-0"
+                      title="Roll random question"
+                    >
+                      <Dices className="w-3.5 h-3.5" />
+                      <span>Dice</span>
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {ICEBREAKER_PROMPTS.map((prompt, i) => (
+                    {ICEBREAKER_PROMPTS.slice(0, 5).map((prompt, i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => handleIcebreaker(prompt)}
-                        className="text-left text-[11px] font-semibold bg-[#FAF9FC] hover:bg-[#F0EBFF] text-[#191525] hover:text-[#5420F5] border border-[#EAE6F0] hover:border-[#5420F5]/30 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                        className="min-h-[36px] text-left text-[11px] font-semibold bg-[#FAF9FC] dark:bg-[#0E0C14] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] text-[#191525] dark:text-[#F4F2FA] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5]/30 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
                       >
                         {prompt}
                       </button>
@@ -271,7 +292,7 @@ export const PublicAskView: React.FC = () => {
             )}
 
             {/* Safety Reassurance Footer */}
-            <div className="pt-3 border-t border-[#EAE6F0] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#706B7D]">
+            <div className="pt-3 border-t border-[#EAE6F0] dark:border-[#262036] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#706B7D] dark:text-[#9E97B3]">
               <span className="flex items-center gap-1 font-semibold">
                 <SafetyShieldBadgeIcon size={15} />
                 <span>Protected by Safety Shield</span>
@@ -280,7 +301,7 @@ export const PublicAskView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => openLegalDoc('guidelines')}
-                  className="font-bold text-[#5420F5] hover:underline cursor-pointer"
+                  className="font-bold text-[#5420F5] dark:text-[#B9A7FF] hover:underline cursor-pointer"
                 >
                   Guidelines
                 </button>
@@ -288,7 +309,7 @@ export const PublicAskView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => openLegalDoc('privacy')}
-                  className="font-bold text-[#5420F5] hover:underline cursor-pointer"
+                  className="font-bold text-[#5420F5] dark:text-[#B9A7FF] hover:underline cursor-pointer"
                 >
                   Privacy
                 </button>
@@ -303,20 +324,20 @@ export const PublicAskView: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveView('inbox')}
-              className="min-h-[42px] px-6 bg-[#191525] hover:bg-[#2A253B] text-white font-extrabold text-xs rounded-2xl transition-colors cursor-pointer inline-flex items-center gap-2"
+              className="min-h-[44px] px-6 bg-[#191525] dark:bg-[#F4F2FA] hover:bg-[#5420F5] dark:hover:bg-[#7C5CFF] text-white dark:text-[#191525] dark:hover:text-white font-extrabold text-xs rounded-2xl transition-colors cursor-pointer inline-flex items-center gap-2"
             >
               <BopoiLogo variant="icon" size="sm" />
               <span>Check My Anonymous Inbox (@{user.username})</span>
             </button>
           ) : (
             <>
-              <p className="text-xs font-bold text-[#706B7D]">
+              <p className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3]">
                 Want classmates to send you anonymous messages too?
               </p>
               <button
                 type="button"
                 onClick={() => setActiveView('register')}
-                className="min-h-[42px] px-6 bg-[#191525] hover:bg-[#2A253B] text-white font-extrabold text-xs rounded-2xl transition-colors cursor-pointer inline-flex items-center gap-2"
+                className="min-h-[44px] px-6 bg-[#191525] dark:bg-[#F4F2FA] hover:bg-[#5420F5] dark:hover:bg-[#7C5CFF] text-white dark:text-[#191525] dark:hover:text-white font-extrabold text-xs rounded-2xl transition-colors cursor-pointer inline-flex items-center gap-2"
               >
                 <BopoiLogo variant="icon" size="sm" />
                 <span>Get your own Bopoi link!</span>

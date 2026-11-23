@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useBopoi, LegalDocumentType } from '../../context/BopoiContext.tsx';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
@@ -11,6 +11,18 @@ import {
 
 export const LegalPoliciesModal: React.FC = () => {
   const { activeLegalDoc, openLegalDoc } = useBopoi();
+
+  useEffect(() => {
+    if (!activeLegalDoc) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        openLegalDoc(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeLegalDoc, openLegalDoc]);
 
   if (!activeLegalDoc) return null;
 
@@ -26,18 +38,20 @@ export const LegalPoliciesModal: React.FC = () => {
       onClick={() => openLegalDoc(null)}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
+        className="w-full max-w-2xl bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] rounded-t-3xl sm:rounded-3xl border border-[#EAE6F0] dark:border-[#262036] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
+
         {/* Header */}
-        <div className="px-5 sm:px-7 py-4 bg-white text-[#191525] flex items-center justify-between border-b border-[#EAE6F0] shrink-0">
+        <div className="px-5 sm:px-7 py-4 bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA] flex items-center justify-between border-b border-[#EAE6F0] dark:border-[#262036] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <BopoiLogo variant="icon" size="sm" />
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-black tracking-tight truncate">
                 Bopoi Trust, Legal &amp; Safety Center
               </h2>
-              <p className="text-[11px] text-[#706B7D] font-medium truncate">
+              <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-medium truncate">
                 Protecting anonymous expression &amp; student safety across campuses
               </p>
             </div>
@@ -45,7 +59,7 @@ export const LegalPoliciesModal: React.FC = () => {
           <button
             type="button"
             onClick={() => openLegalDoc(null)}
-            className="w-9 h-9 rounded-full bg-[#FAF9FC] hover:bg-[#EAE6F0]/70 flex items-center justify-center text-[#706B7D] hover:text-[#191525] transition-colors shrink-0 cursor-pointer"
+            className="min-w-[44px] min-h-[44px] -mr-2 rounded-full bg-[#FAF9FC] dark:bg-[#171322] hover:bg-[#EAE6F0]/70 dark:hover:bg-[#231942] flex items-center justify-center text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors shrink-0 cursor-pointer"
             aria-label="Close legal modal"
           >
             <X className="w-4 h-4" />
@@ -53,7 +67,7 @@ export const LegalPoliciesModal: React.FC = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-4 sm:px-7 pt-2 bg-[#FAF9FC] border-b border-[#EAE6F0] flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-4 sm:px-7 pt-2 bg-[#FAF9FC] dark:bg-[#171322] border-b border-[#EAE6F0] dark:border-[#262036] flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
           {tabs.map((tab) => {
             const isActive = activeLegalDoc === tab.id;
             return (
@@ -61,10 +75,10 @@ export const LegalPoliciesModal: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => openLegalDoc(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-extrabold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+                className={`min-h-[44px] flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-extrabold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'border-[#5420F5] text-[#5420F5]'
-                    : 'border-transparent text-[#706B7D] hover:text-[#191525]'
+                    ? 'border-[#5420F5] text-[#5420F5] dark:text-[#8E6BFF]'
+                    : 'border-transparent text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                 }`}
               >
                 {tab.icon}
@@ -75,44 +89,44 @@ export const LegalPoliciesModal: React.FC = () => {
         </div>
 
         {/* Content Body */}
-        <div className="p-5 sm:p-7 overflow-y-auto space-y-6 text-slate-700 text-xs sm:text-sm leading-relaxed flex-1">
+        <div className="p-5 sm:p-7 overflow-y-auto space-y-6 text-slate-700 dark:text-[#D5D0E6] text-xs sm:text-sm leading-relaxed flex-1">
           {activeLegalDoc === 'terms' && (
             <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 flex items-start gap-3">
+              <div className="p-4 rounded-2xl bg-violet-50 dark:bg-[#231942] border border-violet-100 dark:border-[#5420F5]/30 flex items-start gap-3">
                 <AdminConsoleNavIcon size={22} className="shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm">
-                    Effective Date: October 2026 • Bopoi Campus Network
+                  <h3 className="font-black text-slate-900 dark:text-[#F4F2FA] text-sm">
+                    Effective Date: October 2026 · Bopoi Campus Network
                   </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3] mt-0.5">
                     By creating a Bopoi account, sharing your anonymous link, or participating in campus rooms, you agree to these Terms of Service.
                   </p>
                 </div>
               </div>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">1. Eligibility & Campus Community</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">1. Eligibility &amp; Campus Community</h4>
                 <p>
                   Bopoi is designed for university and college students aged 16 and older. You are responsible for maintaining the security of your account credentials and for all activities that occur under your handle.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">2. Anonymous Q&A & Room Participation</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">2. Anonymous Q&amp;A &amp; Room Participation</h4>
                 <p>
                   While Bopoi enables masked confessions, anonymous questions, and pseudonymous room personas, anonymity is a shield for honest expression—not a license for abuse. Users must not post unlawful threats, doxxing material (such as private phone numbers, hostel room numbers, or matriculation numbers), or non-consensual intimate content.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">3. Content Ownership & Story Cards</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">3. Content Ownership &amp; Story Cards</h4>
                 <p>
                   You retain ownership of the posts, replies, and custom 3D campus characters you create on Bopoi. By publishing public posts or story cards, you grant Bopoi a non-exclusive license to display, format, and distribute your content across the platform feed and shareable links.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">4. Moderation, Suspension & Termination</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">4. Moderation, Suspension &amp; Termination</h4>
                 <p>
                   Bopoi reserves the right to remove content, mute anonymous senders, or suspend accounts that violate our Community Guidelines or compromise campus safety. Users can pause their anonymous link or block abusive senders at any time from the Safety Center.
                 </p>
@@ -122,43 +136,43 @@ export const LegalPoliciesModal: React.FC = () => {
 
           {activeLegalDoc === 'privacy' && (
             <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-start gap-3">
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/35 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-3">
                 <SafetyShieldBadgeIcon size={22} className="shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm">
+                  <h3 className="font-black text-slate-900 dark:text-[#F4F2FA] text-sm">
                     Zero-Exposure Anonymity Architecture
                   </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Your identity on anonymous confessions, Q&A messages, and masked room chats is never exposed to other users or recipients.
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3] mt-0.5">
+                    Your identity on anonymous confessions, Q&amp;A messages, and masked room chats is never exposed to other users or recipients.
                   </p>
                 </div>
               </div>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">1. Information We Collect</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">1. Information We Collect</h4>
                 <p>
                   When you register, we store your chosen display name, username, campus affiliation, email address, and custom 3D character configuration (`bopoi-char://`). For anonymous messages, we use cryptographic session tokens solely to enable sender blocklists and two-way anonymous replies without revealing your identity.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">2. How Anonymous Personas Work</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">2. How Anonymous Personas Work</h4>
                 <p>
                   Each community room assigns you an isolated room persona (e.g., <em>Velvet Owl</em> or <em>Shadow Fox</em>) stored securely. Other students in the room cannot link your room persona back to your public profile unless you explicitly toggle to Public Mode before sending a message.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">3. Data Sharing & Third Parties</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">3. Data Sharing &amp; Third Parties</h4>
                 <p>
                   Bopoi does not sell student personal data to advertisers or third parties. Content you choose to download as a Story Card or share via deep links is controlled entirely by you.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-black text-slate-900">4. Your Controls & Right to Delete</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">4. Your Controls &amp; Right to Delete</h4>
                 <p>
-                  You can delete individual posts, clear room personas, filter hidden keywords, pause your inbox link, or reset your account data at any time through your Profile & Safety settings.
+                  You can delete individual posts, clear room personas, filter hidden keywords, pause your inbox link, or reset your account data at any time through your Profile &amp; Safety settings.
                 </p>
               </section>
             </div>
@@ -166,62 +180,62 @@ export const LegalPoliciesModal: React.FC = () => {
 
           {activeLegalDoc === 'guidelines' && (
             <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-start gap-3">
                 <RealPeopleIcon size={22} className="shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm">
-                    Keep Campus Gist Fun, Real & Safe
+                  <h3 className="font-black text-slate-900 dark:text-[#F4F2FA] text-sm">
+                    Keep Campus Gist Fun, Real &amp; Safe
                   </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3] mt-0.5">
                     Bopoi thrives on unfiltered student confessions, crushes, and debates—here are the golden rules every student must follow.
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center gap-2 text-emerald-700 font-black text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#171322] border border-slate-200/80 dark:border-[#262036] space-y-1.5">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-black text-xs">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>DO: Share Real Campus Stories</span>
                   </div>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3]">
                     Confess secret crushes, debate lecturer grading, share hostel survival tips, and hype up fellow students.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center gap-2 text-emerald-700 font-black text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#171322] border border-slate-200/80 dark:border-[#262036] space-y-1.5">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-black text-xs">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>DO: Respect Room Boundaries</span>
                   </div>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3]">
                     Keep topic rooms relevant and use trigger warnings or constructive language on sensitive student topics.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-1.5">
-                  <div className="flex items-center gap-2 text-rose-700 font-black text-xs">
+                <div className="p-3.5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 space-y-1.5">
+                  <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-black text-xs">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>DON'T: Doxx or Expose Private Info</span>
+                    <span>DON&apos;T: Doxx or Expose Private Info</span>
                   </div>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3]">
                     Never post full names of non-public individuals alongside private phone numbers, bank details, or exact room addresses.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-1.5">
-                  <div className="flex items-center gap-2 text-rose-700 font-black text-xs">
+                <div className="p-3.5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 space-y-1.5">
+                  <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-black text-xs">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>DON'T: Bully, Threaten or Blackmail</span>
+                    <span>DON&apos;T: Bully, Threaten or Blackmail</span>
                   </div>
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-600 dark:text-[#9E97B3]">
                     Harassment, hate speech, extortion, or encouraging self-harm results in an immediate permanent ban.
                   </p>
                 </div>
               </div>
 
               <section className="space-y-2 pt-1">
-                <h4 className="text-sm font-black text-slate-900">Automated Safety & Keyword Shield</h4>
+                <h4 className="text-sm font-black text-slate-900 dark:text-[#F4F2FA]">Automated Safety &amp; Keyword Shield</h4>
                 <p>
                   Every Bopoi inbox is protected by our Smart Safety Shield, which automatically filters abusive slurs and lets you add custom muted words in your Safety Center.
                 </p>
@@ -231,14 +245,14 @@ export const LegalPoliciesModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="px-5 sm:px-7 py-3.5 bg-[#FAF9FC] border-t border-[#EAE6F0] flex items-center justify-between gap-3 shrink-0">
-          <span className="text-[11px] font-bold text-[#706B7D]">
+        <div className="px-5 sm:px-7 py-3.5 bg-[#FAF9FC] dark:bg-[#171322] border-t border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between gap-3 shrink-0">
+          <span className="text-[11px] font-bold text-[#706B7D] dark:text-[#9E97B3]">
             Questions? Reach Campus Trust &amp; Safety anytime via your Profile settings.
           </span>
           <button
             type="button"
             onClick={() => openLegalDoc(null)}
-            className="px-5 min-h-[40px] rounded-xl bg-[#191525] hover:bg-[#2A253B] text-white text-xs font-black transition-colors shrink-0 cursor-pointer"
+            className="px-5 min-h-[44px] rounded-xl bg-[#191525] dark:bg-[#5420F5] hover:bg-[#2A253B] dark:hover:bg-[#4314E2] text-white text-xs font-black transition-colors shrink-0 cursor-pointer"
           >
             Got it, Close
           </button>
