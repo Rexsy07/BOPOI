@@ -28,6 +28,7 @@ export const MessageDetailModal: React.FC = () => {
   const {
     selectedMessage,
     answers,
+    setSelectedAnswer,
     setActiveView,
     goBack,
     deleteMessage,
@@ -185,7 +186,10 @@ export const MessageDetailModal: React.FC = () => {
           {!isSentByMe && (
             <button
               type="button"
-              onClick={() => setActiveView('answer-studio')}
+              onClick={() => {
+                setSelectedAnswer(currentAnswer || null);
+                setActiveView('answer-studio');
+              }}
               className="min-h-[40px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
             >
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
@@ -202,10 +206,16 @@ export const MessageDetailModal: React.FC = () => {
         </div>
 
         {/* Saved Answer Preview */}
-        {currentAnswer && (
+        {currentAnswer && (!isSentByMe || (currentAnswer.isPublic && !currentAnswer.isDraft)) && (
           <div className="p-3.5 rounded-2xl bg-[#FAF8FF] dark:bg-[#231942]/55 border border-[#5420F5]/20 dark:border-[#5420F5]/35 space-y-1">
             <span className="text-[11px] font-bold text-[#5420F5] dark:text-[#B9A4FF] block">
-              {isSentByMe ? `@${liveMessage.recipientUsername}'s Public Card Reply` : 'Your Public Story Reply'}
+              {isSentByMe
+                ? `@${liveMessage.recipientUsername}'s Public Card Reply`
+                : currentAnswer.isDraft
+                ? 'Your Draft Card Reply'
+                : currentAnswer.isPublic
+                ? 'Your Public Story Reply'
+                : 'Your Private Card Reply (Hidden from Profile)'}
             </span>
             <p className="text-sm font-semibold text-[#191525] dark:text-[#F4F2FA] leading-relaxed break-words">
               <MentionText text={currentAnswer.answerText} />

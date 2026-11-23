@@ -18,10 +18,13 @@ export const AnswerStudioView: React.FC = () => {
     showToast,
   } = useBopoi();
 
-  const activeMessage = selectedMessage || messages[0] || null;
-  const currentAnswer = activeMessage
-    ? answers[activeMessage.id]
-    : selectedAnswer || null;
+  const activeMessage =
+    selectedMessage ||
+    (selectedAnswer ? messages.find((m) => m.id === selectedAnswer.messageId) || null : null) ||
+    (!selectedAnswer ? messages[0] || null : null);
+  const currentAnswer =
+    (activeMessage ? answers[activeMessage.id] : undefined) ||
+    (selectedAnswer ? answers[selectedAnswer.messageId] || selectedAnswer : null);
 
   const defaultQuestion = activeMessage
     ? activeMessage.text
@@ -38,7 +41,8 @@ export const AnswerStudioView: React.FC = () => {
   // Sync when selectedMessage or currentAnswer changes
   useEffect(() => {
     setAnswerText(currentAnswer?.answerText || '');
-  }, [activeMessage?.id, currentAnswer?.id]);
+    setSharePublicly(currentAnswer ? currentAnswer.isPublic : true);
+  }, [activeMessage?.id, currentAnswer?.id, currentAnswer?.isPublic]);
 
   // Real-time typing indicator state
   const [isTyping, setIsTyping] = useState(false);
@@ -99,7 +103,12 @@ export const AnswerStudioView: React.FC = () => {
     setTimeout(() => {
       saveAnswer(targetMessageId, answerText, sharePublicly, false);
       setPublishStage('published');
-      showToast('Card saved and ready for sharing!', 'success');
+      showToast(
+        sharePublicly
+          ? 'Card saved and shared to your profile!'
+          : 'Card saved privately and hidden from your profile.',
+        'success'
+      );
       setTimeout(() => setPublishStage('idle'), 1500);
     }, 380);
   };
@@ -254,14 +263,22 @@ export const AnswerStudioView: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">Share publicly</p>
                   <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3]">
-                    Your answer will be featured as a Bopoi card on your profile and story exports.
+                    {sharePublicly
+                      ? 'Your answer will appear as a Q&A card on your profile.'
+                      : 'Hidden from your profile. Turn on anytime to feature it publicly.'}
                   </p>
                 </div>
               </div>
               <input
                 type="checkbox"
                 checked={sharePublicly}
-                onChange={(e) => setSharePublicly(e.target.checked)}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setSharePublicly(next);
+                  if (currentAnswer && !currentAnswer.isDraft && targetMessageId && answerText.trim()) {
+                    saveAnswer(targetMessageId, answerText, next, false);
+                  }
+                }}
                 className="w-4 h-4 accent-[#5420F5] rounded cursor-pointer shrink-0"
               />
             </label>

@@ -2474,7 +2474,14 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nextKeys = Object.keys(queriedAnswers);
       if (
         prevKeys.length === nextKeys.length &&
-        prevKeys.every((k) => prev[k]?.id === queriedAnswers[k]?.id && prev[k]?.likes === queriedAnswers[k]?.likes)
+        prevKeys.every(
+          (k) =>
+            prev[k]?.id === queriedAnswers[k]?.id &&
+            prev[k]?.likes === queriedAnswers[k]?.likes &&
+            prev[k]?.isPublic === queriedAnswers[k]?.isPublic &&
+            prev[k]?.isDraft === queriedAnswers[k]?.isDraft &&
+            prev[k]?.answerText === queriedAnswers[k]?.answerText
+        )
       ) {
         return prev;
       }
@@ -2986,35 +2993,45 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isDraft: boolean = false
   ) => {
     const targetMsg = allMessages.find((m) => m.id === messageId) || selectedMessage;
-    const questionText = targetMsg?.text || 'Anonymous Question';
+    const existingAnswer =
+      answers[messageId] ||
+      (selectedAnswer?.messageId === messageId ? selectedAnswer : undefined);
+    const questionText =
+      targetMsg?.text || existingAnswer?.questionText || 'Anonymous Question';
 
     const answerRecord: MessageAnswer = {
-      id: answers[messageId]?.id || `ans_${Date.now()}`,
+      id: existingAnswer?.id || `ans_${Date.now()}`,
       messageId,
       questionText,
       answerText: answerText.trim(),
-      createdAt: 'Just now',
+      createdAt: existingAnswer?.createdAt || 'Just now',
       isPublic,
       isDraft,
-      likes: answers[messageId]?.likes || 0,
+      likes: existingAnswer?.likes || 0,
       authorDisplayName: user.displayName,
       authorUsername: user.username,
     };
 
+    const nextAnswersMap = { ...answers, [messageId]: answerRecord };
     setAnswers((prev) => ({ ...prev, [messageId]: answerRecord }));
+    queryClient.setQueryData(['bopoi', 'answers'], nextAnswersMap);
+    if (selectedAnswer?.messageId === messageId) {
+      setSelectedAnswer(answerRecord);
+    }
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId ? { ...m, isRead: true, isAnswered: !isDraft } : m
       )
     );
 
+    const sb = supabase;
     if (
-      supabase &&
+      sb &&
       user.id &&
       /^[0-9a-f-]{36}$/i.test(user.id) &&
       /^[0-9a-f-]{36}$/i.test(messageId)
     ) {
-      supabase
+      sb
         .from('message_answers')
         .upsert(
           {
@@ -3029,14 +3046,28 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           },
           { onConflict: 'message_id' }
         )
-        .then(() => {
+        .then(async ({ error }) => {
+          if (error) {
+            await sb
+              .from('message_answers')
+              .update({
+                answer_text: answerText.trim(),
+                is_public: isPublic,
+                is_draft: isDraft,
+              })
+              .eq('message_id', messageId);
+          }
           queryClient.invalidateQueries({ queryKey: ['bopoi', 'answers'] });
         });
     }
 
     showToast(
-      isDraft ? 'Draft saved successfully.' : 'Response saved and ready to share!',
-      'success'
+      isDraft
+        ? 'Draft saved successfully.'
+        : isPublic
+        ? 'Response saved and shared on your profile!'
+        : 'Q&A card removed from your public profile.',
+      isDraft || isPublic ? 'success' : 'info'
     );
   };
 

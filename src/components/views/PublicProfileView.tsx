@@ -38,6 +38,8 @@ export const PublicProfileView: React.FC = () => {
     getFollowersForUser,
     getFollowingForUser,
     isFollowingUser,
+    messages,
+    setSelectedMessage,
     setSelectedAnswer,
     setActiveView,
     goBack,
@@ -392,6 +394,7 @@ export const PublicProfileView: React.FC = () => {
                 key={ans.id}
                 type="button"
                 onClick={() => {
+                  setSelectedMessage(messages.find((m) => m.id === ans.messageId) || null);
                   setSelectedAnswer(ans);
                   setActiveView('answer-studio');
                 }}
@@ -561,6 +564,7 @@ export const PublicProfileView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      setSelectedMessage(messages.find((m) => m.id === ans.messageId) || null);
                       setSelectedAnswer(ans);
                       setActiveView('answer-studio');
                     }}

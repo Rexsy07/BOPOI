@@ -31,6 +31,7 @@ export const InboxView: React.FC = () => {
     setInboxFilter,
     unreadCount,
     setSelectedMessage,
+    setSelectedAnswer,
     setActiveView,
     copyUserLink,
     markAsRead,
@@ -128,6 +129,7 @@ export const InboxView: React.FC = () => {
     }
     markConvoAsRead(msg.id, viewerRole);
     setSelectedMessage(msg);
+    setSelectedAnswer(answers[msg.id] || null);
     setActiveView('answer-studio');
   };
 

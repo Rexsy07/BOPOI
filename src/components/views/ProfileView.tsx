@@ -71,8 +71,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   const {
     user,
     accounts,
+    messages,
     socialPosts,
     answers,
+    setSelectedMessage,
     setSelectedAnswer,
     deleteSocialPost,
     safetySettings,
@@ -215,7 +217,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   const myDiscussions = myPosts.filter((p) => p.type === 'discussion' || p.type === 'post');
 
   const myAnswersList: MessageAnswer[] = Object.values(answers).filter(
-    (a) => !a.isDraft && (a.authorUsername === user.username || !a.authorUsername)
+    (a) =>
+      a.isPublic &&
+      !a.isDraft &&
+      (a.authorUsername?.toLowerCase() === user.username.toLowerCase() || !a.authorUsername)
   );
 
   const totalMyItems = myPosts.length + myAnswersList.length;
@@ -321,6 +326,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
   };
 
   const handleOpenAnswerStudio = (ans: MessageAnswer) => {
+    const matchingMsg = messages.find((m) => m.id === ans.messageId) || null;
+    setSelectedMessage(matchingMsg);
     setSelectedAnswer(ans);
     setActiveView('answer-studio');
   };
