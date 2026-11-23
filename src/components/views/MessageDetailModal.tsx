@@ -292,7 +292,11 @@ export const MessageDetailModal: React.FC = () => {
                   )}
 
                   {comm.mediaUrl && (
-                    <div className={comm.text ? 'mb-1.5' : ''}>
+                    <div
+                      className={`w-full flex ${
+                        isFromViewer ? 'justify-end' : 'justify-start'
+                      } ${comm.text ? 'mb-1.5' : ''}`}
+                    >
                       <GifPreviewMedia
                         url={comm.mediaUrl}
                         alt={comm.text || 'DM GIF'}
@@ -343,11 +347,23 @@ export const MessageDetailModal: React.FC = () => {
           {pendingGif && (
             <div className="bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-2 px-3 flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
-                <img
-                  src={pendingGif.mediaUrl}
-                  alt={pendingGif.title}
-                  className="w-11 h-11 rounded-xl object-cover border border-[#EAE6F0] dark:border-[#262036] shrink-0"
-                />
+                {/\.(mp4|webm)(\?|$)/i.test(pendingGif.mediaUrl) ? (
+                  <video
+                    src={pendingGif.mediaUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-11 h-11 rounded-xl object-cover border border-[#EAE6F0] dark:border-[#262036] shrink-0"
+                  />
+                ) : (
+                  <img
+                    src={pendingGif.mediaUrl}
+                    alt={pendingGif.title}
+                    referrerPolicy="no-referrer"
+                    className="w-11 h-11 rounded-xl object-cover border border-[#EAE6F0] dark:border-[#262036] shrink-0"
+                  />
+                )}
                 <div className="min-w-0">
                   <span className="text-[11px] font-black text-[#5420F5] dark:text-[#B9A4FF] block">
                     GIF Attached

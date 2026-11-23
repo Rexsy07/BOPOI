@@ -725,7 +725,7 @@ export async function fetchSupabaseSocialPosts(
   }
 }
 
-const ROOM_MEDIA_ENVELOPE_REGEX = /^\[BOPOI_MEDIA:(image|video|gif)\|([^\]]+)\]\n?([\s\S]*)$/;
+const ROOM_MEDIA_ENVELOPE_REGEX = /^\s*\[BOPOI_MEDIA:(image|video|gif)\|([^\]]+)\]\r?\n?([\s\S]*)$/;
 const POST_QUOTE_ENVELOPE_REGEX = /^\[BOPOI_QUOTE:([^\]]+)\]\n?([\s\S]*)$/;
 
 export function encodeSocialPostEnvelope(

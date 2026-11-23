@@ -34,6 +34,7 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isUnconfigured, setIsUnconfigured] = useState(false);
+  const [failedVideos, setFailedVideos] = useState<Record<string, boolean>>({});
 
   // Debounce typing so we don't burn Klipy rate limits on every keystroke
   useEffect(() => {
@@ -67,15 +68,23 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
           ? `/api/gifs/search?${qs.toString()}`
           : `/api/gifs/trending?${qs.toString()}`;
 
-        const res = await fetch(endpoint);
-        const json = await res.json().catch(() => null);
+        const res = await fetch(endpoint, {
+          headers: { Accept: 'application/json' },
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const json = contentType.includes('application/json')
+          ? await res.json().catch(() => null)
+          : await res.json().catch(() => null);
 
         if (!res.ok || !json?.ok) {
           setIsUnconfigured(json?.configured === false);
           setErrorMsg(
             json?.configured === false
-              ? 'KLIPY API key is not configured on the server yet.'
-              : json?.error || 'Could not load GIFs right now.'
+              ? 'KLIPY API key is not configured on this deployment yet.'
+              : json?.error ||
+                  (!contentType.includes('application/json') && res.ok
+                    ? 'GIF API endpoint returned HTML instead of JSON. Redeploy API routes and set KLIPY_API_KEY.'
+                    : 'Could not load GIFs right now.')
           );
           if (!append) setItems([]);
           setHasNext(false);
@@ -248,37 +257,44 @@ export const KlipyGifPicker: React.FC<KlipyGifPickerProps> = ({
           ) : (
             <div className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {items.map((gif) => (
-                  <button
-                    key={gif.id}
-                    type="button"
-                    onClick={() => {
-                      onSelect(gif);
-                      onClose();
-                    }}
-                    className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-[#FAF9FC] border border-[#EAE6F0] hover:border-[#5420F5] transition-all cursor-pointer focus:outline-none"
-                    title={gif.title}
-                  >
-                    {gif.mp4Url ? (
-                      <video
-                        src={gif.mp4Url}
-                        poster={gif.previewUrl}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
-                      />
-                    ) : (
-                      <img
-                        src={gif.previewUrl || gif.url}
-                        alt={gif.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
-                      />
-                    )}
-                  </button>
-                ))}
+                {items.map((gif) => {
+                  const useImgFallback = !gif.mp4Url || Boolean(failedVideos[gif.id]);
+                  return (
+                    <button
+                      key={gif.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(gif);
+                        onClose();
+                      }}
+                      className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5] transition-all cursor-pointer focus:outline-none"
+                      title={gif.title}
+                    >
+                      {!useImgFallback ? (
+                        <video
+                          src={gif.mp4Url}
+                          poster={gif.previewUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          onError={() =>
+                            setFailedVideos((prev) => ({ ...prev, [gif.id]: true }))
+                          }
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
+                        />
+                      ) : (
+                        <img
+                          src={gif.previewUrl || gif.url}
+                          alt={gif.title}
+                          loading="eager"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {hasNext && (

@@ -1,0 +1,4 @@
+import React, { useState, useEffect } from 'react';
+import { GifPreviewMediaProps as BaseProps } from './GifPreviewMedia.types.ts';
+
+export type GifPreviewMediaProps = BaseProps;

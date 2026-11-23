@@ -213,6 +213,10 @@ function areMessagesEqualFast(a: AnonymousMessage[], b: AnonymousMessage[]): boo
   for (let i = 0; i < a.length; i++) {
     const ma = a[i];
     const mb = b[i];
+    const caLen = ma.comments?.length || 0;
+    const cbLen = mb.comments?.length || 0;
+    const lastCa = caLen > 0 ? ma.comments![caLen - 1] : undefined;
+    const lastCb = cbLen > 0 ? mb.comments![cbLen - 1] : undefined;
     if (
       ma.id !== mb.id ||
       ma.isRead !== mb.isRead ||
@@ -220,7 +224,10 @@ function areMessagesEqualFast(a: AnonymousMessage[], b: AnonymousMessage[]): boo
       ma.isReported !== mb.isReported ||
       ma.likes !== mb.likes ||
       ma.repliesCount !== mb.repliesCount ||
-      (ma.comments?.length || 0) !== (mb.comments?.length || 0)
+      caLen !== cbLen ||
+      lastCa?.id !== lastCb?.id ||
+      (lastCa?.mediaUrl || '') !== (lastCb?.mediaUrl || '') ||
+      (lastCa?.text || '') !== (lastCb?.text || '')
     ) {
       return false;
     }
@@ -2330,13 +2337,48 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (!queriedMessages) return;
+    const mergeInFlightComments = (
+      prevList: AnonymousMessage[],
+      serverList: AnonymousMessage[]
+    ): AnonymousMessage[] => {
+      const now = Date.now();
+      return serverList.map((qm) => {
+        const localMsg = prevList.find((lm) => lm.id === qm.id);
+        if (!localMsg?.comments?.length) return qm;
+        const serverComments = qm.comments || [];
+        const inFlightComments = localMsg.comments.filter(
+          (c) =>
+            c.id.startsWith('c_') &&
+            now - c.createdTimestamp < 15000 &&
+            !serverComments.some(
+              (sc) =>
+                sc.id === c.id ||
+                (sc.text === c.text &&
+                  (sc.mediaUrl || '') === (c.mediaUrl || '') &&
+                  sc.authorRole === c.authorRole &&
+                  Math.abs(sc.createdTimestamp - c.createdTimestamp) < 20000)
+            )
+        );
+        if (inFlightComments.length === 0) return qm;
+        const combined = [...serverComments, ...inFlightComments];
+        return {
+          ...qm,
+          comments: combined,
+          repliesCount: Math.max(qm.repliesCount, combined.length),
+        };
+      });
+    };
+
+    let mergedForSelected: AnonymousMessage[] = queriedMessages;
     setMessages((prev) => {
-      if (areMessagesEqualFast(prev, queriedMessages)) return prev;
-      return queriedMessages;
+      const merged = mergeInFlightComments(prev, queriedMessages);
+      mergedForSelected = merged;
+      if (areMessagesEqualFast(prev, merged)) return prev;
+      return merged;
     });
     setSelectedMessage((prevMsg) => {
       if (!prevMsg) return null;
-      return queriedMessages.find((m) => m.id === prevMsg.id) || prevMsg;
+      return mergedForSelected.find((m) => m.id === prevMsg.id) || prevMsg;
     });
   }, [queriedMessages]);
 
@@ -4147,7 +4189,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           p_text: serializedText,
           p_sender_token: getOrCreateAnonymousSenderToken(),
         })
-        .then(() => {
+        .then(({ error }) => {
+          if (error) {
+            console.warn('[Bopoi] Failed to save DM reply:', error.message);
+          }
           queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
         });
     }

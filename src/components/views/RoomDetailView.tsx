@@ -1220,6 +1220,7 @@ export const RoomDetailView: React.FC = () => {
                         <img
                           src={pendingMedia.mediaUrl}
                           alt="Upload preview"
+                          referrerPolicy="no-referrer"
                           className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EAE6F0]"
                         />
                       )}
