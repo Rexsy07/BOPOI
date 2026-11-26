@@ -828,7 +828,10 @@ export const DiscoverView: React.FC = () => {
                               </span>
                             )}
                             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                              {room.membersCount} members · {room.onlineCount || 1} online
+                              {room.membersCount} members
+                              {(room.onlineCount ?? 0) > 0
+                                ? ` · ${room.onlineCount} online`
+                                : ''}
                             </span>
                           </div>
                           <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] leading-snug break-words">
@@ -1213,7 +1216,10 @@ export const DiscoverView: React.FC = () => {
                             {room.description}
                           </p>
                           <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block tabular-nums">
-                            {room.membersCount} members · {room.onlineCount || 1} online
+                            {room.membersCount} members
+                            {(room.onlineCount ?? 0) > 0
+                              ? ` · ${room.onlineCount} online`
+                              : ''}
                           </span>
                         </div>
                       </div>

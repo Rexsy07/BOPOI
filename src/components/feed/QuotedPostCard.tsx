@@ -1,9 +1,10 @@
 import React from 'react';
-import { X, Film } from 'lucide-react';
+import { X } from 'lucide-react';
 import { QuotedPostPreview } from '../../types/index.ts';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
 import { MentionText } from '../ui/MentionText.tsx';
+import { GifPreviewMedia } from '../ui/GifPreviewMedia.tsx';
 
 interface QuotedPostCardProps {
   quote: QuotedPostPreview;
@@ -86,9 +87,29 @@ export const QuotedPostCard: React.FC<QuotedPostCardProps> = ({
       )}
 
       {quote.mediaUrl && (
-        <div className="pt-0.5 flex items-center gap-1.5 text-[11px] font-bold text-[#5420F5] dark:text-[#9B82FF]">
-          <Film className="w-3.5 h-3.5 shrink-0" />
-          <span>{quote.mediaType === 'gif' ? 'Attached GIF' : 'Attached media'}</span>
+        <div className="pt-1">
+          {quote.mediaType === 'video' ? (
+            <video
+              src={quote.mediaUrl}
+              controls
+              playsInline
+              onClick={(e) => e.stopPropagation()}
+              className={`block w-full max-w-[260px] ${compact ? 'max-h-44' : 'max-h-56'} rounded-xl object-cover border border-black/10 dark:border-[#262036]`}
+            />
+          ) : quote.mediaType === 'image' ? (
+            <img
+              src={quote.mediaUrl}
+              alt={quote.content || quote.title || 'Attached media'}
+              loading="lazy"
+              className={`block w-full max-w-[260px] ${compact ? 'max-h-44' : 'max-h-56'} rounded-xl object-cover border border-black/10 dark:border-[#262036]`}
+            />
+          ) : (
+            <GifPreviewMedia
+              url={quote.mediaUrl}
+              alt={quote.content || quote.title || 'Reposted GIF'}
+              compact
+            />
+          )}
         </div>
       )}
     </div>

@@ -61,9 +61,6 @@ export const BopoiAnonymousAvatar: React.FC<BopoiAnonymousAvatarProps> = ({
         className={`relative inline-flex items-center justify-center shrink-0 select-none ${className}`}
       >
         <PersonaMaskIcon mask={mask} size={dim} />
-        {showSparkleBadge && (
-          <span className="absolute -top-1 -right-1 text-xs select-none drop-shadow-xs">✨</span>
-        )}
       </motion.div>
     );
   }
@@ -192,23 +189,6 @@ export const BopoiAnonymousAvatar: React.FC<BopoiAnonymousAvatarProps> = ({
           style={{ originX: '62px', originY: '39px' }}
         />
       </svg>
-
-      {/* Interactive Sparkle Badge in corner */}
-      {showSparkleBadge && dim >= 32 && (
-        <motion.span
-          initial={{ scale: 0, rotate: -40 }}
-          animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
-          transition={{
-            scale: { delay: 0.15, type: 'spring', stiffness: 400, damping: 14 },
-            rotate: { repeat: Infinity, duration: 3.8, ease: 'easeInOut' },
-          }}
-          whileHover={{ scale: 1.3, rotate: 180 }}
-          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#FFC928] border-2 border-white flex items-center justify-center text-[8px] font-black text-[#191525] shadow-xs"
-          title="Anonymous Bopoi Submission"
-        >
-          ✨
-        </motion.span>
-      )}
     </motion.div>
   );
 };

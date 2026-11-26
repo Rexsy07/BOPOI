@@ -18,6 +18,7 @@ import {
   SocialPostType,
   QuotedPostPreview,
   CommunityRoom,
+  RoomActiveMember,
   RoomMessage,
   CreatorProfile,
   SocialComment,
@@ -191,6 +192,8 @@ function areRoomsEqualFast(a: CommunityRoom[], b: CommunityRoom[]): boolean {
       ra.iconBg !== rb.iconBg ||
       ra.membersCount !== rb.membersCount ||
       ra.onlineCount !== rb.onlineCount ||
+      (ra.activeMembers?.length || 0) !== (rb.activeMembers?.length || 0) ||
+      (ra.activeMembers?.[0]?.userId || '') !== (rb.activeMembers?.[0]?.userId || '') ||
       ra.isJoined !== rb.isJoined ||
       ra.isLocked !== rb.isLocked ||
       ra.isFeatured !== rb.isFeatured ||
@@ -218,17 +221,44 @@ function areMessagesEqualFast(a: AnonymousMessage[], b: AnonymousMessage[]): boo
     const cbLen = mb.comments?.length || 0;
     const lastCa = caLen > 0 ? ma.comments![caLen - 1] : undefined;
     const lastCb = cbLen > 0 ? mb.comments![cbLen - 1] : undefined;
+    const ra = ma.reactions || {};
+    const rb = mb.reactions || {};
+    const raKeys = Object.keys(ra);
+    const rbKeys = Object.keys(rb);
     if (
       ma.id !== mb.id ||
+      ma.text !== mb.text ||
       ma.isRead !== mb.isRead ||
+      ma.readAt !== mb.readAt ||
       ma.isAnswered !== mb.isAnswered ||
       ma.isReported !== mb.isReported ||
       ma.likes !== mb.likes ||
       ma.repliesCount !== mb.repliesCount ||
+      raKeys.length !== rbKeys.length ||
+      raKeys.some((k) => ra[k] !== rb[k]) ||
       caLen !== cbLen ||
       lastCa?.id !== lastCb?.id ||
       (lastCa?.mediaUrl || '') !== (lastCb?.mediaUrl || '') ||
-      (lastCa?.text || '') !== (lastCb?.text || '')
+      (lastCa?.text || '') !== (lastCb?.text || '') ||
+      (lastCa?.likes ?? 0) !== (lastCb?.likes ?? 0)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areNotificationsEqualFast(a: AppNotification[], b: AppNotification[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const na = a[i];
+    const nb = b[i];
+    if (
+      na.id !== nb.id ||
+      na.isRead !== nb.isRead ||
+      na.title !== nb.title ||
+      na.body !== nb.body
     ) {
       return false;
     }
@@ -1085,6 +1115,8 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [];
   });
+  const roomsRef = useRef<CommunityRoom[]>(rooms);
+  roomsRef.current = rooms;
 
   const [creators, setCreators] = useState<CreatorProfile[]>(() => {
     try {
@@ -1103,6 +1135,12 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
+  const userRef = useRef<UserProfile>(user);
+  userRef.current = user;
+  const sentMessageIdsRef = useRef<string[]>(sentMessageIds);
+  sentMessageIdsRef.current = sentMessageIds;
+  const allMessagesRef = useRef<AnonymousMessage[]>(allMessages);
+  allMessagesRef.current = allMessages;
 
   const [readConvoMap, setReadConvoMap] = useState<Record<string, number | boolean>>(() => {
     try {
@@ -1335,6 +1373,14 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         data: { session },
       } = await sb.auth.getSession();
 
+      if (session?.access_token) {
+        try {
+          sb.realtime.setAuth(session.access_token);
+        } catch {
+          // ignore
+        }
+      }
+
       if (session?.user) {
         const authUser = session.user;
         const { data: profileRow } = await sb
@@ -1418,6 +1464,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadSessionAndProfile();
 
     const { data: authSub } = sb.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        try {
+          sb.realtime.setAuth(session.access_token);
+        } catch {
+          // ignore
+        }
+      }
       if (!session?.user) {
         setIsAuthenticated(false);
       } else if (!pendingAuthTransitionRef.current) {
@@ -1497,148 +1550,416 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncProfilesAndNotifications();
   }, [user.id, user.username, isAuthenticated, askingRecipient?.username]);
 
-  // Dedicated Instant Realtime Stream for `room_messages` and `post_comments`
+  // Dedicated Instant Realtime Stream for Inbox Messages, 1-on-1 DMs, Story Answers, Notifications, Room Chat & Post Comments
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    return initRealtimeSubscriptions({
-      onRoomMessageInsert: (roomId, incomingMsg) => {
-        setRooms((prev) =>
-          prev.map((room) => {
-            if (room.id !== roomId) return room;
-            const existing = room.messages || [];
-            // Idempotent check: match by real UUID or reconcile optimistic temp message
-            const alreadyById = existing.some((m) => m.id === incomingMsg.id);
-            if (alreadyById) return room;
+    const authUid =
+      isAuthenticated && user.id && user.username && user.username !== 'student'
+        ? user.id
+        : undefined;
+
+    return initRealtimeSubscriptions(
+      {
+        onRoomMessageInsert: (roomId, incomingMsg) => {
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (room.id !== roomId) return room;
+              const existing = room.messages || [];
+              if (existing.some((m) => m.id === incomingMsg.id)) return room;
+
+              const optimisticIdx = existing.findIndex(
+                (m) =>
+                  m.id.startsWith('rm_') &&
+                  m.text === incomingMsg.text &&
+                  (m.mediaUrl || '') === (incomingMsg.mediaUrl || '') &&
+                  m.authorName === incomingMsg.authorName &&
+                  Math.abs(m.createdTimestamp - incomingMsg.createdTimestamp) < 15000
+              );
+
+              if (optimisticIdx !== -1) {
+                const reconciled = [...existing];
+                reconciled[optimisticIdx] = {
+                  ...reconciled[optimisticIdx],
+                  ...incomingMsg,
+                };
+                return { ...room, messages: reconciled };
+              }
+
+              return {
+                ...room,
+                messages: [...existing, incomingMsg],
+              };
+            })
+          );
+        },
+        onRoomMessageUpdate: (roomId, updatedMsg) => {
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (room.id !== roomId || !room.messages) return room;
+              return {
+                ...room,
+                messages: room.messages.map((m) =>
+                  m.id === updatedMsg.id
+                    ? {
+                        ...m,
+                        ...updatedMsg,
+                        hasLiked: m.hasLiked,
+                        userReactions: m.userReactions,
+                      }
+                    : m
+                ),
+              };
+            })
+          );
+        },
+        onRoomMessageDelete: (roomId, deletedId) => {
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (roomId && room.id !== roomId) return room;
+              if (!room.messages) return room;
+              return {
+                ...room,
+                messages: room.messages.filter((m) => m.id !== deletedId),
+              };
+            })
+          );
+        },
+        onPostCommentInsert: (postId, incomingComment) => {
+          const applyCommentInsert = (post: SocialPost): SocialPost => {
+            if (post.id !== postId) return post;
+            const existing = post.comments || [];
+            if (existing.some((c) => c.id === incomingComment.id)) return post;
 
             const optimisticIdx = existing.findIndex(
-              (m) =>
-                m.id.startsWith('rm_') &&
-                m.text === incomingMsg.text &&
-                (m.mediaUrl || '') === (incomingMsg.mediaUrl || '') &&
-                m.authorName === incomingMsg.authorName &&
-                Math.abs(m.createdTimestamp - incomingMsg.createdTimestamp) < 15000
+              (c) =>
+                c.id.startsWith('comm_') &&
+                c.text === incomingComment.text &&
+                (c.mediaUrl || '') === (incomingComment.mediaUrl || '') &&
+                c.authorUsername === incomingComment.authorUsername &&
+                Math.abs(c.createdTimestamp - incomingComment.createdTimestamp) < 15000
             );
 
             if (optimisticIdx !== -1) {
               const reconciled = [...existing];
               reconciled[optimisticIdx] = {
                 ...reconciled[optimisticIdx],
-                ...incomingMsg,
+                ...incomingComment,
               };
-              return { ...room, messages: reconciled };
+              return { ...post, comments: reconciled };
             }
 
+            const nextComments = [...existing, incomingComment];
             return {
-              ...room,
-              messages: [...existing, incomingMsg],
+              ...post,
+              comments: nextComments,
+              commentsCount: Math.max(post.commentsCount + 1, nextComments.length),
             };
-          })
-        );
-      },
-      onRoomMessageUpdate: (roomId, updatedMsg) => {
-        setRooms((prev) =>
-          prev.map((room) => {
-            if (room.id !== roomId || !room.messages) return room;
+          };
+
+          setSocialPosts((prev) => prev.map(applyCommentInsert));
+          setSelectedPost((prev) => (prev && prev.id === postId ? applyCommentInsert(prev) : prev));
+        },
+        onPostCommentUpdate: (postId, updatedComment) => {
+          const applyCommentUpdate = (post: SocialPost): SocialPost => {
+            if (post.id !== postId || !post.comments) return post;
             return {
-              ...room,
-              messages: room.messages.map((m) =>
-                m.id === updatedMsg.id
-                  ? {
-                      ...m,
-                      ...updatedMsg,
-                      hasLiked: m.hasLiked,
-                      userReactions: m.userReactions,
-                    }
-                  : m
+              ...post,
+              comments: post.comments.map((c) =>
+                c.id === updatedComment.id
+                  ? { ...c, ...updatedComment, hasLiked: c.hasLiked }
+                  : c
               ),
             };
-          })
-        );
-      },
-      onRoomMessageDelete: (roomId, deletedId) => {
-        setRooms((prev) =>
-          prev.map((room) => {
-            if (roomId && room.id !== roomId) return room;
-            if (!room.messages) return room;
+          };
+
+          setSocialPosts((prev) => prev.map(applyCommentUpdate));
+          setSelectedPost((prev) => (prev && prev.id === postId ? applyCommentUpdate(prev) : prev));
+        },
+        onPostCommentDelete: (postId, deletedCommentId) => {
+          const applyCommentDelete = (post: SocialPost): SocialPost => {
+            if (postId && post.id !== postId) return post;
+            if (!post.comments) return post;
+            const filtered = post.comments.filter((c) => c.id !== deletedCommentId);
+            if (filtered.length === post.comments.length) return post;
             return {
-              ...room,
-              messages: room.messages.filter((m) => m.id !== deletedId),
+              ...post,
+              comments: filtered,
+              commentsCount: Math.max(0, post.commentsCount - 1),
             };
-          })
-        );
-      },
-      onPostCommentInsert: (postId, incomingComment) => {
-        const applyCommentInsert = (post: SocialPost): SocialPost => {
-          if (post.id !== postId) return post;
-          const existing = post.comments || [];
-          if (existing.some((c) => c.id === incomingComment.id)) return post;
+          };
 
-          const optimisticIdx = existing.findIndex(
-            (c) =>
-              c.id.startsWith('comm_') &&
-              c.text === incomingComment.text &&
-              (c.mediaUrl || '') === (incomingComment.mediaUrl || '') &&
-              c.authorUsername === incomingComment.authorUsername &&
-              Math.abs(c.createdTimestamp - incomingComment.createdTimestamp) < 15000
+          setSocialPosts((prev) => prev.map(applyCommentDelete));
+          setSelectedPost((prev) => (prev ? applyCommentDelete(prev) : prev));
+        },
+        onAnonymousMessageInsert: (incomingMsg, meta) => {
+          const curUser = userRef.current;
+          const isForMe =
+            Boolean(curUser.id && meta.recipientUserId && meta.recipientUserId === curUser.id) ||
+            Boolean(
+              curUser.username &&
+                curUser.username !== 'student' &&
+                incomingMsg.recipientUsername.toLowerCase() === curUser.username.toLowerCase()
+            ) ||
+            Boolean(curUser.id && meta.senderUserId && meta.senderUserId === curUser.id) ||
+            sentMessageIdsRef.current.includes(incomingMsg.id);
+
+          if (!isForMe) return;
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+            const optIdx = prev.findIndex(
+              (m) =>
+                m.id.startsWith('msg_') &&
+                m.text === incomingMsg.text &&
+                m.recipientUsername.toLowerCase() ===
+                  incomingMsg.recipientUsername.toLowerCase() &&
+                Math.abs(m.createdTimestamp - incomingMsg.createdTimestamp) < 20000
+            );
+            if (optIdx !== -1) {
+              const reconciled = [...prev];
+              reconciled[optIdx] = {
+                ...reconciled[optIdx],
+                ...incomingMsg,
+                comments: reconciled[optIdx].comments || incomingMsg.comments,
+              };
+              return reconciled;
+            }
+            return [incomingMsg, ...prev];
+          });
+          queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
+        },
+        onAnonymousMessageUpdate: (updatedMsg) => {
+          const applyUpdate = (m: AnonymousMessage): AnonymousMessage => {
+            if (m.id !== updatedMsg.id) return m;
+            return {
+              ...m,
+              ...updatedMsg,
+              comments: m.comments || updatedMsg.comments,
+              userReaction: m.userReaction,
+            };
+          };
+          setMessages((prev) => {
+            if (!prev.some((m) => m.id === updatedMsg.id)) return prev;
+            return prev.map(applyUpdate);
+          });
+          setSelectedMessage((prev) =>
+            prev && prev.id === updatedMsg.id ? applyUpdate(prev) : prev
           );
-
-          if (optimisticIdx !== -1) {
-            const reconciled = [...existing];
-            reconciled[optimisticIdx] = {
-              ...reconciled[optimisticIdx],
-              ...incomingComment,
-            };
-            return { ...post, comments: reconciled };
+        },
+        onAnonymousMessageDelete: (deletedId) => {
+          setMessages((prev) => prev.filter((m) => m.id !== deletedId));
+          setSelectedMessage((prev) => (prev && prev.id === deletedId ? null : prev));
+        },
+        onMessageCommentInsert: (messageId, incomingComment) => {
+          const hasParentLocally = allMessagesRef.current.some((m) => m.id === messageId);
+          if (!hasParentLocally) {
+            queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
+            return;
           }
 
-          const nextComments = [...existing, incomingComment];
-          return {
-            ...post,
-            comments: nextComments,
-            commentsCount: Math.max(post.commentsCount + 1, nextComments.length),
+          const applyCommentInsert = (m: AnonymousMessage): AnonymousMessage => {
+            if (m.id !== messageId) return m;
+            const existing = m.comments || [];
+            if (existing.some((c) => c.id === incomingComment.id)) return m;
+
+            const optIdx = existing.findIndex(
+              (c) =>
+                c.id.startsWith('c_') &&
+                c.authorRole === incomingComment.authorRole &&
+                c.text === incomingComment.text &&
+                (c.mediaUrl || '') === (incomingComment.mediaUrl || '') &&
+                Math.abs(c.createdTimestamp - incomingComment.createdTimestamp) < 20000
+            );
+
+            if (optIdx !== -1) {
+              const reconciled = [...existing];
+              reconciled[optIdx] = {
+                ...reconciled[optIdx],
+                ...incomingComment,
+              };
+              return { ...m, comments: reconciled, repliesCount: reconciled.length };
+            }
+
+            const nextComments = [...existing, incomingComment];
+            return {
+              ...m,
+              comments: nextComments,
+              repliesCount: Math.max(m.repliesCount, nextComments.length),
+            };
           };
-        };
 
-        setSocialPosts((prev) => prev.map(applyCommentInsert));
-        setSelectedPost((prev) => (prev && prev.id === postId ? applyCommentInsert(prev) : prev));
-      },
-      onPostCommentUpdate: (postId, updatedComment) => {
-        const applyCommentUpdate = (post: SocialPost): SocialPost => {
-          if (post.id !== postId || !post.comments) return post;
-          return {
-            ...post,
-            comments: post.comments.map((c) =>
-              c.id === updatedComment.id
-                ? { ...c, ...updatedComment, hasLiked: c.hasLiked }
-                : c
-            ),
+          setMessages((prev) => prev.map(applyCommentInsert));
+          setSelectedMessage((prev) =>
+            prev && prev.id === messageId ? applyCommentInsert(prev) : prev
+          );
+        },
+        onMessageCommentUpdate: (messageId, updatedComment) => {
+          const applyCommentUpdate = (m: AnonymousMessage): AnonymousMessage => {
+            if (m.id !== messageId || !m.comments) return m;
+            return {
+              ...m,
+              comments: m.comments.map((c) =>
+                c.id === updatedComment.id ? { ...c, ...updatedComment } : c
+              ),
+            };
           };
-        };
-
-        setSocialPosts((prev) => prev.map(applyCommentUpdate));
-        setSelectedPost((prev) => (prev && prev.id === postId ? applyCommentUpdate(prev) : prev));
-      },
-      onPostCommentDelete: (postId, deletedCommentId) => {
-        const applyCommentDelete = (post: SocialPost): SocialPost => {
-          if (postId && post.id !== postId) return post;
-          if (!post.comments) return post;
-          const filtered = post.comments.filter((c) => c.id !== deletedCommentId);
-          if (filtered.length === post.comments.length) return post;
-          return {
-            ...post,
-            comments: filtered,
-            commentsCount: Math.max(0, post.commentsCount - 1),
+          setMessages((prev) => prev.map(applyCommentUpdate));
+          setSelectedMessage((prev) =>
+            prev && prev.id === messageId ? applyCommentUpdate(prev) : prev
+          );
+        },
+        onMessageCommentDelete: (messageId, deletedCommentId) => {
+          const applyCommentDelete = (m: AnonymousMessage): AnonymousMessage => {
+            if (messageId && m.id !== messageId) return m;
+            if (!m.comments) return m;
+            const filtered = m.comments.filter((c) => c.id !== deletedCommentId);
+            if (filtered.length === m.comments.length) return m;
+            return { ...m, comments: filtered, repliesCount: filtered.length };
           };
-        };
+          setMessages((prev) => prev.map(applyCommentDelete));
+          setSelectedMessage((prev) => (prev ? applyCommentDelete(prev) : prev));
+        },
+        onMessageAnswerUpsert: (answer) => {
+          setAnswers((prev) => ({
+            ...prev,
+            [answer.messageId]: answer,
+          }));
+          setSelectedAnswer((prev) =>
+            prev && prev.messageId === answer.messageId ? answer : prev
+          );
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === answer.messageId ? { ...m, isAnswered: true } : m
+            )
+          );
+        },
+        onMessageAnswerDelete: (messageId, answerId) => {
+          setAnswers((prev) => {
+            const targetKey =
+              messageId ||
+              Object.keys(prev).find((k) => prev[k]?.id === answerId) ||
+              '';
+            if (!targetKey || !prev[targetKey]) return prev;
+            const next = { ...prev };
+            delete next[targetKey];
+            return next;
+          });
+        },
+        onNotificationInsert: (incomingNotif) => {
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === incomingNotif.id)) return prev;
+            return [incomingNotif, ...prev].slice(0, 50);
+          });
+        },
+        onNotificationUpdate: (updatedNotif) => {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === updatedNotif.id ? { ...n, ...updatedNotif } : n))
+          );
+        },
+        onRoomPresenceUpsert: (roomId, userId, lastSeenAt) => {
+          const now = Date.now();
+          const ACTIVE_WINDOW_MS = 2.5 * 60 * 1000;
+          if (now - lastSeenAt >= ACTIVE_WINDOW_MS) return;
 
-        setSocialPosts((prev) => prev.map(applyCommentDelete));
-        setSelectedPost((prev) => (prev ? applyCommentDelete(prev) : prev));
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (room.id !== roomId) return room;
+              const existingMember = (room.activeMembers || []).find(
+                (m) => m.userId === userId
+              );
+              const assigned =
+                room.assignedPersonas?.[userId] ||
+                (userRef.current.id === userId
+                  ? getSavedRoomPersona(roomId, userId, room.assignedPersonas)
+                  : null);
+
+              const updatedMember: RoomActiveMember = {
+                userId,
+                alias:
+                  assigned?.alias ||
+                  existingMember?.alias ||
+                  (userRef.current.id === userId ? userRef.current.displayName : '') ||
+                  'Masked Student',
+                maskId: assigned?.maskId || existingMember?.maskId || 'masked-student',
+                maskEmoji: assigned?.maskEmoji ?? existingMember?.maskEmoji,
+                lastSeenAt,
+              };
+
+              const freshOthers = (room.activeMembers || []).filter(
+                (m) => m.userId !== userId && now - m.lastSeenAt < ACTIVE_WINDOW_MS
+              );
+              const nextActive = [updatedMember, ...freshOthers].sort(
+                (a, b) => b.lastSeenAt - a.lastSeenAt
+              );
+              return {
+                ...room,
+                activeMembers: nextActive,
+                onlineCount: nextActive.length,
+              };
+            })
+          );
+        },
+        onRoomPresenceDelete: (roomId, userId) => {
+          const now = Date.now();
+          const ACTIVE_WINDOW_MS = 2.5 * 60 * 1000;
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (room.id !== roomId) return room;
+              const current = room.activeMembers || [];
+              const nextActive = current.filter(
+                (m) => m.userId !== userId && now - m.lastSeenAt < ACTIVE_WINDOW_MS
+              );
+              if (
+                nextActive.length === current.length &&
+                room.onlineCount === nextActive.length
+              ) {
+                return room;
+              }
+              return {
+                ...room,
+                activeMembers: nextActive,
+                onlineCount: nextActive.length,
+              };
+            })
+          );
+        },
+        onRoomUpdate: (roomPatch) => {
+          setRooms((prev) =>
+            prev.map((room) => {
+              if (room.id !== roomPatch.id) return room;
+              return {
+                ...room,
+                ...(roomPatch.name !== undefined ? { name: roomPatch.name } : {}),
+                ...(roomPatch.description !== undefined
+                  ? { description: roomPatch.description }
+                  : {}),
+                ...(roomPatch.category !== undefined ? { category: roomPatch.category } : {}),
+                ...(roomPatch.iconEmoji !== undefined ? { iconEmoji: roomPatch.iconEmoji } : {}),
+                ...(roomPatch.iconBg !== undefined ? { iconBg: roomPatch.iconBg } : {}),
+                ...(roomPatch.isLocked !== undefined ? { isLocked: roomPatch.isLocked } : {}),
+                ...(roomPatch.isAnonymousOnly !== undefined
+                  ? { isAnonymousOnly: roomPatch.isAnonymousOnly }
+                  : {}),
+                ...(roomPatch.isFeatured !== undefined
+                  ? { isFeatured: roomPatch.isFeatured }
+                  : {}),
+              };
+            })
+          );
+        },
+        onRoomDelete: (roomId) => {
+          setRooms((prev) => prev.filter((room) => room.id !== roomId));
+        },
+        onReconnected: () => {
+          queryClient.invalidateQueries({ refetchType: 'active' });
+        },
       },
-    });
-  }, []);
+      { authUserId: authUid }
+    );
+  }, [user.id, isAuthenticated, queryClient]);
 
-  // Subscribe to Supabase Postgres Realtime Changes across all 27 tables with 180ms burst coalescing
+  // Subscribe to Supabase Postgres Realtime Changes across all 27 tables with 150ms burst coalescing
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     const pendingGroups = new Set<string>();
@@ -1662,31 +1983,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         queryClient.invalidateQueries({ queryKey: ['bopoi', 'answers'] });
       }
       if (groups.includes('notifications') && user.id) {
-        fetchSupabaseNotifications(user.id).then((list) => {
-          if (list) setNotifications(list);
-        });
+        queryClient.invalidateQueries({ queryKey: ['bopoi', 'notifications'] });
       }
       if (groups.includes('profiles')) {
-        fetchSupabaseProfiles(user.id || undefined, user.username || undefined).then((res) => {
-          if (res) {
-            setAccounts(res.profiles);
-            setCreators(res.creators);
-            if (res.followEdges) {
-              setFollowEdges(res.followEdges);
-            }
-            const myProfile = res.profiles.find(
-              (p) =>
-                p.id === user.id || p.username.toLowerCase() === user.username.toLowerCase()
-            );
-            if (myProfile) {
-              setUser((prev) => ({
-                ...prev,
-                followersCount: myProfile.followersCount,
-                followingCount: myProfile.followingCount,
-              }));
-            }
-          }
-        });
+        queryClient.invalidateQueries({ queryKey: ['bopoi', 'profiles'] });
       }
       if (groups.includes('adminData')) {
         syncAdminTablesFromSupabase();
@@ -1714,60 +2014,221 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const scheduleGroupFlush = (group: string) => {
       pendingGroups.add(group);
       if (!coalesceTimer) {
-        coalesceTimer = setTimeout(flushInvalidations, 180);
+        coalesceTimer = setTimeout(flushInvalidations, 150);
       }
     };
 
-    const unsubscribe = subscribeToSupabaseRealtime(user.id || undefined, (table) => {
-      if (
-        table === 'social_posts' ||
-        table === 'poll_options' ||
-        table === 'poll_votes' ||
-        table === 'post_likes' ||
-        table === 'post_bookmarks' ||
-        table === 'post_comments' ||
-        table === 'post_comment_likes'
-      ) {
-        scheduleGroupFlush('socialPosts');
-      } else if (
-        table === 'community_rooms' ||
-        table === 'room_memberships' ||
-        table === 'room_assigned_personas' ||
-        table === 'room_messages' ||
-        table === 'room_message_likes' ||
-        table === 'room_message_reactions' ||
-        table === 'room_presence'
-      ) {
-        scheduleGroupFlush('rooms');
-      } else if (
-        table === 'anonymous_messages' ||
-        table === 'message_comments' ||
-        table === 'moderation_reports'
-      ) {
-        scheduleGroupFlush('messages');
-        scheduleGroupFlush('adminData');
-      } else if (table === 'message_answers' || table === 'message_answer_likes') {
-        scheduleGroupFlush('answers');
-      } else if (table === 'notifications' && user.id) {
-        scheduleGroupFlush('notifications');
-      } else if (table === 'profiles' || table === 'user_follows') {
-        scheduleGroupFlush('profiles');
-      } else if (
-        table === 'campus_announcements' ||
-        table === 'admin_audit_logs' ||
-        table === 'platform_settings'
-      ) {
-        scheduleGroupFlush('adminData');
-      } else if (table === 'user_safety_settings' && supabase && user.id) {
-        scheduleGroupFlush('safety');
+    const unsubscribe = subscribeToSupabaseRealtime(
+      user.id || undefined,
+      (table) => {
+        if (
+          table === 'social_posts' ||
+          table === 'poll_options' ||
+          table === 'poll_votes' ||
+          table === 'post_likes' ||
+          table === 'post_bookmarks' ||
+          table === 'post_comments' ||
+          table === 'post_comment_likes'
+        ) {
+          scheduleGroupFlush('socialPosts');
+        } else if (
+          table === 'community_rooms' ||
+          table === 'room_memberships' ||
+          table === 'room_assigned_personas' ||
+          table === 'room_messages' ||
+          table === 'room_message_likes' ||
+          table === 'room_message_reactions' ||
+          table === 'room_presence'
+        ) {
+          scheduleGroupFlush('rooms');
+        } else if (
+          table === 'anonymous_messages' ||
+          table === 'message_comments' ||
+          table === 'moderation_reports'
+        ) {
+          scheduleGroupFlush('messages');
+          scheduleGroupFlush('adminData');
+        } else if (table === 'message_answers' || table === 'message_answer_likes') {
+          scheduleGroupFlush('answers');
+        } else if (table === 'notifications' && user.id) {
+          scheduleGroupFlush('notifications');
+        } else if (table === 'profiles' || table === 'user_follows') {
+          scheduleGroupFlush('profiles');
+        } else if (
+          table === 'campus_announcements' ||
+          table === 'admin_audit_logs' ||
+          table === 'platform_settings'
+        ) {
+          scheduleGroupFlush('adminData');
+        } else if (table === 'user_safety_settings' && supabase && user.id) {
+          scheduleGroupFlush('safety');
+        }
+      },
+      () => {
+        queryClient.invalidateQueries({ refetchType: 'active' });
+        syncAdminTablesFromSupabase();
       }
-    });
+    );
+
+    // Silent background catch-up when returning to the tab, focusing window, or restoring connection
+    let lastWakeSync = 0;
+    const handleWakeSync = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const now = Date.now();
+      if (now - lastWakeSync < 2000) return;
+      lastWakeSync = now;
+      queryClient.invalidateQueries({ refetchType: 'active' });
+      syncAdminTablesFromSupabase();
+    };
+    window.addEventListener('focus', handleWakeSync);
+    window.addEventListener('online', handleWakeSync);
+    document.addEventListener('visibilitychange', handleWakeSync);
 
     return () => {
       if (coalesceTimer) clearTimeout(coalesceTimer);
+      window.removeEventListener('focus', handleWakeSync);
+      window.removeEventListener('online', handleWakeSync);
+      document.removeEventListener('visibilitychange', handleWakeSync);
       unsubscribe();
     };
-  }, [user.id, queryClient]);
+  }, [user.id, isAuthenticated, queryClient]);
+
+  // Live Room Presence Heartbeat + Exit Cleanup + Stale Presence Pruner
+  useEffect(() => {
+    const ACTIVE_WINDOW_MS = 2.5 * 60 * 1000;
+    const pruneInterval = window.setInterval(() => {
+      const now = Date.now();
+      setRooms((prev) => {
+        let changed = false;
+        const next = prev.map((r) => {
+          const members = r.activeMembers || [];
+          if (members.length === 0) return r;
+          const fresh = members.filter((m) => now - m.lastSeenAt < ACTIVE_WINDOW_MS);
+          if (fresh.length !== members.length) {
+            changed = true;
+            return {
+              ...r,
+              activeMembers: fresh,
+              onlineCount: fresh.length,
+            };
+          }
+          return r;
+        });
+        return changed ? next : prev;
+      });
+    }, 30000);
+    return () => window.clearInterval(pruneInterval);
+  }, []);
+
+  useEffect(() => {
+    const activeRoomId = activeView === 'room-detail' ? selectedRoomId : null;
+    const uid = user.id || user.username || '';
+    const isRealMember = Boolean(
+      isAuthenticated && uid && user.username && user.username !== 'student'
+    );
+    if (!activeRoomId || !isRealMember) return;
+
+    const getPersonaInfo = (): RoomActiveMember => {
+      const room = roomsRef.current.find((r) => r.id === activeRoomId);
+      const saved = getSavedRoomPersona(activeRoomId, uid, room?.assignedPersonas);
+      return {
+        userId: uid,
+        alias: saved?.alias || user.displayName || 'Masked Student',
+        maskId: saved?.maskId || 'masked-student',
+        maskEmoji: saved?.maskEmoji,
+        lastSeenAt: Date.now(),
+      };
+    };
+
+    const applyLocalPresence = (present: boolean) => {
+      const now = Date.now();
+      const member = getPersonaInfo();
+      setRooms((prev) =>
+        prev.map((r) => {
+          if (r.id !== activeRoomId) return r;
+          const currentActive = (r.activeMembers || []).filter(
+            (m) => m.userId !== uid && now - m.lastSeenAt < 2.5 * 60 * 1000
+          );
+          const nextActive = present
+            ? [{ ...member, lastSeenAt: now }, ...currentActive]
+            : currentActive;
+          return {
+            ...r,
+            activeMembers: nextActive,
+            onlineCount: nextActive.length,
+          };
+        })
+      );
+      realtimeManager.publish('ROOM_PRESENCE_UPDATE', {
+        roomId: activeRoomId,
+        member,
+        isActive: present,
+      });
+    };
+
+    const sendHeartbeat = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+      applyLocalPresence(true);
+      if (supabase && /^[0-9a-f-]{36}$/i.test(activeRoomId)) {
+        supabase.rpc('room_presence_heartbeat', { p_room_id: activeRoomId }).then(
+          () => {},
+          () => {}
+        );
+      }
+    };
+
+    sendHeartbeat();
+    const hbInterval = window.setInterval(sendHeartbeat, 45000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    const onBeforeUnload = () => {
+      if (
+        supabase &&
+        /^[0-9a-f-]{36}$/i.test(activeRoomId) &&
+        /^[0-9a-f-]{36}$/i.test(uid)
+      ) {
+        supabase
+          .from('room_presence')
+          .delete()
+          .eq('room_id', activeRoomId)
+          .eq('user_id', uid)
+          .then(
+            () => {},
+            () => {}
+          );
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      window.clearInterval(hbInterval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      applyLocalPresence(false);
+      if (
+        supabase &&
+        /^[0-9a-f-]{36}$/i.test(activeRoomId) &&
+        /^[0-9a-f-]{36}$/i.test(uid)
+      ) {
+        supabase
+          .from('room_presence')
+          .delete()
+          .eq('room_id', activeRoomId)
+          .eq('user_id', uid)
+          .then(
+            () => {},
+            () => {}
+          );
+      }
+    };
+  }, [activeView, selectedRoomId, user.id, user.username, isAuthenticated]);
 
   // Persist activeView and selected items to localStorage so reloading any page preserves state
   useEffect(() => {
@@ -2146,23 +2607,62 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     queryKey: ['bopoi', 'rooms', user.id],
     queryFn: () => fetchSyncedRooms(user.id || undefined),
     staleTime: 2000,
-    refetchInterval: 4000,
+    refetchInterval:
+      activeView === 'rooms' || activeView === 'room-detail' ? 2500 : 4000,
     refetchIntervalInBackground: false,
   });
 
   const { data: queriedMessages } = useQuery({
     queryKey: ['bopoi', 'messages', user.id],
     queryFn: () => fetchSyncedMessages(user.id || undefined),
-    staleTime: 2000,
-    refetchInterval: 4000,
+    staleTime: 1500,
+    refetchInterval:
+      activeView === 'inbox' || activeView === 'message-detail' ? 2000 : 4000,
     refetchIntervalInBackground: false,
   });
+
+  // Silent background sync on view navigation so Inbox, MessageDetail, and Rooms always reflect latest server state without interrupting UI
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    if (activeView === 'inbox' || activeView === 'message-detail') {
+      queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['bopoi', 'answers'] });
+    } else if (activeView === 'rooms' || activeView === 'room-detail') {
+      queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
+    }
+  }, [activeView, selectedRoomId, selectedMessage?.id, queryClient]);
 
   const { data: queriedAnswers } = useQuery({
     queryKey: ['bopoi', 'answers'],
     queryFn: () => fetchSyncedAnswers(),
-    staleTime: 2500,
-    refetchInterval: 5000,
+    staleTime: 2000,
+    refetchInterval: 4500,
+    refetchIntervalInBackground: false,
+  });
+
+  const { data: queriedNotifications } = useQuery({
+    queryKey: ['bopoi', 'notifications', user.id],
+    queryFn: () => fetchSupabaseNotifications(user.id || undefined),
+    enabled: Boolean(
+      isSupabaseConfigured &&
+        isAuthenticated &&
+        user.id &&
+        user.username &&
+        user.username !== 'student'
+    ),
+    staleTime: 2000,
+    refetchInterval: 4500,
+    refetchIntervalInBackground: false,
+  });
+
+  useQuery({
+    queryKey: ['bopoi', 'adminAndReports', user.id, isAdminUnlocked],
+    queryFn: async () => {
+      await syncAdminTablesFromSupabase();
+      return true;
+    },
+    staleTime: 5000,
+    refetchInterval: activeView === 'admin' ? 4000 : 10000,
     refetchIntervalInBackground: false,
   });
 
@@ -2177,6 +2677,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refetchInterval: 4500,
     refetchIntervalInBackground: false,
   });
+
+  useEffect(() => {
+    if (!queriedNotifications) return;
+    setNotifications((prev) =>
+      areNotificationsEqualFast(prev, queriedNotifications) ? prev : queriedNotifications
+    );
+  }, [queriedNotifications]);
 
   useEffect(() => {
     if (!queriedProfiles) return;
@@ -2194,7 +2701,10 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser((prev) => {
           if (
             prev.followersCount === myProfile.followersCount &&
-            prev.followingCount === myProfile.followingCount
+            prev.followingCount === myProfile.followingCount &&
+            prev.linkActive === myProfile.linkActive &&
+            Boolean(prev.isVerified) === Boolean(myProfile.isVerified) &&
+            Boolean(prev.isSuspended) === Boolean(myProfile.isSuspended)
           ) {
             return prev;
           }
@@ -2202,6 +2712,9 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...prev,
             followersCount: myProfile.followersCount,
             followingCount: myProfile.followingCount,
+            linkActive: myProfile.linkActive,
+            isVerified: myProfile.isVerified,
+            isSuspended: myProfile.isSuspended,
           };
         });
       }
@@ -2422,12 +2935,25 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (!queriedMessages) return;
-    const mergeInFlightComments = (
+    const mergeInFlightMessagesAndComments = (
       prevList: AnonymousMessage[],
       serverList: AnonymousMessage[]
     ): AnonymousMessage[] => {
       const now = Date.now();
-      return serverList.map((qm) => {
+      const inFlightMessages = prevList.filter(
+        (m) =>
+          m.id.startsWith('msg_') &&
+          now - m.createdTimestamp < 15000 &&
+          !serverList.some(
+            (sm) =>
+              sm.id === m.id ||
+              (sm.text === m.text &&
+                sm.recipientUsername.toLowerCase() === m.recipientUsername.toLowerCase() &&
+                Math.abs(sm.createdTimestamp - m.createdTimestamp) < 20000)
+          )
+      );
+
+      const mergedServer = serverList.map((qm) => {
         const localMsg = prevList.find((lm) => lm.id === qm.id);
         if (!localMsg?.comments?.length) return qm;
         const serverComments = qm.comments || [];
@@ -2452,11 +2978,13 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           repliesCount: Math.max(qm.repliesCount, combined.length),
         };
       });
+
+      return [...inFlightMessages, ...mergedServer];
     };
 
     let mergedForSelected: AnonymousMessage[] = queriedMessages;
     setMessages((prev) => {
-      const merged = mergeInFlightComments(prev, queriedMessages);
+      const merged = mergeInFlightMessagesAndComments(prev, queriedMessages);
       mergedForSelected = merged;
       if (areMessagesEqualFast(prev, merged)) return prev;
       return merged;
@@ -2515,13 +3043,27 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (prev.some((r) => r.id === room.id)) return prev;
           return [room, ...prev];
         });
-      } else if (type === 'ROOM_JOINED' && payload?.roomId) {
-        const { roomId } = payload;
+      } else if (type === 'ROOM_PRESENCE_UPDATE' && payload?.roomId && payload?.member) {
+        const { roomId, member, isActive } = payload;
+        const now = Date.now();
         setRooms((prev) =>
-          prev.map((r) =>
-            r.id === roomId ? { ...r, onlineCount: (r.onlineCount || 1) + 1 } : r
-          )
+          prev.map((r) => {
+            if (r.id !== roomId) return r;
+            const filtered = (r.activeMembers || []).filter(
+              (m) => m.userId !== member.userId && now - m.lastSeenAt < 2.5 * 60 * 1000
+            );
+            const nextActive = isActive
+              ? [{ ...member, lastSeenAt: now }, ...filtered]
+              : filtered;
+            return {
+              ...r,
+              activeMembers: nextActive,
+              onlineCount: nextActive.length,
+            };
+          })
         );
+      } else if (type === 'ROOM_JOINED' && payload?.roomId) {
+        queryClient.invalidateQueries({ queryKey: ['bopoi', 'rooms'] });
       } else if (type === 'ROOM_PERSONA_ASSIGNED' && payload?.roomId && payload?.persona) {
         const { roomId, persona } = payload;
         setRooms((prev) =>
@@ -2828,13 +3370,18 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })
         .then(({ data: realId, error }) => {
           if (!error && realId) {
+            const realIdStr = String(realId);
             setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, id: String(realId) } : m))
+              prev.map((m) => (m.id === tempId ? { ...m, id: realIdStr } : m))
+            );
+            setSelectedMessage((prev) =>
+              prev && prev.id === tempId ? { ...prev, id: realIdStr } : prev
             );
             setSentMessageIds((prev) =>
-              prev.map((id) => (id === tempId ? String(realId) : id))
+              prev.map((id) => (id === tempId ? realIdStr : id))
             );
-            setLastSentMessageId(String(realId));
+            setLastSentMessageId((prev) => (prev === tempId ? realIdStr : prev));
+            realtimeManager.publish('MESSAGES_UPDATED', { messageId: realIdStr });
             queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
           }
         });
@@ -4341,6 +4888,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (error) {
             console.warn('[Bopoi] Failed to save DM reply:', error.message);
           }
+          realtimeManager.publish('MESSAGES_UPDATED', { messageId });
           queryClient.invalidateQueries({ queryKey: ['bopoi', 'messages'] });
         });
     }
@@ -4670,7 +5218,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             iconEmoji: targetRoom.iconEmoji,
             iconBg: targetRoom.iconBg,
             membersCount: targetRoom.membersCount,
-            onlineCount: targetRoom.onlineCount || 1,
+            onlineCount: targetRoom.onlineCount ?? 0,
             isAnonymousOnly: targetRoom.isAnonymousOnly,
             isJoined: targetRoom.isJoined,
           }
@@ -5227,6 +5775,15 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       category: params.category || 'Campus',
       membersCount: 1,
       onlineCount: 1,
+      activeMembers: [
+        {
+          userId: user.id || 'guest',
+          alias: creatorCleanAlias,
+          maskId: 'masked-student',
+          maskEmoji: founderMaskEmoji,
+          lastSeenAt: Date.now(),
+        },
+      ],
       isJoined: true,
       iconEmoji: params.iconEmoji || '💬',
       iconBg: params.iconBg || '#5420F5',
@@ -5868,7 +6425,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     requestConfirm({
       badge: 'Join Confirmation',
       title: 'Are you sure you want to join this campus group?',
-      description: `You are about to join #${roomName}. Your identity stays 100% protected behind an anonymous campus persona mask.`,
+      description: `You are about to join #${roomName}. Your identity stays protected behind an anonymous campus persona mask.`,
       confirmLabel: 'Yes, Join & Enter Room',
       cancelLabel: 'Cancel',
       variant: 'primary',
@@ -5881,7 +6438,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             iconEmoji: targetRoom.iconEmoji,
             iconBg: targetRoom.iconBg,
             membersCount: targetRoom.membersCount,
-            onlineCount: targetRoom.onlineCount || 1,
+            onlineCount: targetRoom.onlineCount ?? 0,
             isAnonymousOnly: targetRoom.isAnonymousOnly,
             isJoined: targetRoom.isJoined,
           }
@@ -6016,26 +6573,70 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsCreateModalOpen(true);
   };
 
-  const toQuotedPreview = (source: SocialPost): QuotedPostPreview => ({
-    id: source.id,
-    type: source.type,
-    authorName: source.isAnonymous ? 'Anonymous Student' : source.authorName,
-    authorUsername: source.isAnonymous ? 'anon_student' : source.authorUsername,
-    authorAvatar: source.isAnonymous ? undefined : source.authorAvatar,
-    authorCampus: source.authorCampus,
-    isAnonymous: Boolean(source.isAnonymous),
-    title: source.title,
-    content: source.content,
-    mediaUrl: source.mediaUrl,
-    mediaType: source.mediaType,
-    createdAt: source.createdAt,
-  });
+  const toQuotedPreview = (source: SocialPost): QuotedPostPreview => {
+    const unwrapTarget =
+      !source.content?.trim() && !source.mediaUrl && source.quotedPostSnapshot
+        ? source.quotedPostSnapshot
+        : null;
+    if (unwrapTarget) {
+      return {
+        id: unwrapTarget.id,
+        type: unwrapTarget.type,
+        authorName: unwrapTarget.isAnonymous ? 'Anonymous Student' : unwrapTarget.authorName,
+        authorUsername: unwrapTarget.isAnonymous ? 'anon_student' : unwrapTarget.authorUsername,
+        authorAvatar: unwrapTarget.isAnonymous ? undefined : unwrapTarget.authorAvatar,
+        authorCampus: unwrapTarget.authorCampus,
+        isAnonymous: Boolean(unwrapTarget.isAnonymous),
+        title: unwrapTarget.title,
+        content: unwrapTarget.content,
+        mediaUrl: unwrapTarget.mediaUrl,
+        mediaType: unwrapTarget.mediaType,
+        createdAt: unwrapTarget.createdAt,
+      };
+    }
+    return {
+      id: source.id,
+      type: source.type,
+      authorName: source.isAnonymous ? 'Anonymous Student' : source.authorName,
+      authorUsername: source.isAnonymous ? 'anon_student' : source.authorUsername,
+      authorAvatar: source.isAnonymous ? undefined : source.authorAvatar,
+      authorCampus: source.authorCampus,
+      isAnonymous: Boolean(source.isAnonymous),
+      title: source.title,
+      content: source.content,
+      mediaUrl: source.mediaUrl,
+      mediaType: source.mediaType,
+      createdAt: source.createdAt,
+    };
+  };
 
   const openQuoteComposer = (sourcePost: SocialPost) => {
     if (!requireAuth('quote or repost campus posts')) return;
+    const unwrapTarget =
+      !sourcePost.content?.trim() && !sourcePost.mediaUrl && sourcePost.quotedPostSnapshot
+        ? sourcePost.quotedPostSnapshot
+        : null;
+    const effectivePost: SocialPost = unwrapTarget
+      ? {
+          ...sourcePost,
+          id: unwrapTarget.id,
+          type: unwrapTarget.type,
+          authorName: unwrapTarget.authorName,
+          authorUsername: unwrapTarget.authorUsername,
+          authorAvatar: unwrapTarget.authorAvatar,
+          authorCampus: unwrapTarget.authorCampus,
+          isAnonymous: unwrapTarget.isAnonymous,
+          title: unwrapTarget.title,
+          content: unwrapTarget.content,
+          mediaUrl: unwrapTarget.mediaUrl,
+          mediaType: unwrapTarget.mediaType,
+          createdAt: unwrapTarget.createdAt,
+          quotedPostSnapshot: undefined,
+        }
+      : sourcePost;
     setDraftHashtag(null);
     setDraftPostType('post');
-    setDraftQuotedPost(sourcePost);
+    setDraftQuotedPost(effectivePost);
     setIsCreateModalOpen(true);
   };
 
@@ -7036,7 +7637,7 @@ const BopoiInnerProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : updates.isFeatured !== undefined
           ? `Are you sure you want to ${updates.isFeatured ? 'feature' : 'unfeature'} #${roomLabel} on the Campus Home carousel?`
           : `Switch #${roomLabel} to ${
-              updates.isAnonymousOnly ? '100% Anonymous Masks Only' : 'Allow Public & Anonymous Chat'
+              updates.isAnonymousOnly ? 'Anonymous Masks Only' : 'Allow Public & Anonymous Chat'
             }?`;
 
       requestConfirm({

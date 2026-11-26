@@ -2,16 +2,13 @@ import React from 'react';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import { useBopoi } from '../../context/BopoiContext.tsx';
-import { ArrowRight, LogIn, MessagesSquare, Sparkles } from 'lucide-react';
+import { ArrowRight, LogIn, MessagesSquare } from 'lucide-react';
 
 export const SplashView: React.FC = () => {
   const { setActiveView } = useBopoi();
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between bg-gradient-to-b from-[#2E0BA8] via-[#4314E2] to-[#5420F5] dark:from-[#0E0A1C] dark:via-[#1E1148] dark:to-[#3510B9] text-white px-5 py-8 sm:p-8 relative overflow-hidden select-none">
-      {/* Ambient lighting */}
-      <div className="absolute -top-12 right-0 w-72 h-72 bg-[#F52D85]/25 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-12 -left-10 w-72 h-72 bg-[#FFC928]/20 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-dvh flex flex-col justify-between bg-[#3A12C4] dark:bg-[#120B29] text-white px-5 py-8 sm:p-8 relative overflow-hidden select-none">
 
       {/* Top Header Logo & Branding */}
       <div className="flex flex-col items-center pt-4 sm:pt-8 text-center z-10 max-w-md mx-auto w-full">
@@ -36,13 +33,12 @@ export const SplashView: React.FC = () => {
         <div className="w-full rounded-3xl bg-white/12 backdrop-blur-md border border-white/20 p-4 shadow-2xl space-y-3">
           <div className="flex items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2.5">
-              <BopoiAnonymousAvatar size="sm" idPrefix="splash-anon" showSparkleBadge />
+              <BopoiAnonymousAvatar size="sm" idPrefix="splash-anon" />
               <div>
                 <p className="font-black text-white leading-none">Anonymous Student</p>
                 <p className="text-[11px] text-white/70 mt-1">Just dropped via Ask Link</p>
               </div>
             </div>
-            <Sparkles className="w-4 h-4 text-[#FFC928] shrink-0" />
           </div>
 
           <div className="rounded-2xl bg-white text-[#191525] p-4 shadow-lg">

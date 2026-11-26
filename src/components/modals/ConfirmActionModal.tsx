@@ -106,10 +106,10 @@ export const ConfirmActionModal: React.FC = () => {
         <div
           className={`p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-start justify-between gap-3 shrink-0 ${
             isDanger
-              ? 'bg-gradient-to-r from-rose-50/70 via-[#FAF9FC] to-white dark:from-rose-950/35 dark:via-[#141020] dark:to-[#0E0C14]'
+              ? 'bg-rose-50/70 dark:bg-rose-950/30'
               : isWarning
-              ? 'bg-gradient-to-r from-amber-50/70 via-[#FAF9FC] to-white dark:from-amber-950/30 dark:via-[#141020] dark:to-[#0E0C14]'
-              : 'bg-gradient-to-r from-[#FAF9FC] via-[#F0EBFF]/35 to-white dark:from-[#171322] dark:via-[#231A45]/45 dark:to-[#0E0C14]'
+              ? 'bg-amber-50/70 dark:bg-amber-950/25'
+              : 'bg-[#FAF9FC] dark:bg-[#141020]'
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -215,24 +215,28 @@ export const ConfirmActionModal: React.FC = () => {
                         {roomPreview.membersCount === 1 ? 'member' : 'members'}
                       </span>
                     </span>
-                    <span className="text-slate-300 dark:text-[#3A3154]">·</span>
-                    <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
-                      {roomPreview.onlineCount} online
-                    </span>
+                    {roomPreview.onlineCount > 0 && (
+                      <>
+                        <span className="text-slate-300 dark:text-[#3A3154]">·</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          {roomPreview.onlineCount} online
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Anonymous Persona Assurance Banner or Leave/Delete Notice */}
               {isRoomJoinAction ? (
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] via-purple-50 to-white dark:from-[#231A45] dark:via-[#171322] dark:to-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-[#F7F4FF] dark:bg-[#1B1530] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/20 dark:border-[#7C5CFF]/30 flex items-center justify-center p-1 shrink-0 shadow-2xs">
                     <PersonaMaskIcon mask="masked-student" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-black text-[#191525] dark:text-[#F4F2FA] flex items-center gap-1">
                       <Shield className="w-3 h-3 text-[#5420F5] dark:text-[#8E6BFF] shrink-0" />
-                      <span>100% Anonymous Campus Mask</span>
+                      <span>Anonymous Campus Mask</span>
                     </p>
                     <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] leading-snug mt-0.5">
                       {confirmDialog.description}
@@ -261,7 +265,7 @@ export const ConfirmActionModal: React.FC = () => {
                   ? 'bg-rose-50/50 dark:bg-rose-950/35 border-rose-200/80 dark:border-rose-900/60'
                   : isWarning
                   ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-900/60'
-                  : 'bg-gradient-to-r from-[#F0EBFF]/60 via-[#FAF9FC] to-white dark:from-[#231A45]/70 dark:via-[#171322] dark:to-[#0E0C14] border-[#5420F5]/20 dark:border-[#7C5CFF]/30'
+                  : 'bg-[#FAF9FC] dark:bg-[#171322] border-[#5420F5]/20 dark:border-[#7C5CFF]/30'
               }`}
             >
               <p className="text-xs sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-semibold leading-relaxed break-words">

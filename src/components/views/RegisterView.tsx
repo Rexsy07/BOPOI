@@ -11,7 +11,6 @@ import {
   LogIn,
   UserPlus,
   School,
-  Sparkles,
   ChevronRight,
   Search,
   MapPin,
@@ -494,8 +493,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ initialMode = 'login
                       className="ring-3 ring-[#FFC928]/80 shadow-lg shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#FFC928]">
-                        <Sparkles className="w-3 h-3" /> 3D Campus Identity
+                      <span className="text-[11px] font-extrabold text-[#FFC928] block">
+                        3D Campus Identity
                       </span>
                       <span className="text-sm font-black text-white block truncate mt-0.5">
                         {displayName.trim() || 'Your Student Character'}

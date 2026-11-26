@@ -1218,18 +1218,37 @@ export async function fetchSupabaseRooms(currentUserId?: string): Promise<Commun
 
         const exactMembersCount = Math.max(1, uniqueMemberIds.size);
 
-        const activeOnlineIds = new Set<string>();
+        const ACTIVE_PRESENCE_WINDOW_MS = 2.5 * 60 * 1000;
+        const activeOnlineMap = new Map<string, number>();
         if (Array.isArray(row.room_presence)) {
           row.room_presence.forEach((rp: any) => {
-            if (rp?.user_id) {
-              const seenTs = rp.last_seen_at ? new Date(rp.last_seen_at).getTime() : 0;
-              if (!seenTs || nowMs - seenTs < 10 * 60 * 1000) {
-                activeOnlineIds.add(String(rp.user_id));
+            if (rp?.user_id && rp.last_seen_at) {
+              const seenTs = new Date(rp.last_seen_at).getTime();
+              if (
+                !Number.isNaN(seenTs) &&
+                nowMs - seenTs >= -30000 &&
+                nowMs - seenTs < ACTIVE_PRESENCE_WINDOW_MS
+              ) {
+                const uid = String(rp.user_id);
+                const prevTs = activeOnlineMap.get(uid) || 0;
+                if (seenTs > prevTs) activeOnlineMap.set(uid, seenTs);
               }
             }
           });
         }
-        const exactOnlineCount = Math.min(exactMembersCount, Math.max(1, activeOnlineIds.size));
+        const activeMembers = Array.from(activeOnlineMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([uid, seenTs]) => {
+            const p = personasMap[uid];
+            return {
+              userId: uid,
+              alias: p?.alias || 'Masked Student',
+              maskId: p?.maskId || 'masked-student',
+              maskEmoji: p?.maskEmoji,
+              lastSeenAt: seenTs,
+            };
+          });
+        const exactOnlineCount = activeMembers.length;
 
         const isUserJoined =
           joinedRoomIds.has(row.id) ||
@@ -1269,6 +1288,7 @@ export async function fetchSupabaseRooms(currentUserId?: string): Promise<Commun
           category: rOverride.category ?? (row.category || 'Campus'),
           membersCount: exactMembersCount,
           onlineCount: exactOnlineCount,
+          activeMembers,
           isJoined: isUserJoined,
           iconEmoji: resolvedIconEmoji,
           iconBg: rOverride.iconBg ?? (row.icon_bg || '#5420F5'),
@@ -2029,18 +2049,15 @@ let activeRealtimeChannel: RealtimeChannel | null = null;
 
 /**
  * Subscribes to live Supabase Postgres Changes across all 27 Bopoi tables
- * and invokes onChange callback immediately when any table updates.
+ * and invokes onChange callback immediately when any table updates,
+ * with automatic exponential-backoff reconnection on channel drops.
  */
 export function subscribeToSupabaseRealtime(
   currentUserId: string | undefined,
-  onTableEvent: (table: string, payload: any) => void
+  onTableEvent: (table: string, payload: any) => void,
+  onReconnected?: () => void
 ): () => void {
   if (!supabase) return () => {};
-
-  if (activeRealtimeChannel) {
-    supabase.removeChannel(activeRealtimeChannel);
-    activeRealtimeChannel = null;
-  }
 
   const watchedTables = [
     'profiles',
@@ -2071,33 +2088,76 @@ export function subscribeToSupabaseRealtime(
     'admin_audit_logs',
   ];
 
-  const channel = supabase.channel('bopoi_live_postgres_changes');
+  let disposed = false;
+  let retryAttempt = 0;
+  let hasEverSubscribed = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  watchedTables.forEach((tbl) => {
-    channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: tbl },
-      (payload) => onTableEvent(tbl, payload)
-    );
-  });
+  const connect = () => {
+    if (disposed || !supabase) return;
 
-  if (currentUserId && /^[0-9a-f-]{36}$/i.test(currentUserId)) {
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `recipient_user_id=eq.${currentUserId}`,
-      },
-      (payload) => onTableEvent('notifications', payload)
-    );
-  }
+    if (activeRealtimeChannel) {
+      supabase.removeChannel(activeRealtimeChannel);
+      activeRealtimeChannel = null;
+    }
 
-  channel.subscribe();
-  activeRealtimeChannel = channel;
+    const channel = supabase.channel('bopoi_live_postgres_changes');
+
+    watchedTables.forEach((tbl) => {
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: tbl },
+        (payload) => onTableEvent(tbl, payload)
+      );
+    });
+
+    if (currentUserId && /^[0-9a-f-]{36}$/i.test(currentUserId)) {
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_user_id=eq.${currentUserId}`,
+        },
+        (payload) => onTableEvent('notifications', payload)
+      );
+    }
+
+    channel.subscribe((status) => {
+      if (disposed) return;
+      if (status === 'SUBSCRIBED') {
+        const wasReconnect = hasEverSubscribed;
+        hasEverSubscribed = true;
+        retryAttempt = 0;
+        if (wasReconnect) {
+          onReconnected?.();
+        }
+      } else if (
+        status === 'CHANNEL_ERROR' ||
+        status === 'TIMED_OUT' ||
+        status === 'CLOSED'
+      ) {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        const delayMs = Math.min(8000, 1400 * Math.pow(1.6, retryAttempt));
+        retryAttempt += 1;
+        reconnectTimer = setTimeout(() => {
+          if (!disposed) connect();
+        }, delayMs);
+      }
+    });
+
+    activeRealtimeChannel = channel;
+  };
+
+  connect();
 
   return () => {
+    disposed = true;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     if (activeRealtimeChannel && supabase) {
       supabase.removeChannel(activeRealtimeChannel);
       activeRealtimeChannel = null;

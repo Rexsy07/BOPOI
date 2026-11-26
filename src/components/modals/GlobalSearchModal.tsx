@@ -93,6 +93,7 @@ export const GlobalSearchModal: React.FC = () => {
   // Global keyboard shortcuts (Cmd/Ctrl + K, '/', or Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (typeof e.key !== 'string') return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsSearchModalOpen(!isSearchModalOpen);
@@ -364,9 +365,15 @@ export const GlobalSearchModal: React.FC = () => {
                         <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate group-hover:text-[#5420F5] dark:group-hover:text-[#B9A7FF]">
                           #{room.name}
                         </p>
-                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 shrink-0 tabular-nums">
-                          {room.onlineCount} online
-                        </span>
+                        {(room.onlineCount ?? 0) > 0 ? (
+                          <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 shrink-0 tabular-nums">
+                            {room.onlineCount} online
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-[#706B7D] dark:text-[#9E97B3] shrink-0 tabular-nums">
+                            {room.membersCount ?? 0} members
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate mt-0.5">{room.description}</p>
                     </div>

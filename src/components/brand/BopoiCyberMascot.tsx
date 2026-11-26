@@ -188,22 +188,6 @@ export const BopoiCyberMascot: React.FC<BopoiCyberMascotProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Cyber Glow Aura Ring behind Mascot */}
-      {showCyberGlow && (
-        <motion.div
-          animate={{
-            scale: [0.92, 1.14, 0.92],
-            opacity: [0.28, 0.55, 0.28],
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 3.4,
-            ease: 'easeInOut',
-          }}
-          className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#5420F5]/40 via-purple-400/25 to-[#FF922E]/20 blur-md pointer-events-none"
-        />
-      )}
-
       {/* Mascot Main Body with Framer Motion Entrance, Idle & Interaction */}
       <motion.div
         key={`mascot-body-${tapCounter}`}
@@ -235,7 +219,7 @@ export const BopoiCyberMascot: React.FC<BopoiCyberMascotProps> = ({
         className={`cursor-pointer shrink-0 relative flex items-center justify-center ${
           interactive ? 'hover:brightness-105 active:scale-95' : ''
         }`}
-        title="Tap the Bopoi Mascot! 🎭"
+        title="Bopoi Mascot"
       >
         <svg
           width={dim}
@@ -361,25 +345,6 @@ export const BopoiCyberMascot: React.FC<BopoiCyberMascotProps> = ({
             style={{ originX: '62px', originY: '39px' }}
           />
         </svg>
-
-        {/* Orbiting Sparkle Satellite */}
-        {showParticles && (
-          <motion.span
-            animate={{
-              y: [-4, 4, -4],
-              rotate: [0, 180, 360],
-              scale: [0.9, 1.25, 0.9],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 3.2,
-              ease: 'easeInOut',
-            }}
-            className="absolute -top-1 -right-1 text-sm pointer-events-none drop-shadow-md select-none"
-          >
-            ✨
-          </motion.span>
-        )}
 
         {/* Interactive Tap Heart Burst */}
         <AnimatePresence>

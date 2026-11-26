@@ -9,7 +9,6 @@ import {
   Heart,
   Check,
   Shield,
-  Sparkles,
   Info,
   Share2,
   Trash2,
@@ -17,12 +16,12 @@ import {
   X,
   Lock,
   RefreshCw,
-  Wifi,
   ImagePlus,
   Film,
   Loader2,
   ArrowDown,
   AtSign,
+  SmilePlus,
 } from 'lucide-react';
 import { PersonaMaskIcon } from '../brand/masks/index.ts';
 import { CampusCharacterAvatar } from '../brand/character/index.ts';
@@ -92,6 +91,7 @@ export const RoomDetailView: React.FC = () => {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [openReactionMsgId, setOpenReactionMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -252,6 +252,9 @@ export const RoomDetailView: React.FC = () => {
       } else if (showRoomInfo) {
         e.preventDefault();
         setShowRoomInfo(false);
+      } else if (openReactionMsgId) {
+        e.preventDefault();
+        setOpenReactionMsgId(null);
       } else if (roomMention.isOpen) {
         e.preventDefault();
         roomMention.dismiss();
@@ -267,6 +270,7 @@ export const RoomDetailView: React.FC = () => {
     showRosterModal,
     showEditIconModal,
     showRoomInfo,
+    openReactionMsgId,
     roomMention.isOpen,
     roomMention.dismiss,
     replyingTo,
@@ -496,12 +500,12 @@ export const RoomDetailView: React.FC = () => {
         isKeyboardOpen ? 'pb-1.5' : 'pb-2'
       } flex flex-col h-[calc(100dvh-58px-env(safe-area-inset-bottom))] max-h-[calc(100dvh-58px-env(safe-area-inset-bottom))] lg:h-dvh lg:max-h-dvh overflow-hidden bg-white dark:bg-[#0E0C14] text-[#191525] dark:text-[#F4F2FA]`}
     >
-      {/* 1. Sticky Room Header (Responsive, never overflows) */}
-      <div className="flex items-center justify-between py-2.5 border-b border-[#EAE6F0] dark:border-[#262036] shrink-0 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md z-20 gap-2 min-w-0">
+      {/* 1. Clean Chat Header */}
+      <div className="flex items-center justify-between py-2.5 border-b border-[#EFEFF4] dark:border-[#211C2E] shrink-0 bg-white/95 dark:bg-[#0E0C14]/95 backdrop-blur-md z-20 gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             onClick={() => goBack('rooms')}
-            className="min-w-[44px] min-h-[44px] sm:min-w-[38px] sm:min-h-[38px] -ml-1.5 rounded-full hover:bg-[#FAF9FC] dark:hover:bg-[#171322] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+            className="min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] -ml-1.5 rounded-full hover:bg-[#F4F3F7] dark:hover:bg-[#191625] text-[#191525] dark:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title="Go back"
             aria-label="Go back"
           >
@@ -512,7 +516,7 @@ export const RoomDetailView: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowEditIconModal(true)}
-              title="Upload Room Profile Icon"
+              title="Change room icon"
               className="relative group cursor-pointer shrink-0 rounded-2xl focus:outline-none"
             >
               <RoomBadgeIcon
@@ -521,11 +525,8 @@ export const RoomDetailView: React.FC = () => {
                 category={activeRoom.category}
                 roomName={activeRoom.name}
                 size="sm"
-                className="group-hover:scale-105 transition-transform"
+                className="group-hover:opacity-90 transition-opacity"
               />
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#5420F5] text-white flex items-center justify-center shadow-xs border border-white dark:border-[#0E0C14]">
-                <ImagePlus className="w-2.5 h-2.5" />
-              </span>
             </button>
           ) : (
             <RoomBadgeIcon
@@ -537,214 +538,181 @@ export const RoomDetailView: React.FC = () => {
             />
           )}
 
-          <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setShowRoomInfo((prev) => !prev)}
+            className="min-w-0 flex-1 text-left cursor-pointer group"
+          >
             <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-xs sm:text-sm font-black text-[#191525] dark:text-[#F4F2FA] truncate">
+              <h1 className="text-[14px] sm:text-[15px] font-extrabold text-[#191525] dark:text-[#F4F2FA] truncate">
                 #{activeRoom.name}
               </h1>
               {activeRoom.isLocked && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400 shrink-0">
-                  <Lock className="w-2.5 h-2.5" />
-                  <span>Locked</span>
-                </span>
+                <Lock className="w-3 h-3 text-rose-500 shrink-0" />
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate flex-wrap tabular-nums">
-              <span className="text-emerald-700 dark:text-emerald-400 font-bold shrink-0">
-                {activeRoom.onlineCount || 1} online
-              </span>
-              <span>·</span>
-              <span className="truncate">
-                {activeRoom.membersCount}{' '}
-                {activeRoom.membersCount === 1 ? 'member' : 'members'}
-              </span>
-              <span>·</span>
-              <button
-                type="button"
-                onClick={reconnectRealtime}
-                title="Real-time sync status (tap to resync)"
-                className={`inline-flex items-center gap-1 text-[10px] font-bold transition-colors cursor-pointer shrink-0 ${
-                  connectionStatus === 'connected'
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : connectionStatus === 'reconnecting'
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : 'text-rose-700 dark:text-rose-400'
-                }`}
-              >
-                {connectionStatus === 'reconnecting' ? (
-                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                ) : (
-                  <Wifi className="w-2.5 h-2.5" />
-                )}
-                <span>
-                  {connectionStatus === 'connected'
-                    ? 'Live'
-                    : connectionStatus === 'reconnecting'
-                    ? 'Syncing'
-                    : 'Offline'}
-                </span>
-              </button>
-            </div>
-          </div>
+            <p className="text-[11.5px] text-[#706B7D] dark:text-[#9E97B3] truncate tabular-nums">
+              {activeRoom.onlineCount ?? 0} online · {activeRoom.membersCount}{' '}
+              {activeRoom.membersCount === 1 ? 'member' : 'members'}
+              {activeRoom.description ? ` · ${activeRoom.description}` : ''}
+            </p>
+          </button>
         </div>
 
-        {/* Right Header Action Buttons */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Share Room */}
+        {/* Right Header Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {connectionStatus !== 'connected' && (
+            <button
+              type="button"
+              onClick={reconnectRealtime}
+              title="Reconnect chat"
+              className="min-h-[36px] px-2 rounded-full text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:bg-[#F4F3F7] dark:hover:bg-[#191625] transition-colors cursor-pointer inline-flex items-center gap-1"
+            >
+              <RefreshCw
+                className={`w-3 h-3 ${connectionStatus === 'reconnecting' ? 'animate-spin' : ''}`}
+              />
+              <span className="hidden sm:inline">
+                {connectionStatus === 'reconnecting' ? 'Syncing' : 'Retry'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleShareRoom}
-            className="min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-white dark:bg-[#171322] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#B9A7FF] transition-colors cursor-pointer flex items-center justify-center"
-            title="Share Room link"
-            aria-label="Share Room link"
+            className="min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] rounded-full hover:bg-[#F4F3F7] dark:hover:bg-[#191625] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors cursor-pointer flex items-center justify-center"
+            title="Share room link"
+            aria-label="Share room link"
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="w-4 h-4" />
           </button>
 
-          {/* Info toggle */}
           <button
             type="button"
             onClick={() => setShowRoomInfo(!showRoomInfo)}
-            className={`min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] p-2 rounded-xl border border-[#EAE6F0] dark:border-[#262036] transition-colors cursor-pointer flex items-center justify-center ${
+            className={`min-w-[40px] min-h-[40px] sm:min-w-[36px] sm:min-h-[36px] rounded-full transition-colors cursor-pointer flex items-center justify-center ${
               showRoomInfo
-                ? 'bg-[#5420F5] text-white'
-                : 'bg-white dark:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45]'
+                ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                : 'hover:bg-[#F4F3F7] dark:hover:bg-[#191625] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
             }`}
-            title="Room Details"
-            aria-label="Room Details"
+            title="Room info"
+            aria-label="Room info"
           >
-            <Info className="w-3.5 h-3.5" />
+            <Info className="w-4 h-4" />
           </button>
 
-          {/* Join / Leave Room Button */}
           <button
             type="button"
             onClick={() => toggleJoinRoom(activeRoom.id)}
-            className={`min-h-[40px] sm:min-h-[36px] px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer shrink-0 ${
+            className={`min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-bold transition-opacity cursor-pointer shrink-0 ml-0.5 ${
               activeRoom.isJoined
-                ? 'bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] hover:bg-[#FAF9FC] dark:hover:bg-[#231A45]'
-                : 'bg-[#5420F5] hover:bg-[#4314E2] text-white shadow-xs'
+                ? 'bg-[#F4F3F7] dark:bg-[#1A1726] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+                : 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525] hover:opacity-90'
             }`}
           >
             {activeRoom.isJoined ? (
               <span className="flex items-center gap-1">
-                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[3]" />
+                <Check className="w-3 h-3 stroke-[2.5]" />
                 <span>Joined</span>
               </span>
             ) : (
-              <span>+ Join</span>
+              <span>Join</span>
             )}
           </button>
         </div>
       </div>
 
-      {/* 2. Room Details Drawer / Info Banner */}
-      {showRoomInfo ? (
-        <div className="mt-1.5 p-3 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/30 shadow-md space-y-2 shrink-0 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-[#5420F5] dark:text-[#B9A7FF]">
-              <Shield className="w-4 h-4" />
-              <span>Room Info &amp; Privacy</span>
+      {/* 2. Collapsible Room Details Sheet (Hidden by default so chat takes center stage) */}
+      {showRoomInfo && (
+        <div className="mt-2 p-3.5 rounded-2xl bg-[#F5F4F8] dark:bg-[#161320] space-y-2.5 shrink-0 animate-in fade-in duration-150">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">
+                <Shield className="w-3.5 h-3.5 text-[#706B7D] dark:text-[#9E97B3]" />
+                <span>About #{activeRoom.name}</span>
+              </div>
+              <p className="text-[13px] text-[#4A4558] dark:text-[#C5BFD6] leading-relaxed break-words">
+                {activeRoom.description || 'Masked campus conversation'}
+              </p>
             </div>
             <button
+              type="button"
               onClick={() => setShowRoomInfo(false)}
-              className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 cursor-pointer"
+              className="min-w-[32px] min-h-[32px] rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#706B7D] dark:text-[#9E97B3] flex items-center justify-center cursor-pointer shrink-0"
+              aria-label="Close room info"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-slate-700 dark:text-[#D5D0E6] leading-relaxed font-medium break-words">
-            <strong>Topic:</strong> {activeRoom.description}
-          </p>
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-[#9E97B3] pt-1 border-t border-slate-100 dark:border-[#262036] flex-wrap">
-            <span className="inline-flex items-center gap-1">
-              <PersonaMaskIcon mask="masked-student" size={14} />
-              <span>100% Anonymous</span>
+
+          <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#706B7D] dark:text-[#9E97B3] flex-wrap pt-1">
+            <span>
+              Anonymous · {activeRoom.category}
+              {activeRoom.creatorAlias ? ` · Host ${activeRoom.creatorAlias}` : ''}
             </span>
-            <span>•</span>
-            <span>Category: {activeRoom.category}</span>
-            {activeRoom.creatorAlias && (
-              <>
-                <span>•</span>
-                <span>Host: {activeRoom.creatorAlias}</span>
-              </>
-            )}
-            <div className="ml-auto flex items-center gap-3">
+
+            <div className="flex items-center gap-3">
               {canEditRoomIcon && (
                 <button
                   type="button"
                   onClick={() => setShowEditIconModal(true)}
-                  className="text-[#5420F5] dark:text-[#B9A7FF] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  className="font-semibold text-[#191525] dark:text-[#F4F2FA] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <ImagePlus className="w-3 h-3" />
-                  <span>Upload Room Icon</span>
+                  <span>Change icon</span>
                 </button>
               )}
               {isCreator && (
                 <button
                   type="button"
-                  onClick={() => {
-                    deleteRoom(activeRoom.id);
-                  }}
-                  className="text-red-500 hover:text-red-700 font-bold flex items-center gap-1 cursor-pointer"
+                  onClick={() => deleteRoom(activeRoom.id)}
+                  className="text-rose-600 dark:text-rose-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <Trash2 className="w-3 h-3" />
-                  <span>Delete Room</span>
+                  <span>Delete</span>
                 </button>
               )}
             </div>
           </div>
         </div>
-      ) : (
-        <div className="mt-1.5 px-3 py-2 rounded-xl bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between text-xs shrink-0 shadow-2xs gap-2 min-w-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-5 h-5 rounded-md bg-purple-50 dark:bg-[#231A45] flex items-center justify-center shrink-0">
-              <PersonaMaskIcon mask="masked-student" size={14} />
-            </div>
-            <span className="text-slate-600 dark:text-[#9E97B3] font-medium truncate text-[11px]">
-              <strong className="text-[#191525] dark:text-[#F4F2FA]">Topic: </strong>
-              {activeRoom.description}
-            </span>
-          </div>
-          <button
-            onClick={() => setShowRoomInfo(true)}
-            className="text-[10px] font-bold text-[#5420F5] dark:text-[#B9A7FF] hover:underline shrink-0 cursor-pointer"
-          >
-            Details
-          </button>
-        </div>
       )}
 
-      {/* 4. Messages Stream (Scrollable) */}
+      {/* 3. Messages Stream (Grouped, calm bubbles) */}
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 min-h-0 overflow-y-auto py-3 space-y-3 pr-1 relative"
+        onClick={() => {
+          if (openReactionMsgId) setOpenReactionMsgId(null);
+        }}
+        className="flex-1 min-h-0 overflow-y-auto py-3 pr-1 relative"
       >
         {!activeRoom.messages || activeRoom.messages.length === 0 ? (
-          <div className="text-center py-10 px-4 space-y-3 bg-white dark:bg-[#171322] rounded-3xl border border-dashed border-slate-200 dark:border-[#262036] my-2">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-[#231A45] text-[#5420F5] mx-auto flex items-center justify-center p-1.5">
-              <PersonaMaskIcon mask="masked-student" size={32} />
+          <div className="text-center py-12 px-4 space-y-3 my-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#F4F3F7] dark:bg-[#171422] mx-auto flex items-center justify-center p-1.5">
+              <PersonaMaskIcon mask="masked-student" size={30} />
             </div>
-            <h3 className="text-sm font-black text-[#191525] dark:text-[#F4F2FA]">
-              Welcome to #{activeRoom.name}!
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-[#9E97B3] max-w-sm mx-auto">
-              This is a private, anonymous chat room. Everyone speaks behind a mask. Say hello or share your thoughts!
-            </p>
-            <div className="pt-2 flex flex-wrap justify-center gap-2">
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA]">
+                #{activeRoom.name}
+              </h3>
+              <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] max-w-xs mx-auto leading-relaxed">
+                Quiet in here right now. Say hello behind your mask to start the thread.
+              </p>
+            </div>
+            <div className="pt-1 flex flex-wrap justify-center gap-2">
               {[
-                'Hey everyone! 👋',
-                'What is going on here? 👀',
-                'Anyone awake right now? 🌙',
+                'Hey everyone',
+                'What is everyone up to?',
+                'Anyone awake right now?',
               ].map((starter) => (
                 <button
                   key={starter}
+                  type="button"
                   onClick={() => {
                     setMessageText(starter);
                     inputRef.current?.focus();
                   }}
-                  className="px-3 py-1.5 rounded-xl border border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#0E0C14] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] hover:border-[#5420F5]/30 text-xs font-bold text-slate-700 dark:text-[#D5D0E6] transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-full bg-[#F4F3F7] dark:bg-[#171422] hover:bg-[#EAE7F2] dark:hover:bg-[#211C2E] text-xs font-semibold text-[#191525] dark:text-[#E7E3F3] transition-colors cursor-pointer"
                 >
                   {starter}
                 </button>
@@ -752,362 +720,426 @@ export const RoomDetailView: React.FC = () => {
             </div>
           </div>
         ) : (
-          activeRoom.messages.map((msg, msgIdx) => {
-            const isMe =
-              msg.authorUsername === user.username && !msg.isAnonymous;
-            const prevMsg = msgIdx > 0 ? activeRoom.messages?.[msgIdx - 1] : null;
-            const msgDate = msg.createdTimestamp ? new Date(msg.createdTimestamp) : null;
-            const prevDate = prevMsg?.createdTimestamp ? new Date(prevMsg.createdTimestamp) : null;
-            const msgDayKey =
-              msgDate && !Number.isNaN(msgDate.getTime())
-                ? `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`
-                : null;
-            const prevDayKey =
-              prevDate && !Number.isNaN(prevDate.getTime())
-                ? `${prevDate.getFullYear()}-${prevDate.getMonth()}-${prevDate.getDate()}`
-                : null;
-            const showDayDivider = Boolean(
-              msgDayKey && (!prevDayKey || msgDayKey !== prevDayKey)
-            );
-            const formatDayLabel = (d: Date) => {
-              const now = new Date();
-              const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-              const yest = new Date(now);
-              yest.setDate(now.getDate() - 1);
-              const yestKey = `${yest.getFullYear()}-${yest.getMonth()}-${yest.getDate()}`;
-              const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-              if (key === todayKey) return 'Today';
-              if (key === yestKey) return 'Yesterday';
-              return d.toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-              });
-            };
+          <div className="space-y-1">
+            {activeRoom.messages.map((msg, msgIdx) => {
+              const isMe =
+                msg.authorUsername === user.username && !msg.isAnonymous;
+              const prevMsg = msgIdx > 0 ? activeRoom.messages?.[msgIdx - 1] : null;
+              const nextMsg =
+                msgIdx < (activeRoom.messages?.length || 0) - 1
+                  ? activeRoom.messages?.[msgIdx + 1]
+                  : null;
 
-            const jumpToQuotedOriginal = () => {
-              if (!msg.replyTo) return;
-              const target = (activeRoom.messages || []).find(
-                (candidate) =>
-                  candidate.id !== msg.id &&
-                  candidate.authorName === msg.replyTo?.authorName &&
-                  (candidate.text === msg.replyTo?.text ||
-                    (candidate.text &&
-                      msg.replyTo?.text &&
-                      candidate.text.includes(msg.replyTo.text.slice(0, 24))))
+              const msgDate = msg.createdTimestamp ? new Date(msg.createdTimestamp) : null;
+              const prevDate = prevMsg?.createdTimestamp ? new Date(prevMsg.createdTimestamp) : null;
+              const msgDayKey =
+                msgDate && !Number.isNaN(msgDate.getTime())
+                  ? `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`
+                  : null;
+              const prevDayKey =
+                prevDate && !Number.isNaN(prevDate.getTime())
+                  ? `${prevDate.getFullYear()}-${prevDate.getMonth()}-${prevDate.getDate()}`
+                  : null;
+              const showDayDivider = Boolean(
+                msgDayKey && (!prevDayKey || msgDayKey !== prevDayKey)
               );
-              if (!target) return;
-              const el = messageRefs.current[target.id];
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setHighlightedMessageId(target.id);
-                window.setTimeout(() => {
-                  setHighlightedMessageId((curr) => (curr === target.id ? null : curr));
-                }, 1400);
-              }
-            };
 
-            return (
-              <React.Fragment key={msg.id}>
-                {showDayDivider && msgDate && (
-                  <div className="flex items-center gap-3 py-1.5 select-none">
-                    <div className="flex-1 h-px bg-[#EAE6F0] dark:bg-[#262036]" />
-                    <span className="text-[10px] font-bold text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
-                      {formatDayLabel(msgDate)}
-                    </span>
-                    <div className="flex-1 h-px bg-[#EAE6F0] dark:bg-[#262036]" />
-                  </div>
-                )}
+              const isSameSenderAsPrev = Boolean(
+                prevMsg &&
+                  !showDayDivider &&
+                  prevMsg.isAnonymous === msg.isAnonymous &&
+                  (prevMsg.authorUsername || prevMsg.authorName) ===
+                    (msg.authorUsername || msg.authorName) &&
+                  prevMsg.authorName === msg.authorName &&
+                  Math.abs((msg.createdTimestamp || 0) - (prevMsg.createdTimestamp || 0)) <
+                    5 * 60 * 1000
+              );
 
-                <div
-                  ref={(el) => {
-                    messageRefs.current[msg.id] = el;
-                  }}
-                  className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''} group min-w-0 rounded-2xl transition-colors duration-300 ${
-                    highlightedMessageId === msg.id
-                      ? 'animate-reply-flash bg-[#F0EBFF]/75 dark:bg-[#231A45]/75 p-1.5 -m-1.5'
-                      : ''
-                  }`}
-                >
-                  {/* Author Avatar */}
+              const isSameSenderAsNext = Boolean(
+                nextMsg &&
+                  nextMsg.isAnonymous === msg.isAnonymous &&
+                  (nextMsg.authorUsername || nextMsg.authorName) ===
+                    (msg.authorUsername || msg.authorName) &&
+                  nextMsg.authorName === msg.authorName &&
+                  Math.abs((nextMsg.createdTimestamp || 0) - (msg.createdTimestamp || 0)) <
+                    5 * 60 * 1000
+              );
+
+              const formatDayLabel = (d: Date) => {
+                const now = new Date();
+                const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+                const yest = new Date(now);
+                yest.setDate(now.getDate() - 1);
+                const yestKey = `${yest.getFullYear()}-${yest.getMonth()}-${yest.getDate()}`;
+                const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                if (key === todayKey) return 'Today';
+                if (key === yestKey) return 'Yesterday';
+                return d.toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+                });
+              };
+
+              const jumpToQuotedOriginal = () => {
+                if (!msg.replyTo) return;
+                const target = (activeRoom.messages || []).find(
+                  (candidate) =>
+                    candidate.id !== msg.id &&
+                    candidate.authorName === msg.replyTo?.authorName &&
+                    (candidate.text === msg.replyTo?.text ||
+                      (candidate.text &&
+                        msg.replyTo?.text &&
+                        candidate.text.includes(msg.replyTo.text.slice(0, 24))))
+                );
+                if (!target) return;
+                const el = messageRefs.current[target.id];
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setHighlightedMessageId(target.id);
+                  window.setTimeout(() => {
+                    setHighlightedMessageId((curr) => (curr === target.id ? null : curr));
+                  }, 1400);
+                }
+              };
+
+              const hasReactions =
+                msg.reactions &&
+                Object.values(msg.reactions).some((count) => count > 0);
+              const isPickerOpen = openReactionMsgId === msg.id;
+
+              return (
+                <React.Fragment key={msg.id}>
+                  {showDayDivider && msgDate && (
+                    <div className="flex items-center gap-3 py-3 select-none">
+                      <div className="flex-1 h-px bg-[#EFEFF4] dark:bg-[#211C2E]" />
+                      <span className="text-[11px] font-semibold text-[#7A748A] dark:text-[#8E87A3] tabular-nums">
+                        {formatDayLabel(msgDate)}
+                      </span>
+                      <div className="flex-1 h-px bg-[#EFEFF4] dark:bg-[#211C2E]" />
+                    </div>
+                  )}
+
                   <div
-                    onClick={() => {
-                      if (!msg.isAnonymous) {
-                        viewUserProfile(
-                          msg.authorUsername,
-                          false,
-                          msg.authorCampus
-                        );
-                      }
+                    ref={(el) => {
+                      messageRefs.current[msg.id] = el;
                     }}
-                    className={`shrink-0 ${!msg.isAnonymous ? 'cursor-pointer hover:opacity-85' : ''}`}
-                    title={
-                      msg.isAnonymous
-                        ? 'Anonymous Campus Member'
-                        : `View ${msg.authorName}'s public profile`
-                    }
-                  >
-                    {msg.isAnonymous ? (
-                      <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#171322] border border-[#5420F5]/25 flex items-center justify-center shadow-2xs select-none p-0.5 hover:scale-105 transition-transform">
-                        <PersonaMaskIcon mask={msg.authorMaskEmoji || msg.authorName || 'masked-student'} size={24} />
-                      </div>
-                    ) : (
-                      <CampusCharacterAvatar
-                        value={msg.authorAvatar}
-                        seed={msg.authorUsername}
-                        size={32}
-                        rounded="full"
-                        className="ring-1 ring-[#EAE6F0] dark:ring-[#262036]"
-                      />
-                    )}
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div
-                    className={`max-w-[84%] sm:max-w-[76%] min-w-0 rounded-2xl p-3 shadow-2xs space-y-1.5 relative overflow-hidden ${
-                      isMe
-                        ? 'bg-[#5420F5] text-white rounded-tr-xs'
-                        : 'bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[#191525] dark:text-[#F4F2FA] rounded-tl-xs'
+                    className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : ''} ${
+                      isSameSenderAsPrev ? 'mt-0.5' : 'mt-3'
+                    } group min-w-0 rounded-2xl transition-colors duration-300 ${
+                      highlightedMessageId === msg.id
+                        ? 'animate-reply-flash bg-[#F0EBFF]/75 dark:bg-[#231A45]/75 p-1.5 -m-1.5'
+                        : ''
                     }`}
                   >
-                    {/* Quoted Reply context if exists (tap to jump to original) */}
-                    {msg.replyTo && (
-                      <button
-                        type="button"
-                        onClick={jumpToQuotedOriginal}
-                        className={`w-full text-left p-1.5 px-2.5 rounded-xl text-[10px] mb-1 border transition-opacity hover:opacity-85 cursor-pointer ${
-                          isMe
-                            ? 'bg-white/15 border-white/30 text-white/95'
-                            : 'bg-white dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3]'
-                        }`}
-                        title="Tap to jump to original message"
-                      >
-                        <strong className="block truncate font-bold">
-                          Replying to {msg.replyTo.authorName}:
-                        </strong>
-                        <span className="line-clamp-1 italic break-words">
-                          "{msg.replyTo.text}"
-                        </span>
-                      </button>
-                    )}
+                    {/* Author Avatar (shown on last message of a grouped run, like iMessage/Telegram) */}
+                    <div className="w-8 shrink-0 flex justify-center">
+                      {!isSameSenderAsNext ? (
+                        <div
+                          onClick={() => {
+                            if (!msg.isAnonymous) {
+                              viewUserProfile(
+                                msg.authorUsername,
+                                false,
+                                msg.authorCampus
+                              );
+                            }
+                          }}
+                          className={!msg.isAnonymous ? 'cursor-pointer hover:opacity-85' : ''}
+                          title={
+                            msg.isAnonymous
+                              ? msg.authorName
+                              : `View ${msg.authorName}'s profile`
+                          }
+                        >
+                          {msg.isAnonymous ? (
+                            <div className="w-8 h-8 rounded-full bg-[#F4F3F7] dark:bg-[#191625] flex items-center justify-center select-none p-0.5">
+                              <PersonaMaskIcon
+                                mask={msg.authorMaskEmoji || msg.authorName || 'masked-student'}
+                                size={22}
+                              />
+                            </div>
+                          ) : (
+                            <CampusCharacterAvatar
+                              value={msg.authorAvatar}
+                              seed={msg.authorUsername}
+                              size={32}
+                              rounded="full"
+                            />
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
 
-                  {/* Author Header */}
-                  <div className="flex items-center justify-between gap-2 text-[10px] min-w-0">
-                    <span
-                      className={`font-black flex items-center gap-1 min-w-0 truncate ${
-                        isMe ? 'text-white' : 'text-[#5420F5] dark:text-[#B9A7FF]'
+                    {/* Message Column */}
+                    <div
+                      className={`max-w-[82%] sm:max-w-[74%] min-w-0 flex flex-col ${
+                        isMe ? 'items-end' : 'items-start'
                       }`}
                     >
-                      <span className="truncate">{msg.authorName}</span>
-                      {msg.isAnonymous && (
-                        <span className="text-[9px] font-semibold opacity-75 shrink-0">
-                          • Masked
-                        </span>
-                      )}
-                    </span>
-                    <span className={`shrink-0 ${isMe ? 'text-white/75' : 'text-slate-400 dark:text-[#9E97B3]'}`}>
-                      {msg.createdAt}
-                    </span>
-                  </div>
-
-                  {/* Uploaded Image, Video, or GIF Attachment */}
-                  {msg.mediaUrl && (
-                    <div className="pt-0.5">
-                      {msg.mediaType === 'video' ||
-                      msg.mediaUrl.startsWith('data:video/') ||
-                      /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(msg.mediaUrl) ? (
-                        <div className="rounded-xl overflow-hidden bg-black/95 border border-black/10 max-h-72">
-                          <video
-                            src={msg.mediaUrl}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            className="w-full max-h-72 object-contain rounded-xl"
-                          />
+                      {/* Sender Name above first bubble in a group */}
+                      {!isSameSenderAsPrev && !isMe && (
+                        <div className="flex items-center gap-1.5 px-1 pb-1 text-[11px] min-w-0">
+                          <span className="font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
+                            {msg.authorName}
+                          </span>
+                          <span className="text-[#8E87A3] tabular-nums shrink-0">
+                            {msg.createdAt}
+                          </span>
                         </div>
-                      ) : msg.mediaType === 'gif' ? (
-                        <GifPreviewMedia
-                          url={msg.mediaUrl}
-                          alt={msg.text || 'Room GIF'}
-                          onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
-                          className="block w-full rounded-xl overflow-hidden border border-black/10 bg-black/5 cursor-pointer group/img focus:outline-none"
-                          title="Tap to view full image"
+                      )}
+
+                      {/* Bubble */}
+                      <div
+                        className={`min-w-0 rounded-2xl px-3.5 py-2.5 space-y-1.5 relative overflow-hidden ${
+                          isMe
+                            ? 'bg-[#5420F5] text-white'
+                            : 'bg-[#F3F2F7] dark:bg-[#181523] text-[#191525] dark:text-[#F4F2FA]'
+                        }`}
+                      >
+                        {msg.replyTo && (
+                          <button
+                            type="button"
+                            onClick={jumpToQuotedOriginal}
+                            className={`w-full text-left py-1.5 px-2.5 rounded-xl text-[11px] mb-1 transition-opacity hover:opacity-85 cursor-pointer ${
+                              isMe
+                                ? 'bg-white/15 text-white/95'
+                                : 'bg-white/80 dark:bg-[#0E0C14]/70 text-[#5F5970] dark:text-[#A9A2BD]'
+                            }`}
+                            title="Jump to original message"
+                          >
+                            <span className="block truncate font-bold">
+                              {msg.replyTo.authorName}
+                            </span>
+                            <span className="line-clamp-1 break-words opacity-90">
+                              {msg.replyTo.text}
+                            </span>
+                          </button>
+                        )}
+
+                        {msg.mediaUrl && (
+                          <div className="pt-0.5">
+                            {msg.mediaType === 'video' ||
+                            msg.mediaUrl.startsWith('data:video/') ||
+                            /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(msg.mediaUrl) ? (
+                              <div className="rounded-xl overflow-hidden bg-black/95 max-h-72">
+                                <video
+                                  src={msg.mediaUrl}
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  className="w-full max-h-72 object-contain rounded-xl"
+                                />
+                              </div>
+                            ) : msg.mediaType === 'gif' ? (
+                              <GifPreviewMedia
+                                url={msg.mediaUrl}
+                                alt={msg.text || 'Room GIF'}
+                                onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
+                              />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxImageUrl(msg.mediaUrl || null)}
+                                className="block w-full rounded-xl overflow-hidden bg-black/5 cursor-pointer focus:outline-none"
+                                title="View full image"
+                              >
+                                <img
+                                  src={msg.mediaUrl}
+                                  alt={msg.text || 'Room photo'}
+                                  loading="lazy"
+                                  className="w-full max-h-72 object-cover"
+                                />
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {msg.text && (
+                          <p className="text-[13.5px] leading-[1.45] select-text whitespace-pre-wrap break-words">
+                            <MentionText
+                              text={msg.text}
+                              tone={isMe ? 'inverted' : 'default'}
+                            />
+                          </p>
+                        )}
+
+                        {isMe && !isSameSenderAsPrev && (
+                          <span className="block text-[10px] text-white/70 text-right tabular-nums pt-0.5">
+                            {msg.createdAt}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Existing Reactions + Quiet Action Row */}
+                      <div
+                        className={`flex items-center gap-1.5 flex-wrap px-1 pt-1 ${
+                          isMe ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        {hasReactions &&
+                          Object.entries(msg.reactions!).map(([emoji, count]) => {
+                            if (count <= 0) return null;
+                            const hasReacted = msg.userReactions?.[emoji];
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() =>
+                                  addRoomMessageReaction(activeRoom.id, msg.id, emoji)
+                                }
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors tabular-nums ${
+                                  hasReacted
+                                    ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                                    : 'bg-[#F4F3F7] dark:bg-[#191625] text-[#4A4558] dark:text-[#CFC9DE] hover:bg-[#EAE7F2] dark:hover:bg-[#231F33]'
+                                }`}
+                              >
+                                <span>{emoji}</span>
+                                <span>{count}</span>
+                              </button>
+                            );
+                          })}
+
+                        {/* Subtle inline actions: Like, Reply, React */}
+                        <div
+                          className={`inline-flex items-center gap-1 transition-opacity ${
+                            msg.likes > 0 || isPickerOpen
+                              ? 'opacity-100'
+                              : 'opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100'
+                          }`}
                         >
-                          <img
-                            src={msg.mediaUrl}
-                            alt={msg.text || 'Room photo'}
-                            loading="lazy"
-                            className="w-full max-h-72 object-cover group-hover/img:scale-[1.01] transition-transform"
-                          />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleRoomMessageLike(activeRoom.id, msg.id)}
+                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-full transition-colors cursor-pointer ${
+                              msg.hasLiked
+                                ? 'text-[#F52D85]'
+                                : 'text-[#8E87A3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+                            }`}
+                            aria-label="Like message"
+                          >
+                            <Heart
+                              className={`w-3 h-3 ${
+                                msg.hasLiked ? 'fill-[#F52D85] text-[#F52D85]' : ''
+                              }`}
+                            />
+                            {msg.likes > 0 && <span className="tabular-nums">{msg.likes}</span>}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!isLoggedIn) {
+                                showToast('Please sign in to reply in rooms.', 'info');
+                                setActiveView('profile');
+                                return;
+                              }
+                              setReplyingTo(msg);
+                              inputRef.current?.focus();
+                            }}
+                            className="text-[11px] font-semibold text-[#8E87A3] hover:text-[#191525] dark:hover:text-[#F4F2FA] px-1.5 py-0.5 rounded-full cursor-pointer inline-flex items-center gap-1"
+                            title="Reply"
+                          >
+                            <CornerDownRight className="w-3 h-3" />
+                            <span>Reply</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenReactionMsgId((curr) =>
+                                curr === msg.id ? null : msg.id
+                              );
+                            }}
+                            className={`p-1 rounded-full transition-colors cursor-pointer ${
+                              isPickerOpen
+                                ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                                : 'text-[#8E87A3] hover:text-[#191525] dark:hover:text-[#F4F2FA]'
+                            }`}
+                            title="Add reaction"
+                            aria-label="Add reaction"
+                          >
+                            <SmilePlus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* On-demand 6-emoji reaction tray */}
+                      {isPickerOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 inline-flex items-center gap-0.5 px-2 py-1 rounded-full bg-white dark:bg-[#191625] border border-[#EAE6F0] dark:border-[#262036] shadow-md animate-in fade-in zoom-in-95 duration-100"
+                        >
+                          {EMOJI_REACTIONS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                addRoomMessageReaction(activeRoom.id, msg.id, emoji);
+                                setOpenReactionMsgId(null);
+                              }}
+                              className="w-7 h-7 flex items-center justify-center text-sm hover:scale-125 transition-transform cursor-pointer rounded-full"
+                              title={`React ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Message Text */}
-                  {msg.text && (
-                    <p className="text-xs font-medium leading-relaxed select-text whitespace-pre-wrap break-words">
-                      <MentionText
-                        text={msg.text}
-                        tone={isMe ? 'inverted' : 'default'}
-                      />
-                    </p>
-                  )}
-
-                  {/* Reactions Display */}
-                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap pt-0.5">
-                      {Object.entries(msg.reactions).map(([emoji, count]) => {
-                        if (count <= 0) return null;
-                        const hasReacted = msg.userReactions?.[emoji];
-                        return (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() =>
-                              addRoomMessageReaction(activeRoom.id, msg.id, emoji)
-                            }
-                            className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 border cursor-pointer transition-all ${
-                              hasReacted
-                                ? isMe
-                                  ? 'bg-white/25 border-white text-white'
-                                  : 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5] text-[#5420F5] dark:text-[#B9A7FF]'
-                                : isMe
-                                ? 'bg-white/10 border-white/20 text-white'
-                                : 'bg-slate-50 dark:bg-[#0E0C14] border-slate-200 dark:border-[#262036] text-slate-600 dark:text-[#9E97B3]'
-                            }`}
-                          >
-                            <span>{emoji}</span>
-                            <span>{count}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Message Action Toolbar (Reactions, Like, Reply) */}
-                  <div
-                    className={`flex items-center justify-between pt-1.5 gap-2 border-t flex-wrap ${
-                      isMe ? 'border-white/15 text-white/85' : 'border-[#EAE6F0] dark:border-[#262036] text-[#706B7D] dark:text-[#9E97B3]'
-                    }`}
-                  >
-                    {/* Quick emoji reactions */}
-                    <div className="flex items-center gap-0.5">
-                      {EMOJI_REACTIONS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() =>
-                            addRoomMessageReaction(activeRoom.id, msg.id, emoji)
-                          }
-                          className="hover:scale-125 transition-transform px-1 py-1 text-xs cursor-pointer rounded-md"
-                          title={`React ${emoji}`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* Reply button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            showToast('Please sign in to reply in rooms.', 'info');
-                            setActiveView('profile');
-                            return;
-                          }
-                          setReplyingTo(msg);
-                          inputRef.current?.focus();
-                        }}
-                        className="text-[11px] font-bold hover:underline cursor-pointer flex items-center gap-1 px-1.5 py-1 rounded-md"
-                        title="Reply to message"
-                      >
-                        <CornerDownRight className="w-3 h-3" />
-                        <span>Reply</span>
-                      </button>
-
-                      {/* Like button */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleRoomMessageLike(activeRoom.id, msg.id)
-                        }
-                        className="flex items-center gap-1 text-[11px] font-bold hover:scale-110 transition-transform cursor-pointer px-1.5 py-1 rounded-md"
-                      >
-                        <Heart
-                          className={`w-3.5 h-3.5 ${
-                            msg.hasLiked
-                              ? isMe
-                                ? 'fill-white text-white'
-                                : 'fill-[#F52D85] text-[#F52D85]'
-                              : ''
-                          }`}
-                        />
-                        {msg.likes > 0 && <span className="tabular-nums">{msg.likes}</span>}
-                      </button>
-                    </div>
                   </div>
-                </div>
-              </div>
-              </React.Fragment>
-            );
-          })
+                </React.Fragment>
+              );
+            })}
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Floating Jump-to-Latest Pill when scrolled up */}
+      {/* Jump-to-latest Pill */}
       {isScrolledUp && (activeRoom.messages?.length || 0) > 4 && (
         <div className="shrink-0 flex justify-center -mt-9 mb-2 z-20 pointer-events-none">
           <button
             type="button"
             onClick={scrollToLatestMessages}
-            className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#191525]/92 hover:bg-[#5420F5] text-white text-[11px] font-black shadow-lg backdrop-blur-md transition-all cursor-pointer inline-flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-1"
+            className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#191525]/92 dark:bg-[#F4F2FA]/95 text-white dark:text-[#191525] text-[11px] font-bold shadow-lg backdrop-blur-md transition-opacity cursor-pointer inline-flex items-center gap-1.5"
           >
-            <ArrowDown className="w-3.5 h-3.5 stroke-[2.75]" />
+            <ArrowDown className="w-3.5 h-3.5" />
             <span>
               {unreadWhileScrolledUp > 0
-                ? `${unreadWhileScrolledUp} new ${
-                    unreadWhileScrolledUp === 1 ? 'message' : 'messages'
-                  }`
-                : 'Jump to latest'}
+                ? `${unreadWhileScrolledUp} new`
+                : 'Latest'}
             </span>
           </button>
         </div>
       )}
 
-      {/* 5. Active Reply Bar (When replying to a specific message) */}
+      {/* 4. Active Reply Bar */}
       {replyingTo && (
-        <div className="shrink-0 mb-1.5 p-2 px-3 rounded-xl bg-[#191525] text-white flex items-center justify-between text-xs shadow-md animate-in slide-in-from-bottom-1 min-w-0">
+        <div className="shrink-0 mb-1.5 py-1.5 px-3 rounded-xl bg-[#F4F3F7] dark:bg-[#171422] flex items-center justify-between gap-2 text-xs min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <CornerDownRight className="w-3.5 h-3.5 text-[#FFC928] shrink-0" />
-            <span className="truncate">
-              Replying to <strong>{replyingTo.authorName}</strong>:{' '}
-              <span className="text-slate-300">
-                "
-                {replyingTo.text ||
-                  (replyingTo.mediaType === 'video'
-                    ? '🎬 Video'
-                    : replyingTo.mediaType === 'gif'
-                    ? '🎞️ GIF'
-                    : replyingTo.mediaUrl
-                    ? '📷 Photo'
-                    : '')}
-                "
-              </span>
+            <CornerDownRight className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#B9A7FF] shrink-0" />
+            <span className="truncate text-[#4A4558] dark:text-[#CFC9DE]">
+              Replying to{' '}
+              <strong className="text-[#191525] dark:text-[#F4F2FA]">
+                {replyingTo.authorName}
+              </strong>{' '}
+              ·{' '}
+              {replyingTo.text ||
+                (replyingTo.mediaType === 'video'
+                  ? 'Video'
+                  : replyingTo.mediaType === 'gif'
+                  ? 'GIF'
+                  : replyingTo.mediaUrl
+                  ? 'Photo'
+                  : '')}
             </span>
           </div>
           <button
             type="button"
             onClick={() => setReplyingTo(null)}
-            className="text-slate-400 hover:text-white p-1 cursor-pointer shrink-0"
+            className="text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white p-1 cursor-pointer shrink-0"
             title="Cancel reply"
           >
             <X className="w-3.5 h-3.5" />
@@ -1117,100 +1149,79 @@ export const RoomDetailView: React.FC = () => {
 
       {isLoggedIn ? (
         activeRoom.isLocked && !isAdminUnlocked ? (
-          <div className="shrink-0 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-rose-800 dark:text-rose-200 shadow-xs">
-            <div className="flex items-center gap-2 min-w-0">
-              <Lock className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-              <span className="font-bold truncate">
-                This room is currently locked by Campus Moderators. Only admins can post right now.
-              </span>
-            </div>
+          <div className="shrink-0 bg-[#F5F4F8] dark:bg-[#161320] rounded-2xl p-3 flex items-center gap-2 text-xs text-[#706B7D] dark:text-[#9E97B3]">
+            <Lock className="w-4 h-4 text-rose-500 shrink-0" />
+            <span className="font-semibold truncate">
+              This room is locked by moderators.
+            </span>
           </div>
         ) : (
-          <>
-            {/* 6. Anonymous Persona & Identity Status Bar (Clean responsive layout, never overflows) */}
-            <div className="shrink-0 mb-1.5 px-2.5 py-1.5 rounded-2xl bg-[#F0EBFF]/90 dark:bg-[#231A45]/80 border border-[#5420F5]/25 dark:border-[#7C5CFF]/30 flex items-center justify-between gap-2 text-xs min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => setShowRosterModal(true)}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white dark:bg-[#0E0C14] border border-[#5420F5]/30 flex items-center justify-center p-0.5 shadow-2xs hover:scale-105 transition-transform cursor-pointer shrink-0"
-                  title="Click to view room aliases"
-                >
-                  <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={20} />
-                </button>
-
-                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-[#9E97B3] shrink-0 hidden xs:inline">
-                  Speaking as:
+          <div className="shrink-0 pt-1 space-y-1.5">
+            {/* Compact Identity Line */}
+            <div className="flex items-center justify-between gap-2 px-1 text-[11.5px] min-w-0">
+              <button
+                type="button"
+                onClick={() => setShowRosterModal(true)}
+                className="inline-flex items-center gap-1.5 min-w-0 text-[#5F5970] dark:text-[#A9A2BD] hover:text-[#191525] dark:hover:text-[#F4F2FA] transition-colors cursor-pointer"
+                title="View room aliases"
+              >
+                <PersonaMaskIcon
+                  mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'}
+                  size={16}
+                />
+                <span className="truncate font-semibold">
+                  {effectiveAlias}
                 </span>
+                <span className="text-[#8E87A3] shrink-0">· Aliases</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowRosterModal(true)}
-                  className="font-black text-[#5420F5] dark:text-[#B9A7FF] bg-white dark:bg-[#0E0C14] px-2 py-0.5 rounded-lg border border-[#5420F5]/30 min-w-0 max-w-[130px] sm:max-w-[180px] shadow-2xs flex items-center gap-1 cursor-pointer hover:border-[#5420F5]"
-                  title="Your locked persona for this room"
-                >
-                  <span className="truncate text-[11px]">{effectiveAlias}</span>
-                  <Lock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                </button>
-              </div>
-
-              {/* Room Aliases Button & Anonymity toggle */}
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 {isAdminUnlocked && (
                   <button
                     type="button"
-                    onClick={() => adminUpdateRoom(activeRoom.id, { isLocked: !activeRoom.isLocked })}
-                    className={`px-2 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer shrink-0 inline-flex items-center gap-1 ${
+                    onClick={() =>
+                      adminUpdateRoom(activeRoom.id, { isLocked: !activeRoom.isLocked })
+                    }
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
                       activeRoom.isLocked
                         ? 'bg-rose-600 text-white'
-                        : 'bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3] hover:bg-rose-50 hover:text-rose-700'
+                        : 'bg-[#F4F3F7] dark:bg-[#171422] text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600'
                     }`}
-                    title={activeRoom.isLocked ? 'Unlock this room' : 'Lock this room'}
                   >
-                    <Lock className="w-3 h-3 shrink-0" />
+                    <Lock className="w-2.5 h-2.5" />
                     <span>{activeRoom.isLocked ? 'Unlock' : 'Lock'}</span>
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => setShowRosterModal(true)}
-                  className="px-2 sm:px-2.5 py-1 rounded-xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/30 text-[#5420F5] dark:text-[#B9A7FF] hover:bg-purple-50 dark:hover:bg-[#171322] text-[10px] font-black transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-                  title="View room aliases and members"
-                >
-                  <Users2 className="w-3 h-3 shrink-0" />
-                  <span>Aliases</span>
-                </button>
 
                 {!activeRoom.isAnonymousOnly && (
                   <button
                     type="button"
                     onClick={() => setIsAnonymous(!isAnonymous)}
-                    className={`px-2 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer shrink-0 inline-flex items-center gap-1 ${
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
                       effectiveIsAnonymous
-                        ? 'bg-[#5420F5] text-white shadow-2xs'
-                        : 'bg-white dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] text-slate-600 dark:text-[#9E97B3] hover:bg-slate-50 dark:hover:bg-[#171322]'
+                        ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                        : 'bg-[#F4F3F7] dark:bg-[#171422] text-[#706B7D] dark:text-[#9E97B3]'
                     }`}
                   >
-                    <span>{effectiveIsAnonymous ? 'Mask On' : 'Public'}</span>
+                    {effectiveIsAnonymous ? 'Mask On' : 'Public'}
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Pending Image / Video Attachment Preview Bar */}
+            {/* Pending Image / Video Attachment Preview */}
             {(pendingMedia || isUploadingMedia) && (
-              <div className="shrink-0 mb-1.5 p-2 px-3 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/30 shadow-xs flex items-center justify-between gap-2.5 animate-in fade-in duration-150">
+              <div className="p-2 px-3 rounded-2xl bg-[#F4F3F7] dark:bg-[#171422] flex items-center justify-between gap-2.5">
                 {isUploadingMedia ? (
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#5420F5] dark:text-[#B9A7FF]">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#5F5970] dark:text-[#A9A2BD]">
                     <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                    <span>Uploading media to room...</span>
+                    <span>Uploading media...</span>
                   </div>
                 ) : pendingMedia ? (
                   <>
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       {pendingMedia.mediaType === 'video' ? (
-                        <div className="w-12 h-12 rounded-xl bg-slate-900 overflow-hidden shrink-0 relative flex items-center justify-center border border-[#EAE6F0] dark:border-[#262036]">
+                        <div className="w-11 h-11 rounded-xl bg-slate-900 overflow-hidden shrink-0 relative flex items-center justify-center">
                           <video
                             src={pendingMedia.mediaUrl}
                             muted
@@ -1226,26 +1237,26 @@ export const RoomDetailView: React.FC = () => {
                           src={pendingMedia.mediaUrl}
                           alt="Upload preview"
                           referrerPolicy="no-referrer"
-                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#EAE6F0] dark:border-[#262036]"
+                          className="w-11 h-11 rounded-xl object-cover shrink-0"
                         />
                       )}
                       <div className="min-w-0 flex-1">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#5420F5] dark:text-[#B9A7FF] bg-[#F0EBFF] dark:bg-[#231A45] px-2 py-0.5 rounded-md">
+                        <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
                           {pendingMedia.mediaType === 'video'
-                            ? '🎬 Video Ready'
+                            ? 'Video attached'
                             : pendingMedia.mediaType === 'gif'
-                            ? '🎞️ GIF Ready'
-                            : '📷 Photo Ready'}
-                        </span>
-                        <p className="text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3] truncate mt-0.5">
-                          Add a caption below or hit send
+                            ? 'GIF attached'
+                            : 'Photo attached'}
+                        </p>
+                        <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate">
+                          Add a message or send
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setPendingMedia(null)}
-                      className="min-w-[36px] min-h-[36px] p-1.5 rounded-full bg-[#FAF9FC] dark:bg-[#262036] hover:bg-rose-50 dark:hover:bg-rose-950/50 text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
+                      className="min-w-[36px] min-h-[36px] rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#706B7D] dark:text-[#9E97B3] hover:text-rose-600 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
                       title="Remove attachment"
                       aria-label="Remove attachment"
                     >
@@ -1256,8 +1267,8 @@ export const RoomDetailView: React.FC = () => {
               </div>
             )}
 
-            {/* Floating @Mention Autocomplete + Bottom Chat Composer Form */}
-            <div className="relative shrink-0">
+            {/* Single Cohesive Composer Bar */}
+            <div className="relative">
               <MentionAutocompleteDropdown
                 isOpen={roomMention.isOpen}
                 query={roomMention.query}
@@ -1269,19 +1280,8 @@ export const RoomDetailView: React.FC = () => {
 
               <form
                 onSubmit={handleSend}
-                className="bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-1.5 pl-2 shadow-md flex items-center gap-1.5 min-w-0"
+                className="bg-[#F4F3F7] dark:bg-[#171422] rounded-2xl p-1.5 pl-2 flex items-center gap-1 min-w-0"
               >
-                <button
-                  type="button"
-                  onClick={() => setShowRosterModal(true)}
-                  className="shrink-0 w-9 h-9 rounded-xl bg-[#FAF9FC] dark:bg-[#0E0C14] border border-[#EAE6F0] dark:border-[#262036] flex items-center justify-center hover:bg-[#F0EBFF] dark:hover:bg-[#231A45] transition-colors cursor-pointer"
-                  title="View your persona badge & room roster"
-                  aria-label="View room persona"
-                >
-                  <PersonaMaskIcon mask={effectiveIsAnonymous ? effectiveMaskId : 'public-profile'} size={22} />
-                </button>
-
-                {/* Hidden file input for Photo & Video upload */}
                 <input
                   ref={mediaInputRef}
                   type="file"
@@ -1290,18 +1290,17 @@ export const RoomDetailView: React.FC = () => {
                   onChange={(e) => handleMediaFileSelected(e.target.files?.[0])}
                 />
 
-                {/* Photo / Video Upload Trigger Button */}
                 <button
                   type="button"
                   disabled={isUploadingMedia}
                   onClick={() => mediaInputRef.current?.click()}
-                  className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                     pendingMedia && pendingMedia.mediaType !== 'gif'
-                      ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5]/40 text-[#5420F5] dark:text-[#B9A7FF]'
-                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
+                      ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                      : 'text-[#5F5970] dark:text-[#9E97B3] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                   } disabled:opacity-50`}
-                  title="Upload photo or video"
-                  aria-label="Upload photo or video"
+                  title="Attach photo or video"
+                  aria-label="Attach photo or video"
                 >
                   {isUploadingMedia ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1310,7 +1309,6 @@ export const RoomDetailView: React.FC = () => {
                   )}
                 </button>
 
-                {/* Klipy GIF Picker Trigger Button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1321,28 +1319,27 @@ export const RoomDetailView: React.FC = () => {
                     roomMention.dismiss();
                     setShowGifPicker(true);
                   }}
-                  className={`shrink-0 h-9 px-2.5 rounded-xl border text-[10px] font-black tracking-wide flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 h-9 px-2 rounded-xl text-[11px] font-extrabold tracking-wide flex items-center justify-center transition-colors cursor-pointer ${
                     pendingMedia?.mediaType === 'gif'
-                      ? 'bg-[#5420F5] border-[#5420F5] text-white'
-                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
+                      ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                      : 'text-[#5F5970] dark:text-[#9E97B3] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                   }`}
-                  title="Attach a GIF from Klipy"
+                  title="Add a GIF"
                 >
                   GIF
                 </button>
 
-                {/* @Mention Picker Button */}
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={roomMention.togglePicker}
-                  className={`shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                  className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
                     roomMention.isOpen
-                      ? 'bg-[#5420F5] border-[#5420F5] text-white'
-                      : 'bg-[#FAF9FC] dark:bg-[#0E0C14] border-[#EAE6F0] dark:border-[#262036] text-[#5420F5] dark:text-[#B9A7FF] hover:bg-[#F0EBFF] dark:hover:bg-[#231A45]'
+                      ? 'bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525]'
+                      : 'text-[#5F5970] dark:text-[#9E97B3] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[#191525] dark:hover:text-[#F4F2FA]'
                   }`}
-                  title="Mention a student (@)"
-                  aria-label="Mention a student"
+                  title="Mention someone (@)"
+                  aria-label="Mention someone"
                 >
                   <AtSign className="w-4 h-4" />
                 </button>
@@ -1358,26 +1355,26 @@ export const RoomDetailView: React.FC = () => {
                   onPaste={handlePasteMedia}
                   placeholder={
                     pendingMedia
-                      ? `Add a caption as ${effectiveAlias} (optional)...`
+                      ? 'Add a caption...'
                       : activeRoom.isLocked
-                      ? `Message locked room as Admin (${effectiveAlias})...`
-                      : `Message as ${effectiveAlias}...`
+                      ? `Message as ${effectiveAlias}...`
+                      : `Message #${activeRoom.name}`
                   }
-                  className="flex-1 min-w-0 px-1.5 py-1.5 bg-transparent text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#706B7D] dark:placeholder:text-[#7D7594] focus:outline-none"
+                  className="flex-1 min-w-0 px-2 py-1.5 bg-transparent text-base sm:text-sm text-[#191525] dark:text-[#F4F2FA] placeholder:text-[#7E788E] dark:placeholder:text-[#7D7594] focus:outline-none"
                 />
 
                 <button
                   type="submit"
                   disabled={(!messageText.trim() && !pendingMedia) || isUploadingMedia}
-                  className="min-w-[40px] min-h-[40px] p-2.5 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-all cursor-pointer disabled:opacity-40 shadow-xs active:scale-95 shrink-0 flex items-center justify-center"
-                  title="Send to anonymous room"
+                  className="min-w-[38px] min-h-[38px] p-2 bg-[#5420F5] hover:bg-[#4314E2] text-white rounded-xl transition-opacity cursor-pointer disabled:opacity-35 shrink-0 flex items-center justify-center"
+                  title="Send message"
                   aria-label="Send message"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </form>
             </div>
-          </>
+          </div>
         )
       ) : (
         <div
@@ -1385,10 +1382,10 @@ export const RoomDetailView: React.FC = () => {
             showToast('Please sign in to join & chat in rooms.', 'info');
             setActiveView('profile');
           }}
-          className="shrink-0 bg-white dark:bg-[#171322] border border-[#5420F5]/25 dark:border-[#7C5CFF]/35 rounded-2xl p-2 pl-3.5 shadow-md flex items-center justify-between gap-2 min-w-0 cursor-pointer hover:border-[#5420F5]/50 transition-all"
+          className="shrink-0 bg-[#F4F3F7] dark:bg-[#171422] rounded-2xl p-2 pl-4 flex items-center justify-between gap-2 min-w-0 cursor-pointer"
         >
-          <span className="text-xs font-bold text-[#706B7D] dark:text-[#9E97B3] truncate min-w-0 flex-1">
-            Sign in to join &amp; chat anonymously in this room
+          <span className="text-xs font-semibold text-[#706B7D] dark:text-[#9E97B3] truncate min-w-0 flex-1">
+            Sign in to join &amp; chat in #{activeRoom.name}
           </span>
           <button
             type="button"
@@ -1396,7 +1393,7 @@ export const RoomDetailView: React.FC = () => {
               e.stopPropagation();
               setActiveView('profile');
             }}
-            className="min-h-[44px] px-4 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
+            className="min-h-[40px] px-4 py-1.5 bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525] text-xs font-bold rounded-xl cursor-pointer shrink-0"
           >
             Sign In
           </button>
@@ -1428,37 +1425,32 @@ export const RoomDetailView: React.FC = () => {
         onClose={() => setShowGifPicker(false)}
       />
 
-      {/* 9. Room Aliases & Personas Directory Modal */}
+      {/* 9. Room Aliases Modal */}
       {showRosterModal && (
         <div
           onClick={() => setShowRosterModal(false)}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/55 backdrop-blur-xs animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-200"
+            className="bg-white dark:bg-[#0E0C14] rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-[#EAE6F0] dark:border-[#262036] animate-in zoom-in-95 duration-150"
           >
             <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
 
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] flex items-center justify-between shrink-0 bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/25 flex items-center justify-center p-1 shadow-xs shrink-0">
-                  <PersonaMaskIcon mask={effectiveMaskId} size={28} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-black text-[#191525] dark:text-[#F4F2FA] truncate">
-                    Room Aliases
-                  </h3>
-                  <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
-                    #{activeRoom.name} · Anonymous members directory
-                  </p>
-                </div>
+            <div className="px-5 py-4 border-b border-[#EFEFF4] dark:border-[#211C2E] flex items-center justify-between shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-base font-extrabold text-[#191525] dark:text-[#F4F2FA] truncate">
+                  Room Aliases
+                </h3>
+                <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">
+                  #{activeRoom.name} · Anonymous masks in this room
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-[#171322] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer shrink-0"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[#F4F3F7] dark:hover:bg-[#191625] text-[#706B7D] dark:text-[#9E97B3] hover:text-[#191525] dark:hover:text-white cursor-pointer shrink-0 -mr-2"
                 aria-label="Close room aliases"
               >
                 <X className="w-5 h-5" />
@@ -1466,92 +1458,82 @@ export const RoomDetailView: React.FC = () => {
             </div>
 
             {/* Body */}
-            <div className="p-4 overflow-y-auto space-y-3.5">
-              {/* Unlimited Room Banner */}
-              <div className="px-3 py-2 rounded-xl bg-purple-50/70 dark:bg-[#231A45] border border-[#5420F5]/20 flex items-center gap-2 text-[11px] text-[#5420F5] dark:text-[#B9A7FF] font-semibold">
-                <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                <span>Unlimited room capacity — unlimited students can join!</span>
-              </div>
-
-              {/* Your Permanent Persona Banner */}
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F0EBFF] to-white dark:from-[#231A45] dark:to-[#171322] border border-[#5420F5]/30 flex items-center gap-3 shadow-xs">
-                <div className="w-10 h-10 rounded-2xl bg-white dark:bg-[#0E0C14] border border-[#5420F5]/20 flex items-center justify-center p-1 shrink-0">
-                  <PersonaMaskIcon mask={effectiveMaskId} size={30} />
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-5">
+              {/* Your Current Persona */}
+              <div className="p-3.5 rounded-2xl bg-[#F5F4F8] dark:bg-[#161320] flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white dark:bg-[#0E0C14] flex items-center justify-center p-1 shrink-0">
+                  <PersonaMaskIcon mask={effectiveMaskId} size={28} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
                       {effectiveAlias}
                     </span>
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-[#5420F5] text-white shrink-0">
-                      You ({assignedPersona?.isCustom ? 'Custom' : 'Default'})
+                    <span className="text-[11px] font-bold text-[#5420F5] dark:text-[#B9A7FF] shrink-0">
+                      You
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-500 dark:text-[#9E97B3] mt-0.5 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5 shrink-0" />
-                    <span>Preserved across visits until this room is deleted</span>
+                  <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] mt-0.5 truncate">
+                    Locked for your visits in #{activeRoom.name}
                   </p>
                 </div>
               </div>
 
-              {/* 10 Default Aliases Grid */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
-                    The 10 Default Aliases
+              {/* Default Aliases */}
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <h4 className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA]">
+                    Default Aliases
                   </h4>
-                  <span className="text-[10px] text-slate-500 dark:text-[#9E97B3] font-bold">
-                    Auto-assigned to first 10 members
+                  <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3]">
+                    First 10 members
                   </span>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="divide-y divide-[#EFEFF4] dark:divide-[#211C2E]">
                   {ROOM_PRESET_ALIASES.map((preset) => {
                     const assignedUser = Object.values(activeRoom.assignedPersonas || {}).find(
-                      (a) => !a.isCustom && (a.maskId === preset.id || a.alias.toLowerCase() === preset.name.toLowerCase())
+                      (a) =>
+                        !a.isCustom &&
+                        (a.maskId === preset.id ||
+                          a.alias.toLowerCase() === preset.name.toLowerCase())
                     );
                     const isCurrentUser = assignedUser?.userId === user.id;
 
                     return (
                       <div
                         key={preset.id}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all ${
-                          isCurrentUser
-                            ? 'bg-[#F0EBFF] dark:bg-[#231A45] border-[#5420F5] shadow-xs'
-                            : assignedUser
-                            ? 'bg-slate-50 dark:bg-[#171322] border-slate-200 dark:border-[#262036]'
-                            : 'bg-white dark:bg-[#0E0C14] border-dashed border-slate-200 dark:border-[#262036]'
-                        }`}
+                        className="py-2.5 flex items-center justify-between gap-2.5"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#171322] border border-slate-200 dark:border-[#262036] flex items-center justify-center p-0.5 shrink-0">
-                            <PersonaMaskIcon mask={preset.id} size={24} />
+                          <div className="w-8 h-8 rounded-full bg-[#F4F3F7] dark:bg-[#171422] flex items-center justify-center p-0.5 shrink-0">
+                            <PersonaMaskIcon mask={preset.id} size={22} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-[#191525] dark:text-[#F4F2FA] truncate">
+                            <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA] truncate">
                               {preset.name}
                             </p>
-                            <p className="text-[10px] text-slate-400 dark:text-[#9E97B3] truncate">
+                            <p className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] truncate">
                               {preset.tagline}
                             </p>
                           </div>
                         </div>
 
-                        <div className="shrink-0">
-                          {isCurrentUser ? (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#5420F5] text-white">
-                              Your Alias
-                            </span>
-                          ) : assignedUser ? (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-[#262036] text-slate-600 dark:text-[#9E97B3]">
-                              In Use
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                              Available
-                            </span>
-                          )}
-                        </div>
+                        <span
+                          className={`text-[11px] font-semibold shrink-0 ${
+                            isCurrentUser
+                              ? 'text-[#5420F5] dark:text-[#B9A7FF] font-bold'
+                              : assignedUser
+                              ? 'text-[#706B7D] dark:text-[#9E97B3]'
+                              : 'text-emerald-700 dark:text-emerald-400'
+                          }`}
+                        >
+                          {isCurrentUser
+                            ? 'Yours'
+                            : assignedUser
+                            ? 'Taken'
+                            : 'Open'}
+                        </span>
                       </div>
                     );
                   })}
@@ -1560,28 +1542,36 @@ export const RoomDetailView: React.FC = () => {
 
               {/* Custom Personas in this room */}
               {Object.values(activeRoom.assignedPersonas || {}).some((a) => a.isCustom) && (
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-[#262036]">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-[#191525] dark:text-[#F4F2FA]">
-                      Custom Chatters in this Room
+                <div className="space-y-2 pt-2 border-t border-[#EFEFF4] dark:border-[#211C2E]">
+                  <div className="flex items-baseline justify-between">
+                    <h4 className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA]">
+                      Custom Aliases
                     </h4>
-                    <span className="text-[10px] text-slate-500 dark:text-[#9E97B3] font-bold">
-                      {Object.values(activeRoom.assignedPersonas || {}).filter((a) => a.isCustom).length} custom
+                    <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums">
+                      {
+                        Object.values(activeRoom.assignedPersonas || {}).filter(
+                          (a) => a.isCustom
+                        ).length
+                      }
                     </span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="divide-y divide-[#EFEFF4] dark:divide-[#211C2E]">
                     {Object.values(activeRoom.assignedPersonas || {})
                       .filter((a) => a.isCustom)
                       .map((custom) => (
                         <div
                           key={custom.userId}
-                          className="p-2 rounded-xl bg-purple-50/50 dark:bg-[#231A45]/60 border border-purple-200 dark:border-[#5420F5]/30 flex items-center justify-between text-xs"
+                          className="py-2 flex items-center justify-between text-xs"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <PersonaMaskIcon mask={custom.maskId} size={20} />
-                            <span className="font-bold text-[#191525] dark:text-[#F4F2FA] truncate">{custom.alias}</span>
+                            <span className="font-semibold text-[#191525] dark:text-[#F4F2FA] truncate">
+                              {custom.alias}
+                            </span>
                           </div>
-                          <span className="text-[9px] font-bold text-purple-700 dark:text-[#B9A7FF] shrink-0">Custom Alias</span>
+                          <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] shrink-0">
+                            Custom
+                          </span>
                         </div>
                       ))}
                   </div>
@@ -1590,13 +1580,13 @@ export const RoomDetailView: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-slate-100 dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex justify-end">
+            <div className="p-3.5 border-t border-[#EFEFF4] dark:border-[#211C2E] flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowRosterModal(false)}
-                className="px-4 py-2 rounded-xl bg-[#5420F5] text-white text-xs font-black shadow-xs cursor-pointer"
+                className="min-h-[40px] px-5 py-1.5 rounded-full bg-[#191525] dark:bg-[#F4F2FA] text-white dark:text-[#191525] text-xs font-bold cursor-pointer"
               >
-                Close
+                Done
               </button>
             </div>
           </div>

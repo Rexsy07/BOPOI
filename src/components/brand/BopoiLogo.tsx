@@ -99,7 +99,7 @@ export const BopoiLogo: React.FC<BopoiLogoProps> = ({
         </div>
         {showTagline && (
           <span className="text-xs font-semibold text-white/90 tracking-wide mt-0.5">
-            Your Campus, All in One Place ✨
+            Your Campus, All in One Place
           </span>
         )}
       </div>

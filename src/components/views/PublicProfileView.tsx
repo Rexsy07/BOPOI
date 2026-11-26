@@ -8,7 +8,7 @@ import {
   Send,
   Heart,
   School,
-  Sparkles,
+  Layers,
 } from 'lucide-react';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
 import {
@@ -403,7 +403,7 @@ export const PublicProfileView: React.FC = () => {
               >
                 <div className="p-[2px] rounded-full bg-gradient-to-tr from-[#F52D85] to-[#FF9F43] group-hover:scale-105 transition-transform">
                   <div className="w-[52px] h-[52px] rounded-full bg-[#FAF9FC] dark:bg-[#171322] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#F52D85]">
-                    <Sparkles className="w-4 h-4" />
+                    <Layers className="w-4 h-4" />
                   </div>
                 </div>
                 <span className="text-[11px] font-semibold text-[#706B7D] dark:text-[#9E97B3] truncate w-full text-center">
@@ -615,9 +615,15 @@ export const PublicProfileView: React.FC = () => {
                       {r.name}
                     </h5>
                     <p className="text-xs text-[#706B7D] dark:text-[#9E97B3] truncate">{r.description}</p>
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5 tabular-nums">
-                      {(r.onlineCount || 24).toLocaleString()} online
-                    </span>
+                    {(r.onlineCount ?? 0) > 0 ? (
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5 tabular-nums">
+                        {(r.onlineCount ?? 0).toLocaleString()} online
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] font-medium block mt-0.5 tabular-nums">
+                        {(r.membersCount ?? 0).toLocaleString()} members
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button

@@ -7,7 +7,7 @@ import {
   Lock,
   Send,
   ChevronRight,
-  Sparkles,
+  Layers,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { InboxFilter, AnonymousMessage } from '../../types/index.ts';
@@ -482,7 +482,7 @@ export const InboxView: React.FC = () => {
                             onClick={(e) => handleLaunchStoryCard(e, msg)}
                             className="min-h-[38px] px-2.5 rounded-xl bg-[#FAF9FC] dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] hover:border-[#5420F5] text-[#191525] dark:text-[#F4F2FA] font-bold text-xs inline-flex items-center gap-1 cursor-pointer transition-colors"
                           >
-                            <Sparkles className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#8E6BFF]" />
+                            <Layers className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#8E6BFF]" />
                             <span>{msg.isAnswered ? 'Story Card' : 'Reply Card'}</span>
                           </button>
                         )}

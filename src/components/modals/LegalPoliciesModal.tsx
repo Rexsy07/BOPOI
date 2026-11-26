@@ -187,7 +187,7 @@ export const LegalPoliciesModal: React.FC = () => {
                     Keep Campus Gist Fun, Real &amp; Safe
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-[#9E97B3] mt-0.5">
-                    Bopoi thrives on unfiltered student confessions, crushes, and debates—here are the golden rules every student must follow.
+                    Bopoi thrives on honest student confessions, crushes, and debates—here are the golden rules every student must follow.
                   </p>
                 </div>
               </div>

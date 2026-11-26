@@ -12,7 +12,7 @@ import {
   Heart,
   Share2,
   ExternalLink,
-  Sparkles,
+  Layers,
   Send,
   Dices,
   LogOut,
@@ -556,7 +556,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
           >
             <div className="p-[2.5px] rounded-full bg-gradient-to-tr from-[#F52D85] to-[#FF9F43] group-hover:scale-105 transition-transform">
               <div className="w-[54px] h-[54px] rounded-full bg-white dark:bg-[#0E0C14] border-2 border-white dark:border-[#0E0C14] flex items-center justify-center text-[#F52D85]">
-                <Sparkles className="w-5 h-5" />
+                <Layers className="w-5 h-5" />
               </div>
             </div>
             <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] truncate w-full text-center">
@@ -759,7 +759,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                     >
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
+                          <Layers className="w-4 h-4 text-[#5420F5] dark:text-[#8E6BFF]" />
                           <span className="font-black text-[#191525] dark:text-[#F4F2FA]">
                             Story Answer Card
                           </span>
@@ -918,7 +918,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ initialTab = 'posts' }
                       onClick={() => handleOpenAnswerStudio(ans)}
                       className="min-h-[38px] px-3 py-1.5 bg-[#F0EBFF] dark:bg-[#231942] hover:bg-[#5420F5] text-[#5420F5] dark:text-[#B9A4FF] hover:text-white text-xs font-black rounded-xl transition-colors cursor-pointer inline-flex items-center gap-1"
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <Layers className="w-3.5 h-3.5" />
                       <span>View Story Card</span>
                     </button>
                   </div>

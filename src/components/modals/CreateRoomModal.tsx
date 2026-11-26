@@ -225,7 +225,7 @@ export const CreateRoomModal: React.FC = () => {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What can people talk about in this room? (e.g. Share your unfiltered thoughts safely and respect fellow students.)"
+              placeholder="What can people talk about in this room? (e.g. Share your honest thoughts safely and respect fellow students.)"
               rows={2}
               maxLength={150}
               required

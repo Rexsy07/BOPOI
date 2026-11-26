@@ -13,10 +13,10 @@ import { VerifiedCreatorBadge } from '../ui/VerifiedCreatorBadge.tsx';
 
 const ICEBREAKER_PROMPTS = [
   "What's your honest first impression of me?",
-  'Tell me a secret you have never told anyone 👀',
-  'Rate my vibe from 1 to 10!',
+  'Tell me a secret you have never told anyone',
+  'Drop an honest take about me',
   'What is one thing you admire about me?',
-  'Drop an anonymous confession or question 🔥',
+  'Drop an anonymous confession or question',
   'Where did we first cross paths on campus?',
   'Do you think we would survive a group project together?',
 ];
@@ -195,7 +195,7 @@ export const PublicAskView: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-extrabold text-[#191525] dark:text-[#F4F2FA] flex items-center gap-1.5">
                       <CreateConfessionIcon size={16} />
-                      <span>100% Anonymous</span>
+                      <span>Anonymous message</span>
                     </label>
                     <span
                       className={`text-[11px] font-bold tabular-nums ${
@@ -272,7 +272,7 @@ export const PublicAskView: React.FC = () => {
                   {sendStage === 'sending' ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>Encrypting &amp; delivering anonymously…</span>
+                      <span>Delivering anonymously…</span>
                     </>
                   ) : sendStage === 'confirmed' ? (
                     <>

@@ -163,6 +163,7 @@ export const CreateContentModal: React.FC = () => {
   // Esc to close modal + 'c' shortcut on main app views when not typing
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (typeof e.key !== 'string') return;
       if (isCreateModalOpen) {
         if (e.key === 'Escape' && !showGifPicker && !mention.isOpen) {
           e.preventDefault();
@@ -376,7 +377,7 @@ export const CreateContentModal: React.FC = () => {
       type: 'confession',
       title: 'Confession',
       note: 'Anonymous',
-      desc: 'Drop a secret, crush, or unfiltered opinion with your identity hidden.',
+      desc: 'Drop a secret, crush, or honest opinion with your identity hidden.',
       icon: <CreateConfessionIcon size={32} />,
       cardStyle: 'bg-[#FAF9FC] dark:bg-[#171322] hover:bg-white dark:hover:bg-[#1C172B] hover:border-[#5420F5]/40',
       accentColor: 'group-hover:text-[#5420F5] dark:group-hover:text-[#B9A7FF]',
@@ -692,7 +693,7 @@ export const CreateContentModal: React.FC = () => {
                       quotedPost
                         ? 'Add your thoughts on this post...'
                         : selectedType === 'confession'
-                        ? "Share your secret, story or crush... It's 100% anonymous"
+                        ? 'Share your secret, story, or crush anonymously'
                         : selectedType === 'discussion'
                         ? 'Add some thoughts to kick off the conversation... Use @ to tag students'
                         : 'Tell the campus what is on your mind today... Use @ to mention or # for tags'

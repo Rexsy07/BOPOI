@@ -10,7 +10,7 @@ import {
   Compass,
   MessagesSquare,
   Inbox,
-  Sparkles,
+  Layers,
   User,
   ShieldCheck,
   Sun,
@@ -119,7 +119,7 @@ export const DesktopNavRail: React.FC = () => {
       view: 'answer-studio',
       label: 'Story Studio',
       renderIcon: (isActive) => (
-        <Sparkles
+        <Layers
           className="w-[20px] h-[20px] shrink-0"
           strokeWidth={isActive ? 2.4 : 1.85}
           fill={isActive ? 'currentColor' : 'none'}

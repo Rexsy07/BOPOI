@@ -5,7 +5,6 @@ import {
   Share2,
   Bookmark,
   Pin,
-  Sparkles,
   Check,
   Flag,
   Trash2,
@@ -436,9 +435,8 @@ export const FeedPostRow: React.FC<FeedPostRowProps> = ({
                 </span>
               )}
               {post.isFeatured && (
-                <span className="inline-flex items-center gap-0.5 text-[#5420F5] dark:text-[#8E6BFF]">
-                  <Sparkles className="w-3 h-3" />
-                  <span className="hidden xs:inline">Featured</span>
+                <span className="text-[#5420F5] dark:text-[#8E6BFF] hidden xs:inline">
+                  Featured
                 </span>
               )}
               <span

@@ -8,7 +8,7 @@ import {
   Send,
   Lock,
   AtSign,
-  Sparkles,
+  Layers,
   X,
 } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
@@ -77,10 +77,22 @@ export const MessageDetailModal: React.FC = () => {
   );
   const replyRole: 'recipient' | 'sender' = isSentByMe ? 'sender' : 'recipient';
 
+  const prevCommentsLenRef = useRef<number>(liveMessage?.comments?.length || 0);
+  const prevMessageIdRef = useRef<string | null>(liveMessage?.id || null);
+
   useEffect(() => {
     if (liveMessage?.id) {
       markConvoAsRead(liveMessage.id, replyRole);
     }
+    const nextLen = liveMessage?.comments?.length || 0;
+    const isSameThread = prevMessageIdRef.current === (liveMessage?.id || null);
+    if (isSameThread && nextLen > prevCommentsLenRef.current) {
+      setTimeout(() => {
+        threadBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 60);
+    }
+    prevMessageIdRef.current = liveMessage?.id || null;
+    prevCommentsLenRef.current = nextLen;
   }, [liveMessage?.id, liveMessage?.comments?.length, replyRole]);
 
   if (!liveMessage) {
@@ -192,7 +204,7 @@ export const MessageDetailModal: React.FC = () => {
               }}
               className="min-h-[40px] px-3.5 py-2 bg-[#5420F5] hover:bg-[#4314E2] text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
             >
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <Layers className="w-3.5 h-3.5 shrink-0" />
               <span>{currentAnswer ? 'Edit Card' : 'Story Card'}</span>
             </button>
           )}

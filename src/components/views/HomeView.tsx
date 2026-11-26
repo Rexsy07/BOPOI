@@ -25,7 +25,6 @@ import {
   X,
   Copy,
   Check,
-  Sparkles,
   RefreshCw,
   UserPlus,
   Inbox,
@@ -734,14 +733,19 @@ export const HomeView: React.FC = () => {
 
           {/* Active Rooms Circular Story Rings */}
           {sortedRooms.map((room) => {
-            const isHot = (room.onlineCount || 1) >= 2 || room.isFeatured;
+            const liveOnline = room.onlineCount ?? 0;
+            const isHot = liveOnline >= 1 || room.isFeatured;
             return (
               <button
                 key={room.id}
                 type="button"
                 onClick={() => enterRoom(room.id)}
                 className="flex flex-col items-center gap-1 shrink-0 w-[60px] sm:w-[64px] group cursor-pointer"
-                title={`Enter #${room.name} (${room.onlineCount || 1} online)`}
+                title={
+                  liveOnline > 0
+                    ? `Enter #${room.name} (${liveOnline} online)`
+                    : `Enter #${room.name}`
+                }
               >
                 <div className="relative">
                   <div
@@ -765,14 +769,16 @@ export const HomeView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Online Count or Lock Micro-Badge */}
-                  <span className="absolute -bottom-0.5 -right-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[10px] font-black text-emerald-700 dark:text-emerald-400 flex items-center justify-center tabular-nums shadow-2xs">
-                    {room.isLocked ? (
-                      <Lock className="w-2.5 h-2.5 text-rose-500" />
-                    ) : (
-                      room.onlineCount || 1
-                    )}
-                  </span>
+                  {/* Online Count or Lock Micro-Badge (shown only when genuinely active or locked) */}
+                  {(room.isLocked || liveOnline > 0) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 min-w-[20px] h-[18px] px-1 rounded-full bg-white dark:bg-[#171322] border border-[#EAE6F0] dark:border-[#262036] text-[10px] font-black text-emerald-700 dark:text-emerald-400 flex items-center justify-center tabular-nums shadow-2xs">
+                      {room.isLocked ? (
+                        <Lock className="w-2.5 h-2.5 text-rose-500" />
+                      ) : (
+                        liveOnline
+                      )}
+                    </span>
+                  )}
                 </div>
 
                 <span className="text-[11px] font-bold text-[#191525] dark:text-[#F4F2FA] group-hover:text-[#5420F5] dark:group-hover:text-[#9B82FF] truncate w-full text-center transition-colors">
@@ -940,11 +946,11 @@ export const HomeView: React.FC = () => {
                 )}
 
                 {quickDetectedTags.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {quickDetectedTags.map((tag) => (
                       <span
                         key={tag}
-                        className="text-[11px] font-bold text-[#5420F5] dark:text-[#B49EFF] bg-[#F0EBFF] dark:bg-[#231A45] px-2 py-0.5 rounded-md"
+                        className="text-[11px] font-bold text-[#5420F5] dark:text-[#B49EFF]"
                       >
                         {tag}
                       </span>
@@ -1055,7 +1061,9 @@ export const HomeView: React.FC = () => {
                   className="flex items-center gap-1.5 min-w-0 text-left text-[#706B7D] dark:text-[#9E97B3] hover:text-[#5420F5] dark:hover:text-[#9B82FF] transition-colors cursor-pointer group"
                   title="Tap to answer today's campus prompt"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-[#5420F5] dark:text-[#9B82FF] shrink-0" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#5420F5] dark:text-[#9B82FF] shrink-0">
+                    Prompt
+                  </span>
                   <span className="truncate font-semibold group-hover:underline">
                     {activePrompt.prompt}
                   </span>

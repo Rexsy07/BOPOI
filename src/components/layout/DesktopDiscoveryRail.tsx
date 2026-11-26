@@ -306,7 +306,9 @@ export const DesktopDiscoveryRail: React.FC = () => {
                       {room.isLocked && <Lock className="w-3 h-3 text-rose-500 shrink-0" />}
                     </div>
                     <span className="text-[11px] text-[#706B7D] dark:text-[#9E97B3] tabular-nums block">
-                      {room.onlineCount || 1} active · {room.membersCount} members
+                      {(room.onlineCount ?? 0) > 0
+                        ? `${room.onlineCount} active · ${room.membersCount} members`
+                        : `${room.membersCount} members`}
                     </span>
                   </div>
                 </div>

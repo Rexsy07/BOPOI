@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Sparkles, Check, Share2, Download, Save, Wand2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Globe, Check, Loader2, Save } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { ShareCardCanvas } from '../share/ShareCardCanvas.tsx';
 import { BopoiLogo } from '../brand/BopoiLogo.tsx';
@@ -162,16 +162,10 @@ export const AnswerStudioView: React.FC = () => {
                   Your response
                 </label>
 
-                {/* Real-time Typing Indicator in Composer */}
                 {isTyping && (
-                  <div className="flex items-center gap-2 text-[#5420F5] dark:text-[#8E6BFF] text-[11px] font-bold animate-in fade-in duration-200">
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#5420F5] animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#5420F5] animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#5420F5] animate-bounce" />
-                    </div>
-                    <span>{user.displayName} is typing…</span>
-                  </div>
+                  <span className="text-[#5420F5] dark:text-[#8E6BFF] text-[11px] font-bold">
+                    Updating preview…
+                  </span>
                 )}
               </div>
 
@@ -186,7 +180,7 @@ export const AnswerStudioView: React.FC = () => {
 
               <div className="flex justify-between items-center pt-3 border-t border-[#EAE6F0] dark:border-[#262036] text-xs text-[#706B7D] dark:text-[#9E97B3]">
                 <span className="text-[11px] text-[#5420F5] dark:text-[#8E6BFF] font-semibold">
-                  {isTyping ? 'Live composing in progress…' : 'Expressive & unfiltered'}
+                  {isTyping ? 'Updating card preview' : 'Preview updates live'}
                 </span>
                 <span className="tabular-nums font-mono">{answerText.length}/500</span>
               </div>
@@ -258,7 +252,7 @@ export const AnswerStudioView: React.FC = () => {
             <label className="flex items-center justify-between p-4 bg-[#FAF9FC] dark:bg-[#171322] rounded-2xl border border-[#EAE6F0] dark:border-[#262036] cursor-pointer gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-[#5420F5]/10 dark:bg-[#5420F5]/20 text-[#5420F5] dark:text-[#8E6BFF] flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4" />
+                  <Globe className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA]">Share publicly</p>

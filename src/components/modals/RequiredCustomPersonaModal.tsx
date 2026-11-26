@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, ArrowLeft, Check, Shuffle } from 'lucide-react';
+import { X, AlertCircle, ArrowLeft, ArrowRight, Check, Shuffle } from 'lucide-react';
 import { PersonaMaskIcon } from '../brand/masks/PersonaMaskIcon.tsx';
 import { EditAliasIcon } from '../brand/icons/index.ts';
 import { ROOM_PRESET_ALIASES } from '../../utils/roomPersonas.ts';
@@ -103,7 +103,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
         <div className="w-10 h-1 bg-[#EAE6F0] dark:bg-[#262036] rounded-full mx-auto mt-2.5 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] bg-gradient-to-r from-[#FAF9FC] to-white dark:from-[#171322] dark:to-[#0E0C14] flex items-center justify-between shrink-0">
+        <div className="p-4 sm:p-5 border-b border-[#EAE6F0] dark:border-[#262036] bg-[#FAF9FC] dark:bg-[#171322] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-2xl bg-white dark:bg-[#171322] border border-[#5420F5]/25 flex items-center justify-center p-1.5 shadow-xs shrink-0">
               <PersonaMaskIcon mask={selectedMask.id} size={32} />
@@ -266,7 +266,7 @@ export const RequiredCustomPersonaModal: React.FC<RequiredCustomPersonaModalProp
               className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#5420F5] hover:bg-[#4314E2] text-white text-xs font-black transition-all cursor-pointer disabled:opacity-40 shadow-md shadow-[#5420F5]/25 active:scale-95 flex items-center gap-1.5"
             >
               <span>Enter Room</span>
-              <Sparkles className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </form>

@@ -4,7 +4,6 @@ import {
   Download,
   Share2,
   Copy,
-  Sparkles,
   Check,
   Palette,
   Loader2,
@@ -461,8 +460,8 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
     ctx.fillText(`${authorName} (@${authorUsername})`, authorTextX, cardY + cardH - 32);
 
     ctx.fillStyle = '#FF922E';
-    ctx.font = 'italic bold 28px "Plus Jakarta Sans", system-ui, sans-serif';
-    const tagText = '#campusvibes';
+    ctx.font = 'bold 26px "Plus Jakarta Sans", system-ui, sans-serif';
+    const tagText = 'Q&A';
     const tagW = ctx.measureText(tagText).width;
     ctx.fillText(tagText, cardX + cardW - 48 - tagW, cardY + cardH - 32);
 
@@ -471,7 +470,7 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
     ctx.font = '700 28px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.fillText(`bopoi.com/@${authorUsername}/ask`, cardX, 1228);
 
-    const amaText = 'Ask me anything 💜';
+    const amaText = 'Ask anonymously';
     ctx.font = '600 26px "Plus Jakarta Sans", system-ui, sans-serif';
     const amaW = ctx.measureText(amaText).width;
     ctx.fillText(amaText, cardX + cardW - amaW, 1228);
@@ -641,10 +640,6 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
 
         {/* Unified Inner White Question & Answer Box */}
         <div className="relative z-10 bg-white text-[#191525] rounded-2xl p-5 shadow-xl flex-1 flex flex-col justify-between transition-all border border-black/5">
-          {/* Top-Right Yellow Sparkles */}
-          <div className="absolute top-3.5 right-3.5 text-[#FFC928]">
-            <Sparkles className="w-5 h-5 fill-[#FFC928]" />
-          </div>
 
           <div>
             {/* Anonymous Ask Header Pill */}
@@ -670,13 +665,6 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
                   <span className="text-slate-400 italic">
                     Waiting for response...
                   </span>
-                )}
-                {/* Real-time Blinking Cursor while user is actively typing in studio */}
-                {isTyping && !isExporting && (
-                  <span
-                    className="inline-block w-1.5 h-4 ml-1 align-middle animate-pulse"
-                    style={{ backgroundColor: activeTheme.accentColor }}
-                  />
                 )}
               </p>
             </div>
@@ -715,8 +703,8 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
                   {authorName} (@{authorUsername})
                 </span>
               </div>
-              <span className="text-[#FF922E] font-medium text-xs shrink-0">
-                #campusvibes
+              <span className="text-[#FF922E] font-bold text-xs shrink-0">
+                Q&amp;A
               </span>
             </div>
           </div>
@@ -725,7 +713,7 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
         {/* Card Footer Note */}
         <div className="relative z-10 mt-4 flex items-center justify-between text-[11px] text-white/80 font-medium">
           <span className="truncate max-w-[200px]">bopoi.com/@{authorUsername}/ask</span>
-          <span>Ask me anything 💜</span>
+          <span>Ask anonymously</span>
         </div>
       </div>
 
@@ -733,7 +721,7 @@ export const ShareCardCanvas: React.FC<ShareCardCanvasProps> = ({
       <div className="bg-white dark:bg-[#171322] rounded-2xl p-3.5 border border-[#EAE6F0] dark:border-[#262036] shadow-xs space-y-2.5">
         <div className="flex items-center justify-between text-xs text-[#706B7D] dark:text-[#9E97B3] px-1">
           <span className="font-bold text-[#191525] dark:text-[#F4F2FA]">Story Export</span>
-          <span>Ultra-crisp 1080×1350 PNG</span>
+          <span className="tabular-nums">1080×1350 PNG</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

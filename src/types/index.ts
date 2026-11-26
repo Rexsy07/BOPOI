@@ -165,6 +165,14 @@ export interface RoomAssignedPersona {
   assignedAt: number;
 }
 
+export interface RoomActiveMember {
+  userId: string;
+  alias: string;
+  maskId: string;
+  maskEmoji?: string;
+  lastSeenAt: number;
+}
+
 export interface CommunityRoom {
   id: string;
   name: string;
@@ -176,6 +184,7 @@ export interface CommunityRoom {
   iconBg: string;
   avatarMembers?: string[];
   onlineCount?: number;
+  activeMembers?: RoomActiveMember[];
   messages?: RoomMessage[];
   creatorUserId?: string;
   creatorName?: string;

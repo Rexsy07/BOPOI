@@ -30,9 +30,8 @@ export const SiteFooter: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center md:items-end">
-            <span className="text-xs text-white/60 font-medium">More than just a message...</span>
-            <span className="text-xl font-handwriting text-[#FFC928] tracking-wide">
-              It's a whole vibe.
+            <span className="text-xs text-white/70 font-semibold">
+              Anonymous Q&amp;A, live campus rooms, and student threads.
             </span>
           </div>
         </div>
@@ -111,7 +110,7 @@ export const SiteFooter: React.FC = () => {
               How It Works
             </button>
             <span className="inline-flex items-center gap-1 text-[11px] text-white/50">
-              <SafetyShieldBadgeIcon size={14} /> 100% Anonymous Delivery
+              <SafetyShieldBadgeIcon size={14} /> Protected Anonymity
             </span>
           </div>
 

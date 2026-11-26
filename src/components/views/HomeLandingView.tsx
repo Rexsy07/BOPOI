@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BopoiAppIcon } from '../brand/BopoiLogo.tsx';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
-import { ArrowRight, CheckCircle2, Dices, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Dices } from 'lucide-react';
 import {
   ReceiveMessagesIcon,
   YourCampusIcon,
@@ -43,20 +43,16 @@ export const HomeLandingView: React.FC = () => {
   return (
     <div className="w-full flex flex-col bg-[#FAF9FC] dark:bg-[#09070D] text-[#191525] dark:text-[#F4F2FA]">
       {/* Hero Section */}
-      <section className="relative w-full bg-gradient-to-b from-[#2E0BA8] via-[#4314E2] to-[#5420F5] dark:from-[#0E0A1C] dark:via-[#1E1148] dark:to-[#3510B9] text-white py-14 md:py-22 px-4 sm:px-6 overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#F52D85]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-[#FFC928]/15 rounded-full blur-3xl pointer-events-none" />
-
+      <section className="relative w-full bg-[#3A12C4] dark:bg-[#130C2B] text-white py-14 md:py-22 px-4 sm:px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
           {/* Left Column: Headline & Primary Conversion */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
-            <span className="text-xs sm:text-sm font-extrabold text-[#FFC928] mb-3 inline-flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Campus Feed · Live Rooms · Anonymous Q&amp;A</span>
+            <span className="text-xs sm:text-sm font-extrabold text-[#FFC928] mb-3">
+              Campus Feed · Live Rooms · Anonymous Q&amp;A
             </span>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08] text-white [text-wrap:balance]">
-              Your campus voice, unfiltered and unmistakably yours.
+              Ask anonymously. Talk openly on campus.
             </h1>
 
             <p className="mt-5 text-base sm:text-lg text-white/85 max-w-xl leading-relaxed">
@@ -88,7 +84,7 @@ export const HomeLandingView: React.FC = () => {
             <div className="mt-7 flex items-center gap-3.5 text-xs text-white/80 flex-wrap justify-center lg:justify-start">
               <span className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Free forever</span>
+                <span>Instant campus link</span>
               </span>
               <span>·</span>
               <span className="inline-flex items-center gap-1.5">
@@ -168,7 +164,7 @@ export const HomeLandingView: React.FC = () => {
               {/* Question bubble */}
               <div className="my-3 bg-[#FAF9FC] dark:bg-[#1B1629] border border-[#EAE6F0] dark:border-[#262036] rounded-2xl p-3.5">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <BopoiAnonymousAvatar size="sm" idPrefix="hero-anon" showSparkleBadge />
+                  <BopoiAnonymousAvatar size="sm" idPrefix="hero-anon" />
                   <div>
                     <span className="text-xs font-bold text-[#191525] dark:text-[#F4F2FA] block">
                       Anonymous Student
@@ -184,7 +180,7 @@ export const HomeLandingView: React.FC = () => {
               </div>
 
               {/* Story Answer Preview */}
-              <div className="bg-gradient-to-r from-[#F0EBFF] to-[#FAF9FC] dark:from-[#231A45] dark:to-[#1B1629] rounded-2xl p-3.5 border border-[#5420F5]/20 dark:border-[#7C5CFF]/30">
+              <div className="bg-[#F7F4FF] dark:bg-[#1E1635] rounded-2xl p-3.5 border border-[#5420F5]/20 dark:border-[#7C5CFF]/30">
                 <p className="text-xs sm:text-sm text-[#191525] dark:text-[#F4F2FA] font-semibold leading-relaxed">
                   {activeDemo.reply}
                 </p>
@@ -213,7 +209,7 @@ export const HomeLandingView: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-3 gap-4 text-center tabular-nums">
           <div>
             <p className="text-xl sm:text-2xl font-black text-[#191525] dark:text-[#F4F2FA]">
-              {Math.max(socialPosts.length, 24)}+
+              {socialPosts.length}
             </p>
             <p className="text-[11px] sm:text-xs font-semibold text-[#706B7D] dark:text-[#9E97B3] mt-0.5">
               Campus threads &amp; polls
@@ -221,7 +217,7 @@ export const HomeLandingView: React.FC = () => {
           </div>
           <div className="border-x border-[#EAE6F0] dark:border-[#262036]">
             <p className="text-xl sm:text-2xl font-black text-[#5420F5] dark:text-[#9B82FF]">
-              {Math.max(rooms.length, 10)}+
+              {rooms.length}
             </p>
             <p className="text-[11px] sm:text-xs font-semibold text-[#706B7D] dark:text-[#9E97B3] mt-0.5">
               Masked live rooms
@@ -229,10 +225,10 @@ export const HomeLandingView: React.FC = () => {
           </div>
           <div>
             <p className="text-xl sm:text-2xl font-black text-[#F52D85]">
-              {Math.max(creators.length, 15)}+
+              {creators.length}
             </p>
             <p className="text-[11px] sm:text-xs font-semibold text-[#706B7D] dark:text-[#9E97B3] mt-0.5">
-              Active student creators
+              Student profiles
             </p>
           </div>
         </div>
@@ -280,7 +276,7 @@ export const HomeLandingView: React.FC = () => {
             {
               num: '03.',
               title: 'Reply in Private DMs',
-              desc: 'Continue safe 1-on-1 encrypted anonymous chats inside your Instagram-style Inbox.',
+              desc: 'Continue private 1-on-1 anonymous chats right inside your Inbox.',
             },
             {
               num: '04.',
@@ -314,7 +310,7 @@ export const HomeLandingView: React.FC = () => {
               <span>Campus Safety Shield</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-[#191525] dark:text-[#F4F2FA] tracking-tight [text-wrap:balance]">
-              Playful and expressive, without the toxicity
+              Built for laughs, not harassment
             </h2>
             <p className="text-sm text-[#706B7D] dark:text-[#9E97B3] mt-3 leading-relaxed">
               Anonymous messaging should bring laughter and real connection, not harassment.

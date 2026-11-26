@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Send, Lock, AtSign, Sparkles } from 'lucide-react';
+import { X, Send, Lock, AtSign, Layers } from 'lucide-react';
 import { useBopoi } from '../../context/BopoiContext.tsx';
 import { AnonymousMessage } from '../../types/index.ts';
 import { BopoiAnonymousAvatar } from '../brand/BopoiAnonymousAvatar.tsx';
@@ -143,7 +143,7 @@ export const CommentsThreadModal: React.FC<CommentsThreadModalProps> = ({
                 className="min-h-[40px] px-3 rounded-xl bg-[#F0EBFF] dark:bg-[#231942] text-[#5420F5] dark:text-[#B9A4FF] text-[11px] font-extrabold inline-flex items-center gap-1 hover:bg-[#5420F5] hover:text-white transition-colors cursor-pointer"
                 title="Turn into Story Card"
               >
-                <Sparkles className="w-3 h-3" />
+                <Layers className="w-3 h-3" />
                 <span>Story Card</span>
               </button>
             )}

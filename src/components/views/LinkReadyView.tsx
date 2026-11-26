@@ -47,7 +47,7 @@ export const LinkReadyView: React.FC = () => {
 
   const handleWhatsAppShare = () => {
     const msg = encodeURIComponent(
-      `${user.customPrompt || 'Ask me anything anonymously on Bopoi!'} 👀\n${linkUrl}`
+      `${user.customPrompt || 'Ask me anything anonymously on Bopoi!'}\n${linkUrl}`
     );
     window.open(`https://wa.me/?text=${msg}`, '_blank', 'noopener,noreferrer');
   };
